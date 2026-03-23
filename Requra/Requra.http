@@ -1,0 +1,6 @@
+@Requra_HostAddress = http://localhost:5238
+
+GET {{Requra_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
