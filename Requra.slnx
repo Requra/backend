@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Requra.Application/Requra.Application.csproj" />
+  <Project Path="Requra.Domain/Requra.Domain.csproj" />
+  <Project Path="Requra.Infrastructure/Requra.Infrastructure.csproj" />
+  <Project Path="Requra.Presentation/Requra.Presentation.csproj" />
+</Solution>

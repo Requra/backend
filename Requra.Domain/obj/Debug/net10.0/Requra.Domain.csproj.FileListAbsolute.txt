@@ -1,0 +1,12 @@
+D:\GP\Requra\Requra.Domain\bin\Debug\net10.0\Requra.Domain.deps.json
+D:\GP\Requra\Requra.Domain\bin\Debug\net10.0\Requra.Domain.dll
+D:\GP\Requra\Requra.Domain\bin\Debug\net10.0\Requra.Domain.pdb
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.AssemblyInfoInputs.cache
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.AssemblyInfo.cs
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.csproj.CoreCompileInputs.cache
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.dll
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\refint\Requra.Domain.dll
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.pdb
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\ref\Requra.Domain.dll
+D:\GP\Requra\Requra.Domain\obj\Debug\net10.0\Requra.Domain.csproj.AssemblyReference.cache
