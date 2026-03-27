@@ -1,32 +1,68 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Requra.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Requra.Domain.Entities
 {
     public class ApplicationUser : IdentityUser
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string JobTitle { get; set; }
-        public string ProfilePicture { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? LastLogIn { get; set; }
-        public UserRole Role { get; set; }
+        public string? FullName { get; private set; }
 
+        public Language? PreferredLanguage { get; private set; }
 
-        // Foreign Key
+        public string? AvatarUrl { get; private set; }
 
-        #region Navigation Property
+        public bool IsActive { get; private set; }
 
+        public DateTime? LastLoginAt { get; private set; }
 
+        public DateTime CreatedAt { get; private set; }
 
+        public DateTime UpdatedAt { get; private set; }
 
-        #endregion
+        // Navigation properties
+        public ICollection<Project> Projects { get; private set; } = new List<Project>();
+        public ICollection<Document> UploadedDocuments { get; private set; } = new List<Document>();
+        public ICollection<MeetingSession> HostedMeetings { get; private set; } = new List<MeetingSession>();
+        public ICollection<UserStory> CreatedUserStories { get; private set; } = new List<UserStory>();
+        public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
+        public ICollection<Approval> Approvals { get; private set; } = new List<Approval>();
 
+        // Constructor
+        public ApplicationUser(string userName, string email)
+        {
+            UserName = userName;
+            Email = email;
 
+            IsActive = true;
+            CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        
+
+        public void UpdateProfile(string? fullName, Language? preferredLanguage, string? avatarUrl)
+        {
+            FullName = fullName;
+            PreferredLanguage = preferredLanguage;
+            AvatarUrl = avatarUrl;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void MarkLogin()
+        {
+            LastLoginAt = DateTime.UtcNow;
+        }
+
+        public void Deactivate()
+        {
+            IsActive = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Activate()
+        {
+            IsActive = true;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
-
 }

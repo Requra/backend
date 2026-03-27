@@ -3527,11 +3527,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\GP\\Requra\\Requra.Infrastructure\\Requra.Infrastructure.csproj",
+      "projectUniqueName": "D:\\GP\\backend\\Requra.Infrastructure\\Requra.Infrastructure.csproj",
       "projectName": "Requra.Infrastructure",
-      "projectPath": "D:\\GP\\Requra\\Requra.Infrastructure\\Requra.Infrastructure.csproj",
+      "projectPath": "D:\\GP\\backend\\Requra.Infrastructure\\Requra.Infrastructure.csproj",
       "packagesPath": "C:\\Users\\Action\\.nuget\\packages\\",
-      "outputPath": "D:\\GP\\Requra\\Requra.Infrastructure\\obj\\",
+      "outputPath": "D:\\GP\\backend\\Requra.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -3552,8 +3552,8 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj": {
-              "projectPath": "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj"
+            "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj": {
+              "projectPath": "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj"
             }
           }
         }
