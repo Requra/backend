@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Requra.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f04d4c010b6ea8cf74d73fa2e8f9a649569c037a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f27d6cbeb92fa4efe3f7ff7e311bcfb619e86006")]
 [assembly: System.Reflection.AssemblyProductAttribute("Requra.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Requra.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
