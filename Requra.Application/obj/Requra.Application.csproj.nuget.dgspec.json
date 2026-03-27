@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj": {}
+    "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj": {}
   },
   "projects": {
-    "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj": {
+    "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj",
+        "projectUniqueName": "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
         "projectName": "Requra.Application",
-        "projectPath": "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj",
+        "projectPath": "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
         "packagesPath": "C:\\Users\\Action\\.nuget\\packages\\",
-        "outputPath": "D:\\GP\\Requra\\Requra.Application\\obj\\",
+        "outputPath": "D:\\GP\\backend\\Requra.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -32,8 +32,8 @@
           "net10.0": {
             "targetAlias": "net10.0",
             "projectReferences": {
-              "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj": {
-                "projectPath": "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj"
+              "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj": {
+                "projectPath": "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj"
               }
             }
           }
@@ -353,14 +353,14 @@
         }
       }
     },
-    "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj": {
+    "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj",
+        "projectUniqueName": "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj",
         "projectName": "Requra.Domain",
-        "projectPath": "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj",
+        "projectPath": "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj",
         "packagesPath": "C:\\Users\\Action\\.nuget\\packages\\",
-        "outputPath": "D:\\GP\\Requra\\Requra.Domain\\obj\\",
+        "outputPath": "D:\\GP\\backend\\Requra.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

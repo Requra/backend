@@ -1,3 +1,5 @@
+using Requra.Infrastructure.DependencyInjection;
+
 namespace Requra.Presentation
 {
     public class Program
@@ -9,8 +11,12 @@ namespace Requra.Presentation
             // Add services to the container.
 
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+            builder.Services.AddInfrastructureServices(builder.Configuration);
+
+
             builder.Services.AddOpenApi();
+            builder.Services.AddSwaggerGen();
+
 
             var app = builder.Build();
 
@@ -18,6 +24,8 @@ namespace Requra.Presentation
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
+                app.UseSwagger();
+                app.UseSwaggerUI();
             }
 
             app.UseHttpsRedirection();

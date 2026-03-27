@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "iEYdbQ95TNU=",
+  "dgSpecHash": "6gBdiOmwD/o=",
   "success": true,
-  "projectFilePath": "D:\\GP\\Requra\\Requra.Application\\Requra.Application.csproj",
+  "projectFilePath": "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Action\\.nuget\\packages\\automapper\\16.1.1\\automapper.16.1.1.nupkg.sha512",
     "C:\\Users\\Action\\.nuget\\packages\\microsoft.aspnetcore.cryptography.internal\\10.0.5\\microsoft.aspnetcore.cryptography.internal.10.0.5.nupkg.sha512",

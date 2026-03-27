@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Requra.Application.DTOs.Login
+namespace Requra.Domain.Enums
 {
-    public class LogInDTO
+    public enum Language
     {
-
+        En,
+        Ar
     }
+
 }

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "gZgOFH+yIR8=",
+  "dgSpecHash": "QacRZCMPlF8=",
   "success": true,
-  "projectFilePath": "D:\\GP\\Requra\\Requra.Infrastructure\\Requra.Infrastructure.csproj",
+  "projectFilePath": "D:\\GP\\backend\\Requra.Infrastructure\\Requra.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Action\\.nuget\\packages\\automapper\\16.1.1\\automapper.16.1.1.nupkg.sha512",
     "C:\\Users\\Action\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",

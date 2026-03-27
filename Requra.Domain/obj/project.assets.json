@@ -1136,11 +1136,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj",
+      "projectUniqueName": "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj",
       "projectName": "Requra.Domain",
-      "projectPath": "D:\\GP\\Requra\\Requra.Domain\\Requra.Domain.csproj",
+      "projectPath": "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj",
       "packagesPath": "C:\\Users\\Action\\.nuget\\packages\\",
-      "outputPath": "D:\\GP\\Requra\\Requra.Domain\\obj\\",
+      "outputPath": "D:\\GP\\backend\\Requra.Domain\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

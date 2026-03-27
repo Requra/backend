@@ -14,4 +14,9 @@
     <ProjectReference Include="..\Requra.Domain\Requra.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DTOs\Auth\Login\" />
+    <Folder Include="DTOs\Project\" />
+  </ItemGroup>
+
 </Project>

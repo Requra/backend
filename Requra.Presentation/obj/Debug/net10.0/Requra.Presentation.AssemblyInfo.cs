@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Requra.Presentation")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f04d4c010b6ea8cf74d73fa2e8f9a649569c037a")]
 [assembly: System.Reflection.AssemblyProductAttribute("Requra.Presentation")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Requra.Presentation")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
