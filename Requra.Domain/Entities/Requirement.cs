@@ -1,39 +1,75 @@
 ﻿using Requra.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace Requra.Domain.Entities
 {
     public class Requirement
     {
-        [Key]
-        public Guid ID { get; set; } = Guid.NewGuid();
+        public Guid Id { get; private set; }
 
-        [Required]
-        [MaxLength(255)]
-        public string Title { get; set; } = string.Empty;
+        public string Title { get; private set; } = null!;
 
-        public string? Description { get; set; }
+        public string? Description { get; private set; }
 
-        [MaxLength(100)]
-        public RequirementType Type { get; set; }= RequirementType.Functional;
+        public RequirementType Type { get; private set; }
 
-        [Required]
-        [MaxLength(50)]
-        public string Status { get; set; } = "Draft";
+        public RequirementStatus Status { get; private set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public Language? Language { get; private set; }
 
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; }
 
-        [MaxLength(50)]
-        public string? Language { get; set; }
+        public DateTime UpdatedAt { get; private set; }
 
-        // Navigation properties
-        public virtual ICollection<DocumentRequirement> DocumentRequirements { get; set; } = new List<DocumentRequirement>();
-        public virtual ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();
-        public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
+        // Navigation
+        public ICollection<DocumentRequirement> DocumentRequirements { get; private set; } = new List<DocumentRequirement>();
+        public ICollection<UserStory> UserStories { get; private set; } = new List<UserStory>();
+        public ICollection<Approval> Approvals { get; private set; } = new List<Approval>();
+
+        // Constructor
+
+        private Requirement()
+        {
+            
+        }
+        public Requirement(string title, RequirementType type, Language? language = null)
+        {
+            Id = Guid.NewGuid();
+            Title = title;
+            Type = type;
+            Language = language;
+
+            Status = RequirementStatus.Drafted;
+            CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        // 🔥 Behavior Methods
+
+        public void UpdateDetails(string title, string? description, RequirementType type, Language? language)
+        {
+            Title = title;
+            Description = description;
+            Type = type;
+            Language = language;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void ChangeStatus(RequirementStatus status)
+        {
+            Status = status;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Approve()
+        {
+            Status = RequirementStatus.Approved;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Reject()
+        {
+            Status = RequirementStatus.Rejected;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }

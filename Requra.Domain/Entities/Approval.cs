@@ -8,7 +8,7 @@ namespace Requra.Domain.Entities
 
         public Guid RequirementId { get; private set; }
 
-        public Guid ReviewerId { get; private set; } 
+        public string ReviewerId { get; private set; } = null!;
 
         public ApprovalDecision Decision { get; private set; }
 
@@ -23,7 +23,11 @@ namespace Requra.Domain.Entities
         public ApplicationUser Reviewer { get; private set; } = null!;
 
         // Constructor
-        public Approval(Guid requirementId, Guid reviewerId)
+        private Approval()
+        {
+            
+        }
+        public Approval(Guid requirementId, string reviewerId)
         {
             Id = Guid.NewGuid();
             RequirementId = requirementId;

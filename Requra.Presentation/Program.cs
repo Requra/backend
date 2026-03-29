@@ -11,13 +11,25 @@ namespace Requra.Presentation
             // Add services to the container.
 
             builder.Services.AddControllers();
+
+            //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
 
             builder.Services.AddOpenApi();
             builder.Services.AddSwaggerGen();
 
-
+            //CORS policy
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll",
+                    builder =>
+                    {
+                        builder.AllowAnyOrigin()
+                               .AllowAnyHeader()
+                               .AllowAnyMethod();
+                    });
+            });
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -27,9 +39,10 @@ namespace Requra.Presentation
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
+            app.UseRouting();
+            app.UseCors("AllowAll");
             app.UseHttpsRedirection();
-
+            app.UseAuthorization();
             app.UseAuthorization();
 
 

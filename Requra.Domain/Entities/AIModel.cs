@@ -31,7 +31,10 @@ namespace Requra.Domain.Entities
         public ICollection<DocumentModel> DocumentModels { get; private set; } = new List<DocumentModel>();
         public ICollection<Summary> Summaries { get; private set; } = new List<Summary>();
 
-        
+        private AIModel()
+        {
+            
+        }
         public AIModel(string modelName, JobType jobType, Language? language = null)
         {
             Id = Guid.NewGuid();

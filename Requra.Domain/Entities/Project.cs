@@ -6,7 +6,7 @@ namespace Requra.Domain.Entities
     {
         public Guid Id { get; private set; }
 
-        public Guid OwnerId { get; private set; }
+        //public Guid OwnerId { get; private set; }
 
         public string Name { get; private set; } = null!;
 
@@ -21,14 +21,19 @@ namespace Requra.Domain.Entities
         public DateTime UpdatedAt { get; private set; }
 
         // Navigation
-        public ApplicationUser Owner { get; private set; } = null!;
+        //public ApplicationUser Owner { get; private set; } = null!;
         public ICollection<Document> Documents { get; private set; } = new List<Document>();
 
-       
-        public Project(Guid ownerId, string name, Language language = Language.En)
+        public ICollection<ProjectMember> Members { get; private set; } = new List<ProjectMember>();
+
+
+        private Project()
+        {
+            
+        }
+        public Project( string name, Language language = Language.En)
         {
             Id = Guid.NewGuid();
-            OwnerId = ownerId;
             Name = name;
             Language = language;
 

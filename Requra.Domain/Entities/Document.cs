@@ -8,7 +8,7 @@ namespace Requra.Domain.Entities
 
         public Guid ProjectId { get; private set; }
 
-        public Guid UploadedById { get; private set; }
+        public string UploadedById { get; private set; }=null!;
 
         public Guid? MeetingId { get; private set; }
 
@@ -40,7 +40,11 @@ namespace Requra.Domain.Entities
         public ICollection<Summary> Summaries { get; private set; } = new List<Summary>();
 
         // Constructor
-        public Document(Guid projectId, Guid uploadedById, string title, DocumentType type, Language language)
+        private Document()
+        {
+            
+        }
+        public Document(Guid projectId, string uploadedById, string title, DocumentType type, Language language)
         {
             Id = Guid.NewGuid();
             ProjectId = projectId;

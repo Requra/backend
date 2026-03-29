@@ -8,7 +8,7 @@ namespace Requra.Domain.Entities
 
         public string? SessionToken { get; private set; }
 
-        public string HostId { get; private set; } = null!;
+        //public string HostId { get; private set; } = null!;
 
         public DateTime? StartedAt { get; private set; }
 
@@ -21,14 +21,19 @@ namespace Requra.Domain.Entities
         public string? PlatformUrl { get; private set; }
 
         // Navigation
-        public ApplicationUser Host { get; private set; } = null!;
+        //public ApplicationUser Host { get; private set; } = null!;
         public ICollection<Document> Documents { get; private set; } = new List<Document>();
+        public ICollection<MeetingParticipant> Participants { get; private set; } = new List<MeetingParticipant>();
 
         // Constructor
-        public MeetingSession(string hostId, string? sessionToken = null)
+
+        private MeetingSession()
+        {
+            
+        }
+        public MeetingSession( string? sessionToken = null)
         {
             Id = Guid.NewGuid();
-            HostId = hostId;
             SessionToken = sessionToken;
 
             Status = MeetingStatus.Scheduled;
@@ -49,7 +54,7 @@ namespace Requra.Domain.Entities
 
         public void Cancel()
         {
-            Status = MeetingStatus.Canceled;
+            Status = MeetingStatus.Cancelled;
         }
 
         public void SetPlatform(string url)
