@@ -29,6 +29,11 @@ namespace Requra.Domain.Entities
         public AIModel AIModel { get; private set; } = null!;
 
         // Constructor
+
+        private Summary()
+        {
+            
+        }
         public Summary(Guid documentId, Guid aiModelId, Language? language = null)
         {
             Id = Guid.NewGuid();

@@ -19,9 +19,6 @@ namespace Requra.Infrastructure.Configurations
                    .HasColumnName("id")
                    .HasDefaultValueSql("gen_random_uuid()");
 
-            builder.Property(p => p.OwnerId)
-                   .HasColumnName("owner_id")
-                   .IsRequired();
 
             builder.Property(p => p.Name)
                    .HasColumnName("name")
@@ -52,17 +49,16 @@ namespace Requra.Infrastructure.Configurations
                    .HasColumnType("timestamptz")
                    .HasDefaultValueSql("NOW()");
 
-           
-
-            builder.HasOne(p => p.Owner)
-                   .WithMany(u => u.Projects)
-                   .HasForeignKey(p => p.OwnerId)
-                   .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasMany(p => p.Documents)
                    .WithOne(d => d.Project)
                    .HasForeignKey(d => d.ProjectId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(u => u.Members)
+                   .WithOne(m => m.Project)
+                   .HasForeignKey(m => m.ProjectId)
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

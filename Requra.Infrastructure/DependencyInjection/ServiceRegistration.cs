@@ -4,13 +4,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Mappings;
+using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using static System.Net.WebRequestMethods;
 
 namespace Requra.Infrastructure.DependencyInjection
 {
@@ -27,10 +24,18 @@ namespace Requra.Infrastructure.DependencyInjection
 
 
             // Auto Mapper
-            //services.AddAutoMapper(typeof(MappingProfile).Assembly);
-            
+            services.AddAutoMapper(cfg =>cfg.AddProfile<MappingProfile>());
 
-            // Dependency Injection for Application Services
+            services.AddIdentity<ApplicationUser, IdentityRole>()
+                    .AddEntityFrameworkStores<RequraDbContext>()
+                    .AddDefaultTokenProviders();
+
+
+
+            //External Services Registration
+
+
+            //Application Services Registration
             services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
             services.AddScoped<IAuthService, AuthService>();
            

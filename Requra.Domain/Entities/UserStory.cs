@@ -34,6 +34,10 @@ namespace Requra.Domain.Entities
         public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
 
         // Constructor
+        private UserStory()
+        {
+            
+        }
         public UserStory(string title, string creatorId, Guid requirementId, UserStoryPriority priority)
         {
             Id = Guid.NewGuid();

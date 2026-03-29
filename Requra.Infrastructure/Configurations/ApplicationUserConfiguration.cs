@@ -44,11 +44,16 @@ namespace Requra.Infrastructure.Configurations
                    .HasColumnType("timestamptz")
                    .HasDefaultValueSql("NOW()");
 
-            
+            builder.Property(u => u.Role)
+                   .HasColumnName("role")
+                   .HasConversion<string>()
+                   .IsRequired();
 
-            builder.HasMany(u => u.Projects)
-                   .WithOne(p => p.Owner)
-                   .HasForeignKey(p => p.OwnerId)
+
+
+            builder.HasMany(u => u.ProjectMemberships)
+                   .WithOne(pm => pm.User)
+                   .HasForeignKey(p => p.UserId)
                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasMany(u => u.UploadedDocuments)
@@ -56,9 +61,9 @@ namespace Requra.Infrastructure.Configurations
                    .HasForeignKey(d => d.UploadedById)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany(u => u.HostedMeetings)
-                   .WithOne(m => m.Host)
-                   .HasForeignKey(m => m.HostId)
+            builder.HasMany(u => u.MeetingParticipations)
+                   .WithOne(m => m.User)
+                   .HasForeignKey(m => m.UserId)
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(u => u.CreatedUserStories)

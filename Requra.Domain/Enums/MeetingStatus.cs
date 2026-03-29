@@ -9,6 +9,6 @@ namespace Requra.Domain.Enums
         Scheduled,
         Live,
         Ended,
-        Canceled
+        Cancelled
     }
 }

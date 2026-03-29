@@ -22,9 +22,6 @@ namespace Requra.Infrastructure.Configurations
             builder.Property(m => m.SessionToken)
                    .HasColumnName("session_token");
 
-            builder.Property(m => m.HostId)
-                   .HasColumnName("host_id")
-                   .IsRequired();
 
             builder.Property(m => m.StartedAt)
                    .HasColumnName("started_at")
@@ -48,15 +45,16 @@ namespace Requra.Infrastructure.Configurations
                    .HasColumnName("platform_url");
 
 
-            builder.HasOne(m => m.Host)
-                   .WithMany(u => u.HostedMeetings)
-                   .HasForeignKey(m => m.HostId)
-                   .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(m => m.Documents)
                    .WithOne(d => d.Meeting)
                    .HasForeignKey(d => d.MeetingId)
                    .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasMany(m => m.Participants)
+                   .WithOne(mp => mp.Meeting)
+                   .HasForeignKey(m => m.MeetingId)
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
