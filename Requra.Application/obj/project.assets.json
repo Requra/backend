@@ -1349,23 +1349,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Action\\.nuget\\packages\\": {},
+    "C:\\Users\\CAROL EHAB\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
+      "projectUniqueName": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
       "projectName": "Requra.Application",
-      "projectPath": "D:\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
-      "packagesPath": "C:\\Users\\Action\\.nuget\\packages\\",
-      "outputPath": "D:\\GP\\backend\\Requra.Application\\obj\\",
+      "projectPath": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Application\\Requra.Application.csproj",
+      "packagesPath": "C:\\Users\\CAROL EHAB\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Application\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Action\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\CAROL EHAB\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -1380,8 +1380,8 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj": {
-              "projectPath": "D:\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj"
+            "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj": {
+              "projectPath": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj"
             }
           }
         }
@@ -1396,7 +1396,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.200"
+      "SdkAnalysisLevel": "10.0.100"
     },
     "frameworks": {
       "net10.0": {
@@ -1423,7 +1423,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",
