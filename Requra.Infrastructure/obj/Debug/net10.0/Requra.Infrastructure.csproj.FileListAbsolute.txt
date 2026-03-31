@@ -37,3 +37,23 @@ D:\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\refint\Requra.Infrastructu
 D:\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.pdb
 D:\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.genruntimeconfig.cache
 D:\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\ref\Requra.Infrastructure.dll
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Infrastructure.deps.json
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Infrastructure.runtimeconfig.json
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Infrastructure.dll
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Infrastructure.pdb
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Application.dll
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Domain.dll
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Application.pdb
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\bin\Debug\net10.0\Requra.Domain.pdb
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.AssemblyInfo.cs
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.sourcelink.json
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.I.49270642.Up2Date
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.dll
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\refint\Requra.Infrastructure.dll
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.pdb
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\Requra.Infrastructure.genruntimeconfig.cache
+C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Infrastructure\obj\Debug\net10.0\ref\Requra.Infrastructure.dll
