@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Requra.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a289830db75a1b380555d9f43d8aa33ae5c15e7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+682fe030465f57d6fd2256cc687bfe3a0c1515b2")]
 [assembly: System.Reflection.AssemblyProductAttribute("Requra.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Requra.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
