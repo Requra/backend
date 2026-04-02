@@ -19,6 +19,7 @@ namespace Requra.Presentation
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
+
             builder.Services.AddOpenApi();
             builder.Services.AddSwaggerGen();
 
