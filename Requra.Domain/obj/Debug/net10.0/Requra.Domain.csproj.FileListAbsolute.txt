@@ -36,3 +36,16 @@ C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Domain\obj\Debug\net10.0\Requra.Do
 C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Domain\obj\Debug\net10.0\refint\Requra.Domain.dll
 C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.pdb
 C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Domain\obj\Debug\net10.0\ref\Requra.Domain.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\bin\Debug\net10.0\Requra.Domain.deps.json
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\bin\Debug\net10.0\Requra.Domain.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\bin\Debug\net10.0\Requra.Domain.pdb
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.csproj.AssemblyReference.cache
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.AssemblyInfoInputs.cache
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.AssemblyInfo.cs
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.csproj.CoreCompileInputs.cache
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.sourcelink.json
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\refint\Requra.Domain.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\Requra.Domain.pdb
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Domain\obj\Debug\net10.0\ref\Requra.Domain.dll

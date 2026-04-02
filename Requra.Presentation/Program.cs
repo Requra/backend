@@ -1,19 +1,24 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Requra.Infrastructure.DependencyInjection;
+using Requra.Infrastructure.Seeder;
 using Requra.Infrastructure.Validations;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 
 namespace Requra.Presentation
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
 
             builder.Services.AddControllers();
+         
+
 
             //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -34,6 +39,8 @@ namespace Requra.Presentation
                     });
             });
             var app = builder.Build();
+            await app.InitializeDatabaseAsync();
+
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -46,10 +53,10 @@ namespace Requra.Presentation
             app.UseCors("AllowAll");
             app.UseHttpsRedirection();
             app.UseAuthorization();
-            app.UseAuthorization();
 
 
             app.MapControllers();
+
 
             app.Run();
         }

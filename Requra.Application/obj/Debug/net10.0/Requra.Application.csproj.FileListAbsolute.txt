@@ -45,3 +45,19 @@ C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Application\obj\Debug\net10.0\Requ
 C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Application\obj\Debug\net10.0\refint\Requra.Application.dll
 C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.pdb
 C:\Users\CAROL EHAB\Desktop\GP\backend\Requra.Application\obj\Debug\net10.0\ref\Requra.Application.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\bin\Debug\net10.0\Requra.Application.deps.json
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\bin\Debug\net10.0\Requra.Application.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\bin\Debug\net10.0\Requra.Application.pdb
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\bin\Debug\net10.0\Requra.Domain.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\bin\Debug\net10.0\Requra.Domain.pdb
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.csproj.AssemblyReference.cache
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.AssemblyInfoInputs.cache
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.AssemblyInfo.cs
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.csproj.CoreCompileInputs.cache
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.sourcelink.json
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.A.C82AF196.Up2Date
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\refint\Requra.Application.dll
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\Requra.Application.pdb
+D:\ITI_Intake46\Graduation_Project\backend\Requra.Application\obj\Debug\net10.0\ref\Requra.Application.dll

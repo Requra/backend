@@ -1130,23 +1130,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\CAROL EHAB\\.nuget\\packages\\": {},
+    "C:\\Users\\TEBA\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj",
+      "projectUniqueName": "D:\\ITI_Intake46\\Graduation_Project\\backend\\Requra.Domain\\Requra.Domain.csproj",
       "projectName": "Requra.Domain",
-      "projectPath": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Domain\\Requra.Domain.csproj",
-      "packagesPath": "C:\\Users\\CAROL EHAB\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\CAROL EHAB\\Desktop\\GP\\backend\\Requra.Domain\\obj\\",
+      "projectPath": "D:\\ITI_Intake46\\Graduation_Project\\backend\\Requra.Domain\\Requra.Domain.csproj",
+      "packagesPath": "C:\\Users\\TEBA\\.nuget\\packages\\",
+      "outputPath": "D:\\ITI_Intake46\\Graduation_Project\\backend\\Requra.Domain\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\CAROL EHAB\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\TEBA\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -1173,7 +1173,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.100"
+      "SdkAnalysisLevel": "10.0.200"
     },
     "frameworks": {
       "net10.0": {
@@ -1204,7 +1204,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",

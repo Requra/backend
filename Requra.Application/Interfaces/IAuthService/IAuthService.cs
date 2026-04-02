@@ -1,4 +1,5 @@
-﻿using Requra.Application.Response;
+﻿using Requra.Application.DTOs.Auth.Register;
+using Requra.Application.Response;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,6 +8,8 @@ namespace Requra.Application.Interfaces.IAuthService
 {
     public interface IAuthService
     {
+        Task<Response<object>> RegisterAsync(RegisterRequestDto request);
+
         //public Task<Response<string>> RegisterAsync(RegisterDTO model);
         //public Task<Response<string>> ConfirmAccount(string email, string otpCode);
 
@@ -17,5 +20,5 @@ namespace Requra.Application.Interfaces.IAuthService
         //public Task<Response<LogInResponseDTO>> LogInAsync(LogInDTO model);
     }
 
-  
+
 }
