@@ -6,8 +6,8 @@ namespace Requra.Domain.Enums
 {
     public enum UserRole
     {
-        Stackholder,
-        BussinessAnalyst,
+        Stakeholder,
+        BusinessAnalyst,
         ProjectManager,
 
     }
