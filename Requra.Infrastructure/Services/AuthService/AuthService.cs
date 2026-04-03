@@ -16,7 +16,7 @@ namespace Requra.Infrastructure.Services.AuthService
                 var existingUser = await userManager.FindByEmailAsync(request.Email);
                 if (existingUser is not null)
                 {
-                    return Response<string>.Failure(
+                    return Response<string>.Failure("",
                         "Email already exists",
                         400,
                         ["A user with this email is already registered."]
@@ -33,7 +33,7 @@ namespace Requra.Infrastructure.Services.AuthService
 
                 if (!result.Succeeded)
                 {
-                    return Response<string>.Failure(
+                    return Response<string>.Failure("",
                         "Validation failed",
                         400,
                         result.Errors.Select(e => e.Description).ToList()
@@ -52,7 +52,7 @@ namespace Requra.Infrastructure.Services.AuthService
                 if (roleName is null)
                 {
                     await userManager.DeleteAsync(user);
-                    return Response<string>.Failure("Invalid role", 400, [$"This Role is not supported."]);
+                    return Response<string>.Failure("", "Invalid role", 400, [$"This Role is not supported."]);
                 }
 
                 var roleResult = await userManager.AddToRoleAsync(user, roleName);
@@ -61,6 +61,7 @@ namespace Requra.Infrastructure.Services.AuthService
                 {
                     await userManager.DeleteAsync(user);
                     return Response<string>.Failure(
+                        "",
                         "Failed to assign role",
                         400,
                         roleResult.Errors.Select(e => e.Description).ToList()
@@ -69,11 +70,12 @@ namespace Requra.Infrastructure.Services.AuthService
 
                 // await _emailService.SendOtpAsync(user.Email);
 
-                return Response<string>.Success("Done successfully", "User registered successfully", 200);
+                return Response<string>.Success("Done successfully", "User registered successfully", 201);
             }
             catch (Exception ex)
             {
                 return Response<string>.Failure(
+                    "",
                     $"An unexpected error occurred. Please try again later.\n {ex.Message}",
                     500,
                     []
