@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <Folder Include="DTOs\Auth\Login\" />
-    <Folder Include="DTOs\Project\" />
   </ItemGroup>
 
   <ItemGroup>
