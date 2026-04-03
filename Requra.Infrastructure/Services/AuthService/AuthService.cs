@@ -72,11 +72,11 @@ namespace Requra.Infrastructure.Services.AuthService
 
                 return Response<string>.Success("Done successfully", "User registered successfully", 201);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Response<string>.Failure(
                     "",
-                    $"An unexpected error occurred. Please try again later.\n {ex.Message}",
+                    $"An unexpected error occurred.",
                     500,
                     []
                 );
