@@ -644,9 +644,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("joined_at")
                         .HasDefaultValueSql("NOW()");
 
-                    b.Property<Guid?>("ProjectId1")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text")
@@ -655,8 +652,6 @@ namespace Requra.Infrastructure.Migrations
                     b.HasKey("UserId", "ProjectId");
 
                     b.HasIndex("ProjectId");
-
-                    b.HasIndex("ProjectId1");
 
                     b.ToTable("project_members", (string)null);
                 });
@@ -1058,14 +1053,10 @@ namespace Requra.Infrastructure.Migrations
             modelBuilder.Entity("Requra.Domain.Entities.ProjectMember", b =>
                 {
                     b.HasOne("Requra.Domain.Entities.Project", "Project")
-                        .WithMany()
+                        .WithMany("Members")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Requra.Domain.Entities.Project", null)
-                        .WithMany("Members")
-                        .HasForeignKey("ProjectId1");
 
                     b.HasOne("Requra.Domain.Entities.ApplicationUser", "User")
                         .WithMany("ProjectMemberships")

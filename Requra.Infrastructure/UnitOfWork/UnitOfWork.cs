@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using Requra.Domain.Entities;
+using Requra.Infrastructure.Data;
+using Requra.Infrastructure.Repositories;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,9 +10,33 @@ namespace Requra.Infrastructure.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {
-        public void Dispose()
+        private readonly RequraDbContext _context;
+        private readonly Dictionary<Type, object> _repositories = new();
+
+        public IGenericRepository<Project> Projects { get; private set; }
+        public IGenericRepository<ApplicationUser> Users { get; private set; }
+        public UnitOfWork(RequraDbContext context)
         {
-            throw new NotImplementedException();
+            _context = context;
+            Projects = new GenericRepository<Project>(context);
+            Users = new GenericRepository<ApplicationUser>(context);
         }
+        
+        public IGenericRepository<T> Repository<T>() where T : class
+        {
+            if (_repositories.ContainsKey(typeof(T)))
+                return (IGenericRepository<T>)_repositories[typeof(T)];
+
+            var repo = new GenericRepository<T>(_context);
+            _repositories.Add(typeof(T), repo);
+
+            return repo;
+        }
+
+        public async Task<int> CompleteAsync()
+            => await _context.SaveChangesAsync();
+
+        public void Dispose()
+            => _context.Dispose();
     }
 }

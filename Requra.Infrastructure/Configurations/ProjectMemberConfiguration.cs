@@ -40,7 +40,7 @@ namespace Requra.Infrastructure.Configurations
                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(pm => pm.Project)
-                   .WithMany() 
+                   .WithMany(p=>p.Members) 
                    .HasForeignKey(pm => pm.ProjectId)
                    .OnDelete(DeleteBehavior.Cascade);
         }
