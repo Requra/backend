@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Requra.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -16,6 +17,7 @@ namespace Requra.Domain.Entities
 
         public Guid? ParentCommentId { get; private set; }
 
+        public CommentStatus Status { get; private set; }   
         public string Content { get; private set; } = null!;
 
         public DateTime CreatedAt { get; private set; }

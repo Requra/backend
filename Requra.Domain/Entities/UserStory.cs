@@ -4,6 +4,7 @@ namespace Requra.Domain.Entities
 {
     public class UserStory
     {
+        
         public Guid Id { get; private set; }
 
         public string Title { get; private set; } = null!;
@@ -21,6 +22,7 @@ namespace Requra.Domain.Entities
         public string CreatorId { get; private set; } = null!;
 
         public Guid RequirementId { get; private set; }
+        public Guid ProjectId { get; private set; }
 
         public string? JiraTicket { get; private set; }
 
@@ -31,6 +33,7 @@ namespace Requra.Domain.Entities
         // Navigation
         public ApplicationUser Creator { get; private set; } = null!;
         public Requirement Requirement { get; private set; } = null!;
+        public Project Project { get; private set; } = null!;   
         public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
 
         // Constructor
