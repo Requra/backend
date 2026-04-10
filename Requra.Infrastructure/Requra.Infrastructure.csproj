@@ -8,8 +8,7 @@
 
   <ItemGroup>
     <Folder Include="ExternalDTOs\" />
-    <Folder Include="ExternalInterfaces\" />
-    <Folder Include="ExternalServices\" />
+    <Folder Include="ExternalServices\JwtService\" />
     <Folder Include="Helpers\" />
     <Folder Include="Hubs\" />
     <Folder Include="MiddleWares\" />
