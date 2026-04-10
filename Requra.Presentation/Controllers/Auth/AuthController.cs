@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Response;
+using Requra.Infrastructure.Services.AuthService;
 using static System.Net.WebRequestMethods;
 
 namespace Requra.Presentation.Controllers.Auth
 {
+    [ApiController]
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController(IAuthService authService, IValidator<RegisterRequestDto> validator) : ControllerBase

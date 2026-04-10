@@ -20,11 +20,14 @@ namespace Requra.Domain.Entities
 
         public DateTime UpdatedAt { get; private set; }
 
+        public ProjectType ProjectType { get; private set; }
+
         // Navigation
         //public ApplicationUser Owner { get; private set; } = null!;
         public ICollection<Document> Documents { get; private set; } = new List<Document>();
 
         public ICollection<ProjectMember> Members { get; private set; } = new List<ProjectMember>();
+        public ICollection<UserStory> UserStories { get; private set; } = new List<UserStory>();
 
 
         private Project()

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Requra.Domain.Entities;
 using System;
 using System.Collections.Generic;
+using System.Reflection.Emit;
 using System.Text;
 
 namespace Requra.Infrastructure.Data
@@ -16,7 +17,9 @@ namespace Requra.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-
+            builder.Entity<Project>()
+        .Property(p => p.ProjectType)
+        .HasConversion<string>();
             builder.ApplyConfigurationsFromAssembly(typeof(RequraDbContext).Assembly);
 
             base.OnModelCreating(builder);

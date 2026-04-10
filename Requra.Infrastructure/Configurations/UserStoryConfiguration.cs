@@ -84,6 +84,11 @@ namespace Requra.Infrastructure.Configurations
                    .WithOne(c => c.UserStory)
                    .HasForeignKey(c => c.UserStoryId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(us => us.Project)
+                   .WithMany(p => p.UserStories)
+                   .HasForeignKey(us => us.ProjectId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
