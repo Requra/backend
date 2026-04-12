@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Interfaces.IProjectService;
+using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
@@ -15,6 +16,7 @@ using Requra.Infrastructure.Initializers;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.ProjectService;
+using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
 using Requra.Infrastructure.UnitOfWork;
 using System.Text;
 
@@ -31,8 +33,6 @@ namespace Requra.Infrastructure.DependencyInjection
             );
 
 
-
-            
 
             services.AddIdentity<ApplicationUser, IdentityRole>()
                     .AddEntityFrameworkStores<RequraDbContext>()
@@ -68,6 +68,7 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IProjectService, ProjectService>();
+            services.AddScoped<IUserStoryService, UserStoryService>();
 
             // Auto Mapper
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());

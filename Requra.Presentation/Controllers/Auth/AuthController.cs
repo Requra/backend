@@ -12,7 +12,6 @@ namespace Requra.Presentation.Controllers.Auth
 {
     [ApiController]
     [Route("api/[controller]")]
-    [ApiController]
     public class AuthController(IAuthService authService, IValidator<RegisterRequestDto> validator) : ControllerBase
     {
         [HttpPost("register")]

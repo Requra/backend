@@ -49,7 +49,12 @@ namespace Requra.Infrastructure.Configurations
                    .HasColumnType("timestamptz")
                    .HasDefaultValueSql("NOW()");
 
-        
+            builder.Property(p => p.ProjectType)
+                   .HasColumnName("Project_type")
+                   .HasConversion<string>()
+                   .IsRequired();
+
+
 
 
             builder.HasMany(p => p.Documents)

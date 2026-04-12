@@ -1,6 +1,7 @@
 ﻿
 using AutoMapper;
 using Requra.Application.DTOs.Project;
+using Requra.Application.DTOs.Project.ProjectResults.UserStory;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using System;
@@ -48,6 +49,25 @@ namespace Requra.Application.Mappings
                         .SelectMany(us => us.Comments)
                         .Count()));
             #endregion
+
+
+            #region UserStoryProfile
+            CreateMap<UserStory, UserStoryDto>()
+
+            .ForMember(dest => dest.Status,
+                opt => opt.MapFrom(src => src.Status.ToString()))
+
+            .ForMember(dest => dest.Priority,
+                opt => opt.MapFrom(src => src.Priority.ToString()))
+
+            .ForMember(dest => dest.Language,
+                opt => opt.MapFrom(src => src.Language != null ? src.Language.ToString() : null))
+
+            .ForMember(dest => dest.CreatorName,
+                opt => opt.MapFrom(src => src.Creator.FullName));
+            #endregion
+
+
         }
     }
 }

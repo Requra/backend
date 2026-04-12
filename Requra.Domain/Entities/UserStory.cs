@@ -11,7 +11,7 @@ namespace Requra.Domain.Entities
 
         public string? Description { get; private set; }
 
-        public string? AcceptanceCriteria { get; private set; }
+        public List<string> AcceptanceCriteria { get; private set; }= new();
 
         public UserStoryStatus Status { get; private set; }
 
@@ -55,11 +55,11 @@ namespace Requra.Domain.Entities
         }
 
 
-        public void UpdateDetails(string title, string? description, string? acceptanceCriteria, Language? language)
+        public void UpdateDetails(string title, string? description, List<string>? acceptanceCriteria, Language? language)
         {
             Title = title;
             Description = description;
-            AcceptanceCriteria = acceptanceCriteria;
+            AcceptanceCriteria = acceptanceCriteria ?? new List<string>();
             Language = language;
             UpdatedAt = DateTime.UtcNow;
         }
