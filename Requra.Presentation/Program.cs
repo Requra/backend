@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Requra.Infrastructure.DependencyInjection;
 using Requra.Infrastructure.Validations;
@@ -19,6 +20,7 @@ namespace Requra.Presentation
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
+            
 
             builder.Services.AddOpenApi();
             builder.Services.AddSwaggerGen();
