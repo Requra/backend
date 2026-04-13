@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 
 namespace Requra.Domain.Entities
@@ -67,4 +68,8 @@ namespace Requra.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
     }
+
+   
 }
+
+

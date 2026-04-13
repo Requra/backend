@@ -14,7 +14,9 @@ namespace Requra.Infrastructure.Validations
         {
             RuleFor(x => x.FullName)
                 .NotEmpty().WithMessage("Full name is required.")
-                .MaximumLength(100).WithMessage("Full name cannot exceed 100 characters.");
+                .MaximumLength(70).WithMessage("Name cannot exceed 100 characters.")
+                .Matches(@"^[a-zA-Z0-9_]*$").WithMessage("name format must be alphanumeric characters and underscores.")
+                .MinimumLength(3).WithMessage("The length of Name must be at least 3 characters");
 
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Email is required.")
