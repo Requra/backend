@@ -31,12 +31,13 @@ namespace Requra.Presentation.Controllers.Auth
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken(RefreshTokenRequestDto request)
         {
+            // Validators should be more clean later
             var validation = await refreshTokenValidator.ValidateAsync(request);
 
             if (!validation.IsValid)
             {
                 var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                return BadRequest(Response<RefreshTokenResponseDto>.Failure("Validation failed", 400, errors));
+                return BadRequest(Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Validation failed", 400, errors));
             }
             var result = await authService.RefreshTokenAsync(request);
             return StatusCode(result.StatusCode, result);
