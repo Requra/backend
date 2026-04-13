@@ -1,5 +1,6 @@
 ﻿
 using AutoMapper;
+using Requra.Application.DTOs.Document;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
 using Requra.Domain.Entities;
@@ -67,6 +68,25 @@ namespace Requra.Application.Mappings
                 opt => opt.MapFrom(src => src.Creator.FullName));
             #endregion
 
+
+            #region DocumentProfile
+
+            CreateMap<Document, DocumentDto>()
+            .ForMember(dest => dest.Type,
+                opt => opt.MapFrom(src => src.Type.ToString()))
+
+            .ForMember(dest => dest.Status,
+                opt => opt.MapFrom(src => src.Status.ToString()))
+
+            .ForMember(dest => dest.Language,
+                opt => opt.MapFrom(src => src.Language.ToString()))
+
+            .ForMember(dest => dest.UploadedBy,
+                opt => opt.MapFrom(src => src.Uploader != null ? src.Uploader.FullName : null));
+
+
+
+            #endregion
 
         }
     }

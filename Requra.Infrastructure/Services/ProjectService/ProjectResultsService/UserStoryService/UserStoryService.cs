@@ -36,7 +36,10 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.Us
                 var result = new PagedResult<UserStoryDto>
                 {
                     TotalCount = totalCount,
-                    Items = items
+                    Items = items,
+                    PageNumber=1,
+                    PageSize=totalCount
+
                 };
 
                 return items.Any()
