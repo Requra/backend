@@ -17,9 +17,7 @@ namespace Requra.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            builder.Entity<Project>()
-        .Property(p => p.ProjectType)
-        .HasConversion<string>();
+            
             builder.ApplyConfigurationsFromAssembly(typeof(RequraDbContext).Assembly);
 
             base.OnModelCreating(builder);
