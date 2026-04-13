@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -9,17 +10,29 @@ using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Principal;
 
 namespace Requra.Infrastructure.Services.AuthService
 {
-    public class AuthService(UserManager<ApplicationUser> userManager, IJwtTokenService _jwtService, IConfiguration config) : IAuthService
+    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config) : IAuthService
     {
         public async Task<Response<string>> RegisterAsync(RegisterRequestDto request)
         {
             try
             {
+                //Validation Handeled Here only For Now due To Prorom In Auto Validation.
+
+                var validation = await validator.ValidateAsync(request);
+
+                if (!validation.IsValid)
+                {
+                    var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
+                    return Response<string>.Failure("","Validation failed", 400, errors);
+                }
+
+
                 var existingUser = await userManager.FindByEmailAsync(request.Email);
                 if (existingUser is not null)
                 {
@@ -75,20 +88,20 @@ namespace Requra.Infrastructure.Services.AuthService
                     );
                 }
                 //---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
-                //var newAccessToken = await _jwtService.GenerateTokenAsync(user);
-                //var newRefreshToken = await _jwtService.GenerateRefreshToken();
-                //var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
+                var newAccessToken = await _jwtService.GenerateTokenAsync(user);
+                var newRefreshToken = await _jwtService.GenerateRefreshToken();
+                var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
 
-                //user.RefreshTokens.Add(new RefreshToken
-                //{
-                //    Token = newRefreshToken,
-                //    CreatedOn = DateTime.UtcNow,
-                //    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
-                //});
-                //var updateResult = await userManager.UpdateAsync(user);
+                user.RefreshTokens.Add(new RefreshToken
+                {
+                    Token = newRefreshToken,
+                    CreatedOn = DateTime.UtcNow,
+                    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
+                });
+                var updateResult = await userManager.UpdateAsync(user);
 
-                //Console.WriteLine(newRefreshToken);
-                //Console.WriteLine(newAccessToken);
+                Console.WriteLine(newRefreshToken);
+                Console.WriteLine(newAccessToken);
                 //---------------------------------------
 
                 // await _emailService.SendOtpAsync(user.Email);        
@@ -111,6 +124,16 @@ namespace Requra.Infrastructure.Services.AuthService
 
             try
             {
+                //Validation Handeled Here only For Now due To Prorom In Auto Validation.
+                var validation = await refreshTokenValidator.ValidateAsync(request);
+
+                if (!validation.IsValid)
+                {
+                    var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Validation failed", 400, errors);
+                }
+
+
                 ClaimsPrincipal principal;
                 try
                 {
