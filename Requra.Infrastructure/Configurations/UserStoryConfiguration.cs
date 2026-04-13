@@ -28,9 +28,9 @@ namespace Requra.Infrastructure.Configurations
                    .HasColumnName("description")
                    .HasColumnType("text");
 
-            builder.Property(us => us.AcceptanceCriteria)
+            builder.Property(u => u.AcceptanceCriteria)
                    .HasColumnName("acceptance_criteria")
-                   .HasColumnType("text");
+                   .HasColumnType("text[]");
 
             builder.Property(us => us.Status)
                    .HasColumnName("status")
