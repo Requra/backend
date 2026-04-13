@@ -25,10 +25,7 @@ namespace Requra.Application.DTOs.Auth.Login
         }
 
     }
-    public class RefreshTokenDTO
-    {
-        public string RefreshToken { get; set; }
-    }
+    
     public class LogInDTO
     {
         [Required]
