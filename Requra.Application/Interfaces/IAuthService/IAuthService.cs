@@ -14,6 +14,9 @@ namespace Requra.Application.Interfaces.IAuthService
         Task<Response<string>> RegisterAsync(RegisterRequestDto request);
         Task<Response<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto refreshTokenRequest);
 
+        Task<Response<string>> LogoutAsync(string userId);
+
+
     }
 
 

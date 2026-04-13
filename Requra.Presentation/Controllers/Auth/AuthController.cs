@@ -7,6 +7,7 @@ using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Response;
 using Requra.Infrastructure.Services.AuthService;
+using System.Security.Claims;
 using static System.Net.WebRequestMethods;
 
 namespace Requra.Presentation.Controllers.Auth
@@ -28,6 +29,15 @@ namespace Requra.Presentation.Controllers.Auth
             // Validators should be more clean later
            
             var result = await authService.RefreshTokenAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await authService.LogoutAsync(userId);
+
             return StatusCode(result.StatusCode, result);
         }
     }  

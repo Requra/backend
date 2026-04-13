@@ -88,20 +88,20 @@ namespace Requra.Infrastructure.Services.AuthService
                     );
                 }
                 //---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
-                var newAccessToken = await _jwtService.GenerateTokenAsync(user);
-                var newRefreshToken = await _jwtService.GenerateRefreshToken();
-                var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
+                //var newAccessToken = await _jwtService.GenerateTokenAsync(user);
+                //var newRefreshToken = await _jwtService.GenerateRefreshToken();
+                //var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
 
-                user.RefreshTokens.Add(new RefreshToken
-                {
-                    Token = newRefreshToken,
-                    CreatedOn = DateTime.UtcNow,
-                    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
-                });
-                var updateResult = await userManager.UpdateAsync(user);
+                //user.RefreshTokens.Add(new RefreshToken
+                //{
+                //    Token = newRefreshToken,
+                //    CreatedOn = DateTime.UtcNow,
+                //    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
+                //});
+                //var updateResult = await userManager.UpdateAsync(user);
 
-                Console.WriteLine(newRefreshToken);
-                Console.WriteLine(newAccessToken);
+                //Console.WriteLine(newRefreshToken);
+                //Console.WriteLine(newAccessToken);
                 //---------------------------------------
 
                 // await _emailService.SendOtpAsync(user.Email);        
@@ -199,6 +199,34 @@ namespace Requra.Infrastructure.Services.AuthService
             {
                 return Response<RefreshTokenResponseDto>.Failure($"An unexpected error occurred.",500,[]);
             }
+        }
+
+        public async Task<Response<string>> LogoutAsync(string userId)
+        {
+
+            try
+            {
+                var user = await userManager.Users
+                 .Include(u => u.RefreshTokens)
+                 .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                    return Response<string>.Failure("", "User not found", 404);
+
+                foreach (var token in user.RefreshTokens)
+                {
+                    token.RevokedOn = DateTime.UtcNow;
+                }
+
+                await userManager.UpdateAsync(user);
+
+                return Response<string>.Success("Done", "Logged out successfully", 200);
+            }
+            catch (Exception)
+            {
+                return Response<string>.Failure("", $"An unexpected error occurred.", 500, []);
+            }
+
         }
     }
 }
