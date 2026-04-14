@@ -7,38 +7,37 @@ using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Response;
 using Requra.Infrastructure.Services.AuthService;
+using System.Security.Claims;
 using static System.Net.WebRequestMethods;
 
 namespace Requra.Presentation.Controllers.Auth
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(IAuthService authService, IValidator<RegisterRequestDto> validator,IValidator<RefreshTokenRequestDto> refreshTokenValidator) : ControllerBase
+    public class AuthController(IAuthService authService) : ControllerBase
     {
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterRequestDto request)
         {
-            var validation = await validator.ValidateAsync(request);
-
-            if (!validation.IsValid)
-            {
-                var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                return BadRequest(Response<string>.Failure("Validation failed", 400, errors));
-            }
+           
             var result = await authService.RegisterAsync(request);
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken(RefreshTokenRequestDto request)
         {
-            var validation = await refreshTokenValidator.ValidateAsync(request);
-
-            if (!validation.IsValid)
-            {
-                var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                return BadRequest(Response<RefreshTokenResponseDto>.Failure("Validation failed", 400, errors));
-            }
+            // Validators should be more clean later
+           
             var result = await authService.RefreshTokenAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await authService.LogoutAsync(userId);
+
             return StatusCode(result.StatusCode, result);
         }
     }  
