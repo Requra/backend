@@ -1,6 +1,7 @@
 ﻿using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Requra.Infrastructure.ExternalDTOs.CloudinaryDto;
@@ -16,16 +17,18 @@ namespace Requra.Infrastructure.ExternalServices.CloudinaryService
         private readonly Cloudinary _cloudinary;
         private readonly ILogger<CloudinaryService> _logger;
 
-        public CloudinaryService(IOptions<CloudinarySettings> config, ILogger<CloudinaryService> logger)
+        public CloudinaryService(IConfiguration configuration, ILogger<CloudinaryService> logger)
         {
             _logger = logger;
 
-            var acc = new Account(
-                config.Value.CloudName,
-                config.Value.ApiKey,
-                config.Value.ApiSecret);
+            var account = new Account
+            {
+                Cloud = configuration["Cloudinary:CloudName"],
+                ApiKey = configuration["Cloudinary:ApiKey"],
+                ApiSecret = configuration["Cloudinary:ApiSecret"]
+            };
 
-            _cloudinary = new Cloudinary(acc);
+            _cloudinary = new Cloudinary(account);
         }
 
 
