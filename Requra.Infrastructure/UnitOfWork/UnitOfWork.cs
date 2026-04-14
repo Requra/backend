@@ -15,11 +15,16 @@ namespace Requra.Infrastructure.UnitOfWork
 
         public IGenericRepository<Project> Projects { get; private set; }
         public IGenericRepository<ApplicationUser> Users { get; private set; }
+        public IGenericRepository<Document> Documents { get; private set; }
+        public IGenericRepository<UserStory> UserStories { get; private set; }
+
         public UnitOfWork(RequraDbContext context)
         {
             _context = context;
             Projects = new GenericRepository<Project>(context);
             Users = new GenericRepository<ApplicationUser>(context);
+            Documents = new GenericRepository<Document>(context);
+            UserStories = new GenericRepository<UserStory>(context);
         }
         
         public IGenericRepository<T> Repository<T>() where T : class
@@ -33,9 +38,11 @@ namespace Requra.Infrastructure.UnitOfWork
             return repo;
         }
 
-        public async Task<int> CompleteAsync()
-            => await _context.SaveChangesAsync();
+        public async Task<int> SaveAsync()
+        {
+            return await _context.SaveChangesAsync();
 
+        }
         public void Dispose()
             => _context.Dispose();
     }

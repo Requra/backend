@@ -6,14 +6,18 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Requra.Application.Interfaces.IAuthService;
+using Requra.Application.Interfaces.IDocumentService;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
+using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
+using Requra.Infrastructure.ExternalServices.CloudinaryService;
 using Requra.Infrastructure.Initializers;
 using Requra.Infrastructure.Services.AuthService;
+using Requra.Infrastructure.Services.DocumentService;
 using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
@@ -63,12 +67,15 @@ namespace Requra.Infrastructure.DependencyInjection
                         };
                     });
 
+            //external services registration
+            services.AddScoped<ICloudinaryService, CloudinaryService>();
 
             //Application Services Registration
             services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<IUserStoryService, UserStoryService>();
+            services.AddScoped<IDocumentService, DocumentService>();
 
             // Auto Mapper
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());

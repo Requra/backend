@@ -16,14 +16,26 @@ namespace Requra.Infrastructure.Migrations
                 table: "projects",
                 newName: "Project_type");
 
-            migrationBuilder.AlterColumn<List<string>>(
-                name: "acceptance_criteria",
-                table: "user_stories",
-                type: "text[]",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
+            //    migrationBuilder.AlterColumn<List<string>>(
+            //        name: "acceptance_criteria",
+            //        table: "user_stories",
+            //        type: "text[]",
+            //        nullable: false,
+            //        oldClrType: typeof(string),
+            //        oldType: "text",
+            //        oldNullable: true);
+            //}
+            migrationBuilder.Sql(@"
+                 ALTER TABLE user_stories 
+                 ALTER COLUMN acceptance_criteria 
+                 TYPE text[] 
+                 USING 
+                     CASE 
+                         WHEN acceptance_criteria IS NULL THEN NULL
+                         ELSE ARRAY[acceptance_criteria]
+                     END;
+                 ");
+
         }
 
         /// <inheritdoc />
@@ -34,13 +46,19 @@ namespace Requra.Infrastructure.Migrations
                 table: "projects",
                 newName: "ProjectType");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "acceptance_criteria",
-                table: "user_stories",
-                type: "text",
-                nullable: true,
-                oldClrType: typeof(List<string>),
-                oldType: "text[]");
+            //migrationBuilder.AlterColumn<string>(
+            //    name: "acceptance_criteria",
+            //    table: "user_stories",
+            //    type: "text",
+            //    nullable: true,
+            //    oldClrType: typeof(List<string>),
+            //    oldType: "text[]");
+            migrationBuilder.Sql(@"
+                 ALTER TABLE user_stories 
+                 ALTER COLUMN acceptance_criteria 
+                 TYPE text 
+                 USING array_to_string(acceptance_criteria, ',');
+                ");
         }
     }
 }
