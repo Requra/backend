@@ -2,9 +2,12 @@
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Project;
+using Requra.Application.DTOs.Project.ProjectCreation;
+using Requra.Application.DTOs.Project.ProjectDetails;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Requra.API.Controllers
@@ -41,6 +44,38 @@ namespace Requra.API.Controllers
                 _logger.LogWarning("Failed to get projects: {Message}", result.Message);
                 return StatusCode(result.StatusCode, result);
             }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] ProjectRequestDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<string>.Failure("","User not authenticated", 401));
+            }
+
+            var result = await _projectService.CreateProjectAsync(request, userId);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest(Response<ProjectDetailsDto>.Failure(new ProjectDetailsDto(),
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await _projectService.GetProjectByIdAsync(guid, userId!);
+
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

@@ -18,13 +18,15 @@ namespace Requra.Presentation
             builder.Services.AddControllers()
                 .AddJsonOptions(options => {
                     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
                 });
 
             //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
-            
+            builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectValidator>();
+
 
             builder.Services.AddOpenApi();
             builder.Services.AddSwaggerGen();

@@ -8,6 +8,6 @@ namespace Requra.Application.Interfaces.IProjectRepository
     public interface IProjectRepository
     {
         Task AddAsync(Project project);
-        
+        Task<Project?> GetByIdWithMembersAsync(Guid id);
     }
 }

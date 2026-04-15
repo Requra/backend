@@ -6,9 +6,9 @@ using System.Text;
 
 namespace Requra.Infrastructure.Validations
 {
-    public class RefreshTokenRequestDtoValidator :AbstractValidator<RefreshTokenRequestDto>
+    public class RefreshTokenValidator :AbstractValidator<RefreshTokenRequestDto>
     {
-        public RefreshTokenRequestDtoValidator()
+        public RefreshTokenValidator()
         {
             RuleFor(x => x.AccessToken)
                 .NotEmpty().WithMessage("Access token is required");
