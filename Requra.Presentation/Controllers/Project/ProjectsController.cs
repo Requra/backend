@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
+using Requra.Application.DTOs.Project.ProjectDetails;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
 using System;
@@ -56,6 +57,23 @@ namespace Requra.API.Controllers
             }
 
             var result = await _projectService.CreateProjectAsync(request, userId);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest(Response<ProjectDetailsDto>.Failure(new ProjectDetailsDto(),
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await _projectService.GetProjectByIdAsync(guid, userId!);
 
             return StatusCode(result.StatusCode, result);
         }

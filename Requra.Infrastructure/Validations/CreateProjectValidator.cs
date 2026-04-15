@@ -6,9 +6,9 @@ using System.Text;
 
 namespace Requra.Infrastructure.Validations
 {
-    public class CreateProjectRequestDtoValidator : AbstractValidator<ProjectRequestDto>
+    public class CreateProjectValidator : AbstractValidator<ProjectRequestDto>
     {
-        public CreateProjectRequestDtoValidator()
+        public CreateProjectValidator()
         {
             RuleFor(x => x.Name)
                 .NotEmpty().WithMessage("Project name is required")
@@ -21,7 +21,7 @@ namespace Requra.Infrastructure.Validations
 
             RuleFor(x => x.ClientEmail)
                 .NotEmpty().WithMessage("Client email is required")
-                .EmailAddress().WithMessage("Invalid email format");
+                .EmailAddress().WithMessage("Invalid Client email format");
 
             RuleFor(x => x.ProjectType)
                 .IsInEnum().WithMessage("Invalid project type");
@@ -31,7 +31,7 @@ namespace Requra.Infrastructure.Validations
                 .WithMessage("Duplicate team member emails are not allowed");
 
             RuleForEach(x => x.TeamMembers)
-                .SetValidator(new TeamMemberDtoValidator());
+                .SetValidator(new TeamMemberValidator());
         }
     }
 }

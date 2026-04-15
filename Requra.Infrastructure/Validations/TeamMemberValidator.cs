@@ -6,9 +6,9 @@ using System.Text;
 
 namespace Requra.Infrastructure.Validations
 {
-    public class TeamMemberDtoValidator : AbstractValidator<TeamMemberDto>
+    public class TeamMemberValidator : AbstractValidator<TeamMemberDto>
     {
-        public TeamMemberDtoValidator()
+        public TeamMemberValidator()
         {
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Team member email is required")

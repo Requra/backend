@@ -8,9 +8,9 @@ namespace Requra.Infrastructure.Validations
 {
     
 
-    public class RegisterRequestDtoValidator : AbstractValidator<RegisterRequestDto>
+    public class RegisterValidator : AbstractValidator<RegisterRequestDto>
     {
-        public RegisterRequestDtoValidator()
+        public RegisterValidator()
         {
             RuleFor(x => x.FullName)
                 .NotEmpty().WithMessage("Full name is required.")

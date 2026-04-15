@@ -9,6 +9,7 @@ using Requra.Application.DTOs;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
+using Requra.Application.DTOs.Project.ProjectDetails;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
@@ -93,7 +94,7 @@ namespace Requra.Infrastructure.Services.ProjectService
 
             if (client == null)
             {
-                return Response<ProjectResponseDto>.Failure(
+                return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),
                     "Client does not exist",
                     404
                 );
@@ -147,6 +148,61 @@ namespace Requra.Infrastructure.Services.ProjectService
                 response,
                 "Project Created Successfully",
                 201
+            );
+        }
+
+        public async Task<Response<ProjectDetailsDto>> GetProjectByIdAsync(Guid projectId, string currentUserId)
+        {
+            var project = await projectRepository.GetByIdWithMembersAsync(projectId);
+
+            if (project == null || project.IsDeleted)
+            {
+                return Response<ProjectDetailsDto>.Failure(
+                    new ProjectDetailsDto(),
+                    "Project not found",
+                    404
+                );
+            }
+
+            var isMember = project.Members.Any(m => m.UserId == currentUserId);
+
+            if (!isMember)
+            {
+                return Response<ProjectDetailsDto>.Failure(new ProjectDetailsDto(),
+                    "You are not allowed to access this project",
+                    403
+                );
+            }
+
+            var clientMember = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer);
+
+            var clientUser = clientMember != null
+                ? await userManager.FindByIdAsync(clientMember.UserId)
+                : null;
+
+            var dto = new ProjectDetailsDto
+            {
+                Id = project.Id.ToString(),
+                Name = project.Name,
+                Description = project.Description,
+                ProjectType = project.ProjectType.ToString(),
+                Status = project.Status.ToString(),
+                ClientName = clientUser?.UserName ?? "Unknown",
+                CreatedAt = project.CreatedAt,
+
+                TeamMembers = project.Members
+                    .Where(m => m.Role == ProjectRole.Contributor)
+                    .Select(m => new TeamMemberDto
+                    {
+                        Email = m.User.Email
+                    })
+                    .ToList()
+            };
+
+            return Response<ProjectDetailsDto>.Success(
+                dto,
+                "Project Fetched Successfully",
+                200
             );
         }
     }

@@ -25,7 +25,7 @@ namespace Requra.Presentation
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
-            builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectRequestDtoValidator>();
+            builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectValidator>();
 
 
             builder.Services.AddOpenApi();
