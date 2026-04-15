@@ -77,5 +77,20 @@ namespace Requra.API.Controllers
 
             return StatusCode(result.StatusCode, result);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProject(string id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest(Response<bool>.Failure(false, "Invalid project id format", 400));
+            }
+
+            var result = await _projectService.DeleteProjectAsync(guid, userId);
+
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
