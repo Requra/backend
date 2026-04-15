@@ -4,7 +4,9 @@ using System.Text;
 
 namespace Requra.Application.DTOs.Project.ProjectCreation
 {
-    internal class TeamMemberDto
+    public class TeamMemberDto
     {
+        public string Email { get; set; } = null!;
+
     }
 }

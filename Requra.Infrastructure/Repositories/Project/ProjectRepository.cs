@@ -10,14 +10,11 @@ namespace Requra.Infrastructure.Repositories.Project
 {
     public class ProjectRepository(RequraDbContext _context) : IProjectRepository
     {
-        //public async Task AddAsync(Project project)
-        //{
-            
-        //}
-
-        public Task AddAsync(Domain.Entities.Project project)
+        public async Task AddAsync(Domain.Entities.Project project)
         {
-            throw new NotImplementedException();
+            await _context.Projects.AddAsync(project);
+
+            await _context.SaveChangesAsync();
         }
     }
 }

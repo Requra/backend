@@ -77,5 +77,16 @@ namespace Requra.Domain.Entities
             IsDeleted = true;
             UpdatedAt = DateTime.UtcNow;
         }
+        public void SetProjectType(ProjectType type)
+        {
+            ProjectType = type;
+        }
+        public void AddMember(string userId, ProjectRole role)
+        {
+            if (Members.Any(m => m.UserId == userId))
+                return;
+
+            Members.Add(new ProjectMember(userId, Id, role));
+        }
     }
 }
