@@ -21,6 +21,8 @@ namespace Requra.Domain.Entities
         public DateTime UpdatedAt { get; private set; }
 
         public ProjectType ProjectType { get; private set; }
+        public bool IsDeleted { get; private set; }
+
 
         // Navigation
         //public ApplicationUser Owner { get; private set; } = null!;
@@ -68,6 +70,11 @@ namespace Requra.Domain.Entities
         public void Cancel()
         {
             Status = ProjectStatus.Cancelled;
+            UpdatedAt = DateTime.UtcNow;
+        }
+        public void Delete()
+        {
+            IsDeleted = true;
             UpdatedAt = DateTime.UtcNow;
         }
     }
