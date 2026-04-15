@@ -79,131 +79,181 @@ namespace Requra.Infrastructure.Services.ProjectService
             }
         }
 
-        public async Task<Response<ProjectResponseDto>> CreateProjectAsync(ProjectRequestDto request,string currentUserId)
+        public async Task<Response<ProjectResponseDto>> CreateProjectAsync(ProjectRequestDto request, string currentUserId)
         {
-            //Validation Handeled Here only For Now due To Problem In Auto Validation, Will be Solved Later "All validation errors In Response"
+            try
+            { //Validation Handeled Here only For Now due To Problem In Auto Validation, Will be Solved Later "All validation errors In Response"
 
-            var validation = await validator.ValidateAsync(request);
+                var validation = await validator.ValidateAsync(request);
 
-            if (!validation.IsValid)
-            {
-                var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),"Validation failed", 400, errors);
-            }
-            var client = await userManager.FindByEmailAsync(request.ClientEmail);
+                if (!validation.IsValid)
+                {
+                    var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
+                    return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(), "Validation failed", 400, errors);
+                }
+                var client = await userManager.FindByEmailAsync(request.ClientEmail);
 
-            if (client == null)
-            {
-                return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),
-                    "Client does not exist",
-                    404
+                if (client == null)
+                {
+                    return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),
+                        "Client does not exist",
+                        404
+                    );
+                }
+
+                var project = new Project(request.Name);
+                project.UpdateDetails(request.Name, request.Description, Language.En);
+
+                project.SetProjectType(request.ProjectType);
+
+                project.AddMember(currentUserId, ProjectRole.Owner);
+
+                project.AddMember(client.Id, ProjectRole.Viewer);
+
+
+                //foreach (var member in request.TeamMembers)
+                //{
+                //    var user = await userManager.FindByEmailAsync(member.Email);
+
+                //    if (user == null)
+                //        continue;
+
+                //    // Prevent duplicates
+                //    if (project.Members.Any(m => m.UserId == user.Id))
+                //        continue;
+
+                //    // Send Invitation Email After Accepyting Invitation, the user will be added as a contributor
+
+                //    project.Members.Add(new ProjectMember(
+                //        user.Id,
+                //        project.Id,
+                //        ProjectRole.Contributor
+                //    ));
+
+                //}
+
+                await projectRepository.AddAsync(project);
+
+                var response = new ProjectResponseDto
+                {
+                    Id = project.Id.ToString(),
+                    Name = project.Name,
+                    Description = project.Description,
+                    ProjectType = project.ProjectType,
+                    Status = project.Status.ToString(),
+                    ClientEmail = client.Email!,
+                    CreatedAt = project.CreatedAt
+                };
+
+                return Response<ProjectResponseDto>.Success(
+                    response,
+                    "Project Created Successfully",
+                    201
                 );
             }
-
-            var project = new Project(request.Name);
-            project.UpdateDetails(request.Name, request.Description, Language.En);
-
-            project.SetProjectType(request.ProjectType);
-
-            project.AddMember(currentUserId, ProjectRole.Owner);
-
-            project.AddMember(client.Id, ProjectRole.Viewer);
-           
-
-            //foreach (var member in request.TeamMembers)
-            //{
-            //    var user = await userManager.FindByEmailAsync(member.Email);
-
-            //    if (user == null)
-            //        continue;
-
-            //    // Prevent duplicates
-            //    if (project.Members.Any(m => m.UserId == user.Id))
-            //        continue;
-
-            //    // Send Invitation Email After Accepyting Invitation, the user will be added as a contributor
-
-            //    project.Members.Add(new ProjectMember(
-            //        user.Id,
-            //        project.Id,
-            //        ProjectRole.Contributor
-            //    ));
-
-            //}
-
-            await projectRepository.AddAsync(project);
-
-            var response = new ProjectResponseDto
+            catch (Exception ex)
             {
-                Id = project.Id.ToString(),
-                Name = project.Name,
-                Description = project.Description,
-                ProjectType = project.ProjectType,
-                Status = project.Status.ToString(),
-                ClientEmail = client.Email!,
-                CreatedAt = project.CreatedAt
-            };
-
-            return Response<ProjectResponseDto>.Success(
-                response,
-                "Project Created Successfully",
-                201
-            );
+                _logger.LogError(ex, "Error creating project for user {UserId}", currentUserId);
+                return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(), "An unexpected error occurred while creating the project", 500, new List<string> { ex.Message });
+            }
         }
 
         public async Task<Response<ProjectDetailsDto>> GetProjectByIdAsync(Guid projectId, string currentUserId)
         {
-            var project = await projectRepository.GetByIdWithMembersAsync(projectId);
-
-            if (project == null || project.IsDeleted)
+            try
             {
-                return Response<ProjectDetailsDto>.Failure(
-                    new ProjectDetailsDto(),
-                    "Project not found",
-                    404
+                var project = await projectRepository.GetByIdWithMembersAsync(projectId);
+
+                if (project == null || project.IsDeleted)
+                {
+                    return Response<ProjectDetailsDto>.Failure(
+                        new ProjectDetailsDto(),
+                        "Project not found",
+                        404
+                    );
+                }
+
+                var isMember = project.Members.Any(m => m.UserId == currentUserId);
+
+                if (!isMember)
+                {
+                    return Response<ProjectDetailsDto>.Failure(new ProjectDetailsDto(),
+                        "You are not allowed to access this project",
+                        403
+                    );
+                }
+
+                var clientMember = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer);
+
+                var clientUser = clientMember != null
+                    ? await userManager.FindByIdAsync(clientMember.UserId)
+                    : null;
+
+                var dto = new ProjectDetailsDto
+                {
+                    Id = project.Id.ToString(),
+                    Name = project.Name,
+                    Description = project.Description,
+                    ProjectType = project.ProjectType.ToString(),
+                    Status = project.Status.ToString(),
+                    ClientName = clientUser?.UserName ?? "Unknown",
+                    CreatedAt = project.CreatedAt,
+
+                    TeamMembers = project.Members
+                        //.Where(m => m.Role == ProjectRole.Contributor)
+                        .Select(m => new TeamMemberDto
+                        {
+                            Email = m.User.Email
+                        })
+                        .ToList()
+                };
+
+                return Response<ProjectDetailsDto>.Success(
+                    dto,
+                    "Project Fetched Successfully",
+                    200
                 );
             }
-
-            var isMember = project.Members.Any(m => m.UserId == currentUserId);
-
-            if (!isMember)
+            catch (Exception ex)
             {
-                return Response<ProjectDetailsDto>.Failure(new ProjectDetailsDto(),
-                    "You are not allowed to access this project",
-                    403
+                _logger.LogError(ex, "Error retrieving project with id {ProjectId}", projectId);
+                return Response<ProjectDetailsDto>.Failure(new ProjectDetailsDto(), "An unexpected error occurred while retrieving the project", 500, new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<bool>> DeleteProjectAsync(Guid id, string currentUserId)
+        {
+
+            try
+            {
+                var project = await projectRepository.GetByIdWithMembersAsync(id);
+                var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
+                if (!isOwner)
+                {
+                    return Response<bool>.Failure(false,"Unauthorized", 403);
+                }
+
+                if (project == null || project.IsDeleted)
+                {
+                    return Response<bool>.Failure(false, "Project not found", 404);
+                }
+
+                project.Delete();
+
+                await projectRepository.SaveChangesAsync();
+
+                return Response<bool>.Success(
+                    true,
+                    "Project Deleted Successfully",
+                    200
                 );
             }
-
-            var clientMember = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer);
-
-            var clientUser = clientMember != null
-                ? await userManager.FindByIdAsync(clientMember.UserId)
-                : null;
-
-            var dto = new ProjectDetailsDto
+            catch (Exception ex)
             {
-                Id = project.Id.ToString(),
-                Name = project.Name,
-                Description = project.Description,
-                ProjectType = project.ProjectType.ToString(),
-                Status = project.Status.ToString(),
-                ClientName = clientUser?.UserName ?? "Unknown",
-                CreatedAt = project.CreatedAt,
+                _logger.LogError(ex, "Error deleting project with id {ProjectId}", id);
+                return Response<bool>.Failure(false, "An unexpected error occurred while deleting the project", 500, new List<string> { ex.Message });
+            }
 
-                TeamMembers = project.Members
-                    .Where(m => m.Role == ProjectRole.Contributor)
-                    .Select(m => new TeamMemberDto
-                    {
-                        Email = m.User.Email
-                    })
-                    .ToList()
-            };
-
-            return Response<ProjectDetailsDto>.Success(
-                dto,
-                "Project Fetched Successfully",
-                200
-            );
         }
     }
 }

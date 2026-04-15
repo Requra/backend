@@ -17,5 +17,6 @@ namespace Requra.Application.Interfaces.IProjectService
         Task<Response<ProjectResponseDto>> CreateProjectAsync(ProjectRequestDto request, string currentUserId);
 
         Task<Response<ProjectDetailsDto>> GetProjectByIdAsync(Guid projectId, string currentUserId);
+        Task<Response<bool>> DeleteProjectAsync(Guid id, string currentUserId);
     }
 }
