@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
+using AutoMapper.Execution;
 using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Project;
+using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
@@ -16,23 +18,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Requra.Infrastructure.Services.ProjectService
 {
-    public class ProjectService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProjectService> logger,RequraDbContext context) : IProjectService
+    public class ProjectService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProjectService> logger, RequraDbContext context) : IProjectService
     {
-        private readonly IUnitOfWork _unitOfWork=unitOfWork;
-        private readonly ILogger<ProjectService> _logger=logger;
-        private readonly IMapper _mapper=mapper;
-        private readonly RequraDbContext _context=context;
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
+        private readonly ILogger<ProjectService> _logger = logger;
+        private readonly IMapper _mapper = mapper;
+        private readonly RequraDbContext _context = context;
 
 
         public async Task<Response<PagedResult<ProjectDTO>>> GetUserProjectsAsync(ProjectFilter filter)
         {
-            
+
             if (string.IsNullOrEmpty(filter.UserId))
             {
-                 return Response<PagedResult<ProjectDTO>>.Failure(new PagedResult<ProjectDTO>(), "Invalid CreatorId", 400);
+                return Response<PagedResult<ProjectDTO>>.Failure(new PagedResult<ProjectDTO>(), "Invalid CreatorId", 400);
             }
 
             try
@@ -48,7 +51,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 var spec = new ProjectsByUserSpecification(filter.UserId, filter.Status, filter.PageNumber, filter.PageSize);
                 var countSpec = new ProjectsCountSpecification(filter.UserId, filter.Status);
 
-               // var projects = await repo.ListAsync(spec);
+                // var projects = await repo.ListAsync(spec);
                 var totalCount = await repo.CountAsync(countSpec);
 
                 var query = _context.Projects.AsQueryable();
@@ -59,16 +62,21 @@ namespace Requra.Infrastructure.Services.ProjectService
                     .ProjectTo<ProjectDTO>(_mapper.ConfigurationProvider)
                     .ToListAsync();
 
-                return mapped.Any() ? Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO>{Items = mapped,TotalCount = totalCount,PageNumber = filter.PageNumber,PageSize = filter.PageSize}, "Projects Fetched Successfully",200)
-                :Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO>(), "No projects found",204);
+                return mapped.Any() ? Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO> { Items = mapped, TotalCount = totalCount, PageNumber = filter.PageNumber, PageSize = filter.PageSize }, "Projects Fetched Successfully", 200)
+                : Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO>(), "No projects found", 204);
 
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving projects for user {UserId}", filter.UserId);
 
-                return Response<PagedResult<ProjectDTO>>.Failure("An unexpected error occurred while retrieving projects",500,new List<string> { ex.Message });
+                return Response<PagedResult<ProjectDTO>>.Failure("An unexpected error occurred while retrieving projects", 500, new List<string> { ex.Message });
             }
         }
     }
 }
+
+        
+
+
+        

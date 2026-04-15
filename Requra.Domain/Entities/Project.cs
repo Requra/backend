@@ -44,9 +44,7 @@ namespace Requra.Domain.Entities
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
-
-        
-
+      
         public void UpdateDetails(string name, string? description, Language language)
         {
             Name = name;

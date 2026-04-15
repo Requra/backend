@@ -3,6 +3,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Requra.Infrastructure.DependencyInjection;
 using Requra.Infrastructure.Validations;
+using System.Text.Json.Serialization;
 
 namespace Requra.Presentation
 {
@@ -14,7 +15,10 @@ namespace Requra.Presentation
 
             // Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options => {
+                    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
 
             //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);

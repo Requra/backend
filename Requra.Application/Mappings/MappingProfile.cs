@@ -2,6 +2,7 @@
 using AutoMapper;
 using Requra.Application.DTOs.Document;
 using Requra.Application.DTOs.Project;
+using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
@@ -10,7 +11,7 @@ using System.Collections.Generic;
 using System.Text;
 namespace Requra.Application.Mappings
 {
-    public class MappingProfile :Profile
+    public class MappingProfile : Profile
     {
         public MappingProfile()
         {
@@ -49,6 +50,25 @@ namespace Requra.Application.Mappings
                         .SelectMany(dr => dr.Requirement.UserStories)
                         .SelectMany(us => us.Comments)
                         .Count()));
+
+
+
+            CreateMap<ProjectRequestDto, Project>()
+           .ForMember(dest => dest.ProjectType,
+               opt => opt.MapFrom(src =>
+                   (ProjectType)src.ProjectTypes
+                       .Aggregate(0, (acc, val) => acc | val)
+               ));
+
+            CreateMap<Project, ProjectResponseDto>()
+                .ForMember(dest => dest.ProjectTypes,
+                    opt => opt.MapFrom(src =>
+                        Enum.GetValues(typeof(ProjectType))
+                            .Cast<ProjectType>()
+                            .Where(x => x != ProjectType.None && src.ProjectType.HasFlag(x))
+                            .Select(x => x.ToString())
+                            .ToList()
+                    ));
             #endregion
 
 
