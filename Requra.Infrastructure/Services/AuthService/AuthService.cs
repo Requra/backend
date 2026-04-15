@@ -88,20 +88,20 @@ namespace Requra.Infrastructure.Services.AuthService
                     );
                 }
                 //---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
-                var newAccessToken = await _jwtService.GenerateTokenAsync(user);
-                var newRefreshToken = await _jwtService.GenerateRefreshToken();
-                var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
+                //var newAccessToken = await _jwtService.GenerateTokenAsync(user);
+                //var newRefreshToken = await _jwtService.GenerateRefreshToken();
+                //var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
 
-                user.RefreshTokens.Add(new RefreshToken
-                {
-                    Token = newRefreshToken,
-                    CreatedOn = DateTime.UtcNow,
-                    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
-                });
-                var updateResult = await userManager.UpdateAsync(user);
+                //user.RefreshTokens.Add(new RefreshToken
+                //{
+                //    Token = newRefreshToken,
+                //    CreatedOn = DateTime.UtcNow,
+                //    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
+                //});
+                //var updateResult = await userManager.UpdateAsync(user);
 
-                Console.WriteLine(newRefreshToken);
-                Console.WriteLine(newAccessToken);
+                //Console.WriteLine(newRefreshToken);
+                //Console.WriteLine(newAccessToken);
                 //---------------------------------------
 
                 // await _emailService.SendOtpAsync(user.Email);        
