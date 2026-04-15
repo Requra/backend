@@ -53,22 +53,22 @@ namespace Requra.Application.Mappings
 
 
 
-            CreateMap<ProjectRequestDto, Project>()
-           .ForMember(dest => dest.ProjectType,
-               opt => opt.MapFrom(src =>
-                   (ProjectType)src.ProjectTypes
-                       .Aggregate(0, (acc, val) => acc | val)
-               ));
+           // CreateMap<ProjectRequestDto, Project>()
+           //.ForMember(dest => dest.ProjectType,
+           //    opt => opt.MapFrom(src =>
+           //        (ProjectType)src.ProjectTypes
+           //            .Aggregate(0, (acc, val) => acc | val)
+           //    ));
 
-            CreateMap<Project, ProjectResponseDto>()
-                .ForMember(dest => dest.ProjectTypes,
-                    opt => opt.MapFrom(src =>
-                        Enum.GetValues(typeof(ProjectType))
-                            .Cast<ProjectType>()
-                            .Where(x => x != ProjectType.None && src.ProjectType.HasFlag(x))
-                            .Select(x => x.ToString())
-                            .ToList()
-                    ));
+           // CreateMap<Project, ProjectResponseDto>()
+           //     .ForMember(dest => dest.ProjectTypes,
+           //         opt => opt.MapFrom(src =>
+           //             Enum.GetValues(typeof(ProjectType))
+           //                 .Cast<ProjectType>()
+           //                 .Where(x => x != ProjectType.None && src.ProjectType.HasFlag(x))
+           //                 .Select(x => x.ToString())
+           //                 .ToList()
+           //         ));
             #endregion
 
 
