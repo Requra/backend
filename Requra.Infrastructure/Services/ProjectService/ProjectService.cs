@@ -10,6 +10,7 @@ using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectDetails;
+using Requra.Application.DTOs.Project.ProjectUpdate;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
@@ -27,7 +28,7 @@ using System.Xml.Linq;
 
 namespace Requra.Infrastructure.Services.ProjectService
 {
-    public class ProjectService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProjectService> logger, RequraDbContext context, UserManager<ApplicationUser> userManager,IProjectRepository projectRepository, IValidator<ProjectRequestDto> validator) : IProjectService
+    public class ProjectService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProjectService> logger, RequraDbContext context, UserManager<ApplicationUser> userManager, IProjectRepository projectRepository, IValidator<ProjectRequestDto> validator,IValidator<ProjectUpdateRequestDto> updateValidator) : IProjectService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
         private readonly ILogger<ProjectService> _logger = logger;
@@ -102,6 +103,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 }
 
                 var project = new Project(request.Name);
+                //Needs Refactoring Later
                 project.UpdateDetails(request.Name, request.Description, Language.En);
 
                 project.SetProjectType(request.ProjectType);
@@ -111,26 +113,25 @@ namespace Requra.Infrastructure.Services.ProjectService
                 project.AddMember(client.Id, ProjectRole.Viewer);
 
 
-                //foreach (var member in request.TeamMembers)
-                //{
-                //    var user = await userManager.FindByEmailAsync(member.Email);
+                foreach (var member in request.TeamMembers)
+                {
+                    var user = await userManager.FindByEmailAsync(member.Email);
 
-                //    if (user == null)
-                //        continue;
+                    if (user == null)
+                        continue;
 
-                //    // Prevent duplicates
-                //    if (project.Members.Any(m => m.UserId == user.Id))
-                //        continue;
+                    if (project.Members.Any(m => m.UserId == user.Id))
+                        continue;
 
-                //    // Send Invitation Email After Accepyting Invitation, the user will be added as a contributor
+                    // Send Invitation Email After Accepting Invitation, the user will be added as a contributor
 
-                //    project.Members.Add(new ProjectMember(
-                //        user.Id,
-                //        project.Id,
-                //        ProjectRole.Contributor
-                //    ));
+                    project.Members.Add(new ProjectMember(
+                        user.Id,
+                        project.Id,
+                        ProjectRole.Contributor
+                    ));
 
-                //}
+                }
 
                 await projectRepository.AddAsync(project);
 
@@ -196,14 +197,14 @@ namespace Requra.Infrastructure.Services.ProjectService
                     Description = project.Description,
                     ProjectType = project.ProjectType.ToString(),
                     Status = project.Status.ToString(),
-                    ClientName = clientUser?.UserName ?? "Unknown",
+                    ClientEmail = clientUser?.Email ?? "Unknown",
                     CreatedAt = project.CreatedAt,
 
                     TeamMembers = project.Members
-                        //.Where(m => m.Role == ProjectRole.Contributor)
+                        .Where(m => m.User != null && m.User.Email != null)
                         .Select(m => new TeamMemberDto
                         {
-                            Email = m.User.Email
+                            Email = m.User.Email!
                         })
                         .ToList()
                 };
@@ -227,15 +228,14 @@ namespace Requra.Infrastructure.Services.ProjectService
             try
             {
                 var project = await projectRepository.GetByIdWithMembersAsync(id);
-                var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
-                if (!isOwner)
-                {
-                    return Response<bool>.Failure(false,"Unauthorized", 403);
-                }
-
                 if (project == null || project.IsDeleted)
                 {
                     return Response<bool>.Failure(false, "Project not found", 404);
+                }
+                var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
+                if (!isOwner)
+                {
+                    return Response<bool>.Failure(false, "Unauthorized", 403);
                 }
 
                 project.Delete();
@@ -255,10 +255,134 @@ namespace Requra.Infrastructure.Services.ProjectService
             }
 
         }
+
+        
+
+        public async Task<Response<ProjectUpdateResponseDto>> UpdateProjectAsync(Guid id, ProjectUpdateRequestDto dto, string currentUserId)
+        {
+            try
+            { //Validation Handeled Here only For Now due To Problem In Auto Validation, Will be Solved Later "All validation errors In Response"
+
+                var validation = await updateValidator.ValidateAsync(dto);
+
+                if (!validation.IsValid)
+                {
+                    var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
+                    return Response<ProjectUpdateResponseDto>.Failure(new (), "Validation failed", 400, errors);
+                }
+
+                var project = await projectRepository.GetByIdWithMembersAsync(id);
+                if (project == null || project.IsDeleted)
+                {
+                    return Response<ProjectUpdateResponseDto>.Failure(new(),"Project not found", 404);
+                }
+                var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
+                if (!isOwner)
+                {
+                    return Response<ProjectUpdateResponseDto>.Failure(new(), "Unauthorized", 403);
+                }
+                if (dto.ClientEmail != null)
+                {
+                    var client = await userManager.FindByEmailAsync(dto.ClientEmail);
+                    if (client == null)
+                    {
+                        return Response<ProjectUpdateResponseDto>.Failure(new(),
+                            "Client does not exist",
+                            404
+                        );
+                    }
+                    project.AddMember(client.Id, ProjectRole.Viewer);
+                }
+
+                project.UpdateDetails(dto.Name, dto.Description, dto.ProjectType, dto.Status, dto.Language);
+
+
+
+                if (dto.TeamMembers != null && dto.TeamMembers.Any())
+                {
+                    var emails = dto.TeamMembers
+                        .Where(x => !string.IsNullOrWhiteSpace(x.Email))
+                        .Select(x => x.Email.Trim().ToLower())
+                        .ToList();
+
+                    var users = await userManager.Users
+                            .Where(u => u.Email != null && emails.Contains(u.Email.ToLower()))
+                            .ToListAsync();
+
+                    var userDict = users
+                        .Where(u => !string.IsNullOrWhiteSpace(u.Email))
+                        .ToDictionary(
+                              u => u.Email!.Trim().ToLower(),
+                              u => u
+                         );
+
+                    var incomingUserIds = dto.TeamMembers
+                        .Select(x => x.Email.Trim().ToLower())
+                        .Where(userDict.ContainsKey)
+                        .Select(email => userDict[email].Id)
+                        .ToHashSet();
+
+                    var toRemove = project.Members
+                        .Where(m => !incomingUserIds.Contains(m.UserId))
+                        .ToList();
+
+                    foreach (var member in toRemove)
+                    {
+                        project.Members.Remove(member);
+                    }
+
+                    foreach (var user in users)
+                    {
+                        if (project.Members.Any(m => m.UserId == user.Id))
+                            continue;
+                        // Send Invitation Email After Accepting Invitation, the user will be added as a contributor
+
+                        project.Members.Add(new ProjectMember(
+                            user.Id,
+                            project.Id,
+                            ProjectRole.Contributor
+                        ));
+                    }
+                }
+
+
+                await projectRepository.SaveChangesAsync();
+
+                var response = new ProjectUpdateResponseDto
+                {
+                    Id = project.Id.ToString(),
+                    Name = project.Name,
+                    Description = project.Description,
+                    ProjectType = project.ProjectType,
+                    Status = project.Status,
+                    ClientEmail = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer)?.User.Email,
+                    TeamMembers = project.Members
+                        .Where(m => m.User != null && m.User.Email != null)
+                        .Select(m => new TeamMemberDto
+                        {
+                            Email = m.User.Email!
+                        })
+                        .ToList(),
+                    CreatedAt = project.CreatedAt,
+                    UpdatedAt = project.UpdatedAt
+                };
+
+                return Response<ProjectUpdateResponseDto>.Success(
+                    response,
+                    "Project Updated Successfully",
+                    200
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating project for user {UserId}", currentUserId);
+                return Response<ProjectUpdateResponseDto>.Failure(new (), "An unexpected error occurred while updating the project", 500, new List<string> { ex.Message });
+            }
+        }
+
     }
 }
 
-        
 
 
-        
+

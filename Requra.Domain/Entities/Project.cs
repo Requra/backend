@@ -55,6 +55,16 @@ namespace Requra.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        public void UpdateDetails(string? name, string? description,ProjectType? projectType, ProjectStatus? projectStatus , Language? language)
+        {
+            Name = name?? Name;
+            Description = description ?? Description;
+            Language = language ?? Language;
+            ProjectType = projectType ?? ProjectType;
+            Status = projectStatus ?? Status;
+            UpdatedAt = DateTime.UtcNow;
+        }
+       
         public void Draft()
         {
             Status = ProjectStatus.Drafted;
