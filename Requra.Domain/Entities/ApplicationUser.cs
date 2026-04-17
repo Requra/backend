@@ -31,11 +31,13 @@ namespace Requra.Domain.Entities
         public ICollection<Approval> Approvals { get; private set; } = new List<Approval>();
 
         // Constructor
-        public ApplicationUser(string userName, string email)
+        public ApplicationUser(string userName, string email, string? fullName = null, Language? preferredLanguage = null, string? avatarUrl = null)
         {
             UserName = userName;
             Email = email;
-
+            FullName = fullName;
+            PreferredLanguage = preferredLanguage;
+            AvatarUrl = avatarUrl;
             IsActive = true;
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;

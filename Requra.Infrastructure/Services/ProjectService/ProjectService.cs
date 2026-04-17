@@ -28,14 +28,9 @@ using System.Xml.Linq;
 
 namespace Requra.Infrastructure.Services.ProjectService
 {
-    public class ProjectService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProjectService> logger, RequraDbContext context, UserManager<ApplicationUser> userManager, IProjectRepository projectRepository, IValidator<ProjectRequestDto> validator,IValidator<ProjectUpdateRequestDto> updateValidator) : IProjectService
+    public class ProjectService(IUnitOfWork _unitOfWork, IMapper _mapper, ILogger<ProjectService> _logger, RequraDbContext _context, UserManager<ApplicationUser> _userManager, IProjectRepository _projectRepository, IValidator<ProjectRequestDto> _validator,IValidator<ProjectUpdateRequestDto> updateValidator) : IProjectService
     {
-        private readonly IUnitOfWork _unitOfWork = unitOfWork;
-        private readonly ILogger<ProjectService> _logger = logger;
-        private readonly IMapper _mapper = mapper;
-        private readonly RequraDbContext _context = context;
-
-
+        
         public async Task<Response<PagedResult<ProjectDTO>>> GetUserProjectsAsync(ProjectFilter filter)
         {
 
@@ -85,14 +80,14 @@ namespace Requra.Infrastructure.Services.ProjectService
             try
             { //Validation Handeled Here only For Now due To Problem In Auto Validation, Will be Solved Later "All validation errors In Response"
 
-                var validation = await validator.ValidateAsync(request);
+                var validation = await _validator.ValidateAsync(request);
 
                 if (!validation.IsValid)
                 {
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
                     return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(), "Validation failed", 400, errors);
                 }
-                var client = await userManager.FindByEmailAsync(request.ClientEmail);
+                var client = await _userManager.FindByEmailAsync(request.ClientEmail);
 
                 if (client == null)
                 {
@@ -111,10 +106,14 @@ namespace Requra.Infrastructure.Services.ProjectService
 
                 foreach (var member in request.TeamMembers)
                 {
-                    var user = await userManager.FindByEmailAsync(member.Email);
+                    var user = await _userManager.FindByEmailAsync(member.Email);
 
-                    if (user == null)
-                        continue;
+                    if (user == null){
+                        return Response<ProjectResponseDto>.Failure(new (),
+                        $"{member.Email} does not exist",
+                        404
+                    );
+                    }
 
                     if (project.Members.Any(m => m.UserId == user.Id))
                         continue;
@@ -129,7 +128,7 @@ namespace Requra.Infrastructure.Services.ProjectService
 
                 }
 
-                await projectRepository.AddAsync(project);
+                await  _projectRepository.AddAsync(project);
 
                 var response = new ProjectResponseDto
                 {
@@ -159,7 +158,7 @@ namespace Requra.Infrastructure.Services.ProjectService
         {
             try
             {
-                var project = await projectRepository.GetByIdWithMembersAsync(projectId);
+                var project = await _projectRepository.GetByIdWithMembersAsync(projectId);
 
                 if (project == null || project.IsDeleted)
                 {
@@ -183,7 +182,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 var clientMember = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer);
 
                 var clientUser = clientMember != null
-                    ? await userManager.FindByIdAsync(clientMember.UserId)
+                    ? await _userManager.FindByIdAsync(clientMember.UserId)
                     : null;
 
                 var dto = new ProjectDetailsDto
@@ -223,7 +222,7 @@ namespace Requra.Infrastructure.Services.ProjectService
 
             try
             {
-                var project = await projectRepository.GetByIdWithMembersAsync(id);
+                var project = await  _projectRepository.GetByIdWithMembersAsync(id);
                 if (project == null || project.IsDeleted)
                 {
                     return Response<bool>.Failure(false, "Project not found", 404);
@@ -236,7 +235,7 @@ namespace Requra.Infrastructure.Services.ProjectService
 
                 project.Delete();
 
-                await projectRepository.SaveChangesAsync();
+                await _projectRepository.SaveChangesAsync();
 
                 return Response<bool>.Success(
                     true,
@@ -267,7 +266,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                     return Response<ProjectUpdateResponseDto>.Failure(new (), "Validation failed", 400, errors);
                 }
 
-                var project = await projectRepository.GetByIdWithMembersAsync(id);
+                var project = await _projectRepository.GetByIdWithMembersAsync(id);
                 if (project == null || project.IsDeleted)
                 {
                     return Response<ProjectUpdateResponseDto>.Failure(new(),"Project not found", 404);
@@ -275,7 +274,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
                 if (!isOwner)
                 {
-                    return Response<ProjectUpdateResponseDto>.Failure(new(), "Unauthorized", 403);
+                    return Response<ProjectUpdateResponseDto>.Failure(new(), "Only the owner can update the project", 403);
                 }
             
 
@@ -290,7 +289,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                         .Select(x => x.Email.Trim().ToLower())
                         .ToList();
 
-                    var users = await userManager.Users
+                    var users = await _userManager.Users
                             .Where(u => u.Email != null && emails.Contains(u.Email.ToLower()))
                             .ToListAsync();
 
@@ -300,6 +299,18 @@ namespace Requra.Infrastructure.Services.ProjectService
                               u => u.Email!.Trim().ToLower(),
                               u => u
                          );
+                    var missingEmails = emails
+                     .Where(email => !userDict.ContainsKey(email))
+                     .ToList();
+
+                    if (missingEmails.Any())
+                    {
+                        return Response<ProjectUpdateResponseDto>.Failure(
+                            new(),
+                            $"These emails do not exist: {string.Join(", ", missingEmails)}",
+                            404
+                        );
+                    }
 
                     var incomingUserIds = dto.TeamMembers
                         .Select(x => x.Email.Trim().ToLower())
@@ -318,8 +329,10 @@ namespace Requra.Infrastructure.Services.ProjectService
 
                     foreach (var user in users)
                     {
+
                         if (project.Members.Any(m => m.UserId == user.Id))
                             continue;
+
                         // Send Invitation Email After Accepting Invitation, the user will be added as a contributor
 
                         project.Members.Add(new ProjectMember(
@@ -331,7 +344,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 }
                 if (dto.ClientEmail != null)
                 {
-                    var client = await userManager.FindByEmailAsync(dto.ClientEmail);
+                    var client = await _userManager.FindByEmailAsync(dto.ClientEmail);
                     if (client == null)
                     {
                         return Response<ProjectUpdateResponseDto>.Failure(new(),
@@ -342,7 +355,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                     project.AddMember(client.Id, ProjectRole.Viewer);
                 }
 
-                await projectRepository.SaveChangesAsync();
+                await  _projectRepository.SaveChangesAsync();
 
                 var response = new ProjectUpdateResponseDto
                 {
