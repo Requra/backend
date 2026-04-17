@@ -24,11 +24,11 @@ namespace Requra.Infrastructure.Repositories.Project
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        public async Task<Domain.Entities.Project?> GetByIdAsync(Guid id)
-        {
-            return await _context.Projects
-                .FirstOrDefaultAsync(p => p.Id == id);
-        }
+        //public async Task<Domain.Entities.Project?> GetByIdAsync(Guid id)
+        //{
+        //    return await _context.Projects
+        //        .FirstOrDefaultAsync(p => p.Id == id);
+        //}
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();

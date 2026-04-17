@@ -2,6 +2,7 @@
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectDetails;
+using Requra.Application.DTOs.Project.ProjectUpdate;
 using Requra.Application.Response;
 using Requra.Domain.Enums;
 using System;
@@ -18,5 +19,8 @@ namespace Requra.Application.Interfaces.IProjectService
 
         Task<Response<ProjectDetailsDto>> GetProjectByIdAsync(Guid projectId, string currentUserId);
         Task<Response<bool>> DeleteProjectAsync(Guid id, string currentUserId);
+
+        Task<Response<ProjectUpdateResponseDto>> UpdateProjectAsync(Guid id, ProjectUpdateRequestDto dto, string currentUserId);
+
     }
 }

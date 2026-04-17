@@ -21,11 +21,15 @@ namespace Requra.Presentation
 
                 });
 
+          
+
+
             //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectValidator>();
+            builder.Services.AddValidatorsFromAssemblyContaining<UpdateProjectValidator>();
 
 
             builder.Services.AddOpenApi();

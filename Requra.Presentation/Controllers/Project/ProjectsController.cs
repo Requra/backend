@@ -4,6 +4,7 @@ using Requra.Application.DTOs;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectDetails;
+using Requra.Application.DTOs.Project.ProjectUpdate;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
 using System;
@@ -72,8 +73,11 @@ namespace Requra.API.Controllers
                 ));
             }
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            var result = await _projectService.GetProjectByIdAsync(guid, userId!);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(Response<bool>.Failure(false, "Unauthorized User", 401));
+            }
+            var result = await _projectService.GetProjectByIdAsync(guid, userId);
 
             return StatusCode(result.StatusCode, result);
         }
@@ -82,13 +86,37 @@ namespace Requra.API.Controllers
         public async Task<IActionResult> DeleteProject(string id)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(Response<bool>.Failure(false, "Unauthorized User", 401));
+            }
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest(Response<bool>.Failure(false, "Invalid project id format", 400));
             }
 
             var result = await _projectService.DeleteProjectAsync(guid, userId);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> UpdateProject(string id, [FromBody] ProjectUpdateRequestDto dto)
+        {
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest(Response<ProjectUpdateResponseDto>.Failure(new(),
+                    "Invalid project id format",
+                    400
+                ));
+            }
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(Response<ProjectUpdateResponseDto>.Failure(new(), "Unauthorized User", 401));
+            }
+            var result = await _projectService.UpdateProjectAsync(guid, dto, userId);
 
             return StatusCode(result.StatusCode, result);
         }

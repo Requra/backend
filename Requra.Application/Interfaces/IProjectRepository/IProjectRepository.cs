@@ -9,7 +9,7 @@ namespace Requra.Application.Interfaces.IProjectRepository
     {
         Task AddAsync(Project project);
         Task<Project?> GetByIdWithMembersAsync(Guid id);
-        Task<Project?> GetByIdAsync(Guid id);
+        //Task<Project?> GetByIdAsync(Guid id);
         Task SaveChangesAsync();
 
 
