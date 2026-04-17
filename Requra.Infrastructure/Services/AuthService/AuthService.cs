@@ -10,12 +10,14 @@ using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
+using Requra.Infrastructure.Helpers;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Principal;
 
 namespace Requra.Infrastructure.Services.AuthService
 {
+
     public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config) : IAuthService
     {
         public async Task<Response<string>> RegisterAsync(RegisterRequestDto request)
@@ -32,7 +34,7 @@ namespace Requra.Infrastructure.Services.AuthService
                     return Response<string>.Failure("","Validation failed", 400, errors);
                 }
 
-
+                //needs refactoring later
                 var existingUser = await userManager.FindByEmailAsync(request.Email);
                 if (existingUser is not null)
                 {
@@ -46,7 +48,6 @@ namespace Requra.Infrastructure.Services.AuthService
                 {
                     Role = request.Role
                 };
-
                 user.UpdateProfile(request.FullName, null, null);
 
                 var result = await userManager.CreateAsync(user, request.Password);
@@ -60,22 +61,10 @@ namespace Requra.Infrastructure.Services.AuthService
                     );
                 }
 
-                var roleName = request.Role switch
-                {
-                    UserRole.ProjectManager => "ProjectManager",
-                    UserRole.BusinessAnalyst => "BusinessAnalyst",
-                    UserRole.Stakeholder => "Stakeholder",
-                    _ => null
-                };
+                var roleNames = RoleHelper.GetRoleNames(request.Role);
 
 
-                if (roleName is null)
-                {
-                    await userManager.DeleteAsync(user);
-                    return Response<string>.Failure("", "Invalid role", 400, [$"This Role is not supported."]);
-                }
-
-                var roleResult = await userManager.AddToRoleAsync(user, roleName);
+                var roleResult = await userManager.AddToRolesAsync(user, roleNames);
 
                 if (!roleResult.Succeeded)
                 {
@@ -87,34 +76,52 @@ namespace Requra.Infrastructure.Services.AuthService
                         roleResult.Errors.Select(e => e.Description).ToList()
                     );
                 }
+
+
+
+                //var roleName = request.Role switch
+                //{
+                //    UserRole.ProjectManager => "ProjectManager",
+                //    UserRole.BusinessAnalyst => "BusinessAnalyst",
+                //    UserRole.Stakeholder => "Stakeholder",
+                //    _ => null
+                //};
+
+
+                //if (roleName is null)
+                //{
+                //    await userManager.DeleteAsync(user);
+                //    return Response<string>.Failure("", "Invalid role", 400, [$"This Role is not supported."]);
+                //}
+
                 //---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
-                var newAccessToken = await _jwtService.GenerateTokenAsync(user);
-                var newRefreshToken = await _jwtService.GenerateRefreshToken();
-                var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
+                //var newAccessToken = await _jwtService.GenerateTokenAsync(user);
+                //var newRefreshToken = await _jwtService.GenerateRefreshToken();
+                //var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
 
-                user.RefreshTokens.Add(new RefreshToken
-                {
-                    Token = newRefreshToken,
-                    CreatedOn = DateTime.UtcNow,
-                    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
-                });
-                var updateResult = await userManager.UpdateAsync(user);
+                //user.RefreshTokens.Add(new RefreshToken
+                //{
+                //    Token = newRefreshToken,
+                //    CreatedOn = DateTime.UtcNow,
+                //    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
+                //});
+                //var updateResult = await userManager.UpdateAsync(user);
 
-                Console.WriteLine(newRefreshToken);
-                Console.WriteLine(newAccessToken);
+                //Console.WriteLine(newRefreshToken);
+                //Console.WriteLine(newAccessToken);
                 //---------------------------------------
 
                 // await _emailService.SendOtpAsync(user.Email);        
 
                 return Response<string>.Success("Done successfully", "User registered successfully", 201);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return Response<string>.Failure(
                     "",
                     $"An unexpected error occurred.",
                     500,
-                    []
+                    new List<string> { ex.Message } //Will be removed later, added for debugging purposes only
                 );
             }
         }

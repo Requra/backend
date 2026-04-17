@@ -101,17 +101,13 @@ namespace Requra.Infrastructure.Services.ProjectService
                         404
                     );
                 }
+                //May Need Refactoring Later
 
                 var project = new Project(request.Name, request.Description, request.ProjectType);
-                //Needs Refactoring Later
-                //project.UpdateDetails(request.Name, request.Description, Language.En);
-
-                //project.SetProjectType(request.ProjectType);
 
                 project.AddMember(currentUserId, ProjectRole.Owner);
 
                 project.AddMember(client.Id, ProjectRole.Viewer);
-
 
                 foreach (var member in request.TeamMembers)
                 {

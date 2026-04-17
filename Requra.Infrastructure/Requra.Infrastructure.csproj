@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Folder Include="ExternalServices\JwtService\" />
-    <Folder Include="Helpers\" />
     <Folder Include="Hubs\" />
     <Folder Include="MiddleWares\" />
   </ItemGroup>

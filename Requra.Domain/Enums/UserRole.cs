@@ -4,11 +4,13 @@ using System.Text;
 
 namespace Requra.Domain.Enums
 {
+    [Flags]
     public enum UserRole
     {
-        Stakeholder,
-        BusinessAnalyst,
-        ProjectManager,
+        None = 0,
+        Stakeholder = 1,
+        BusinessAnalyst = 2,
+        ProjectManager = 4,
 
     }
     

@@ -47,14 +47,6 @@ namespace Requra.Domain.Entities
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
-      
-        //public void UpdateDetails(string name, string? description, Language language)
-        //{
-        //    Name = name;
-        //    Description = description;
-        //    Language = language;
-        //    UpdatedAt = DateTime.UtcNow;
-        //}
 
         public void UpdateDetails(string? name, string? description,ProjectType? projectType, ProjectStatus? projectStatus , Language? language)
         {
@@ -88,10 +80,7 @@ namespace Requra.Domain.Entities
             IsDeleted = true;
             UpdatedAt = DateTime.UtcNow;
         }
-        //public void SetProjectType(ProjectType type)
-        //{
-        //    ProjectType = type;
-        //}
+
         public void AddMember(string userId, ProjectRole role)
         {
             if (Members.Any(m => m.UserId == userId))
