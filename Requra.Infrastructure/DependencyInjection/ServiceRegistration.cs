@@ -35,7 +35,7 @@ namespace Requra.Infrastructure.DependencyInjection
 
             // Add Postgresql Setting
             services.AddDbContext<RequraDbContext>(options =>
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+                options.UseNpgsql(configuration.GetConnectionString("NeonConnection"))
             );
 
 

@@ -55,6 +55,7 @@ namespace Requra.Presentation
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+            
             app.UseRouting();
             app.UseCors("AllowAll");
             app.UseHttpsRedirection();
