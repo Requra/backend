@@ -77,23 +77,6 @@ namespace Requra.Infrastructure.Services.AuthService
                     );
                 }
 
-
-
-                //var roleName = request.Role switch
-                //{
-                //    UserRole.ProjectManager => "ProjectManager",
-                //    UserRole.BusinessAnalyst => "BusinessAnalyst",
-                //    UserRole.Stakeholder => "Stakeholder",
-                //    _ => null
-                //};
-
-
-                //if (roleName is null)
-                //{
-                //    await userManager.DeleteAsync(user);
-                //    return Response<string>.Failure("", "Invalid role", 400, [$"This Role is not supported."]);
-                //}
-
                 //---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
                 //var newAccessToken = await _jwtService.GenerateTokenAsync(user);
                 //var newRefreshToken = await _jwtService.GenerateRefreshToken();
@@ -121,7 +104,7 @@ namespace Requra.Infrastructure.Services.AuthService
                     "",
                     $"An unexpected error occurred.",
                     500,
-                    new List<string> { ex.Message } //Will be removed later, added for debugging purposes only
+                    []
                 );
             }
         }
