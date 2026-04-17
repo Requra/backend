@@ -113,8 +113,12 @@ namespace Requra.Infrastructure.Services.ProjectService
                 {
                     var user = await userManager.FindByEmailAsync(member.Email);
 
-                    if (user == null)
-                        continue;
+                    if (user == null){
+                        return Response<ProjectResponseDto>.Failure(new (),
+                        $"{member.Email} does not exist",
+                        404
+                    );
+                    }
 
                     if (project.Members.Any(m => m.UserId == user.Id))
                         continue;
@@ -275,7 +279,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
                 if (!isOwner)
                 {
-                    return Response<ProjectUpdateResponseDto>.Failure(new(), "Unauthorized", 403);
+                    return Response<ProjectUpdateResponseDto>.Failure(new(), "Only the owner can update the project", 403);
                 }
             
 
@@ -300,6 +304,18 @@ namespace Requra.Infrastructure.Services.ProjectService
                               u => u.Email!.Trim().ToLower(),
                               u => u
                          );
+                    var missingEmails = emails
+                     .Where(email => !userDict.ContainsKey(email))
+                     .ToList();
+
+                    if (missingEmails.Any())
+                    {
+                        return Response<ProjectUpdateResponseDto>.Failure(
+                            new(),
+                            $"These emails do not exist: {string.Join(", ", missingEmails)}",
+                            404
+                        );
+                    }
 
                     var incomingUserIds = dto.TeamMembers
                         .Select(x => x.Email.Trim().ToLower())
@@ -318,8 +334,10 @@ namespace Requra.Infrastructure.Services.ProjectService
 
                     foreach (var user in users)
                     {
+
                         if (project.Members.Any(m => m.UserId == user.Id))
                             continue;
+
                         // Send Invitation Email After Accepting Invitation, the user will be added as a contributor
 
                         project.Members.Add(new ProjectMember(
