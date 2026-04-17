@@ -101,17 +101,13 @@ namespace Requra.Infrastructure.Services.ProjectService
                         404
                     );
                 }
+                //May Need Refactoring Later
 
-                var project = new Project(request.Name);
-                //Needs Refactoring Later
-                project.UpdateDetails(request.Name, request.Description, Language.En);
-
-                project.SetProjectType(request.ProjectType);
+                var project = new Project(request.Name, request.Description, request.ProjectType);
 
                 project.AddMember(currentUserId, ProjectRole.Owner);
 
                 project.AddMember(client.Id, ProjectRole.Viewer);
-
 
                 foreach (var member in request.TeamMembers)
                 {
@@ -281,18 +277,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 {
                     return Response<ProjectUpdateResponseDto>.Failure(new(), "Unauthorized", 403);
                 }
-                if (dto.ClientEmail != null)
-                {
-                    var client = await userManager.FindByEmailAsync(dto.ClientEmail);
-                    if (client == null)
-                    {
-                        return Response<ProjectUpdateResponseDto>.Failure(new(),
-                            "Client does not exist",
-                            404
-                        );
-                    }
-                    project.AddMember(client.Id, ProjectRole.Viewer);
-                }
+            
 
                 project.UpdateDetails(dto.Name, dto.Description, dto.ProjectType, dto.Status, dto.Language);
 
@@ -344,7 +329,18 @@ namespace Requra.Infrastructure.Services.ProjectService
                         ));
                     }
                 }
-
+                if (dto.ClientEmail != null)
+                {
+                    var client = await userManager.FindByEmailAsync(dto.ClientEmail);
+                    if (client == null)
+                    {
+                        return Response<ProjectUpdateResponseDto>.Failure(new(),
+                            "Client does not exist",
+                            404
+                        );
+                    }
+                    project.AddMember(client.Id, ProjectRole.Viewer);
+                }
 
                 await projectRepository.SaveChangesAsync();
 
@@ -355,7 +351,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                     Description = project.Description,
                     ProjectType = project.ProjectType,
                     Status = project.Status,
-                    ClientEmail = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer)?.User.Email,
+                    ClientEmail = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer)?.User.Email ?? "Unknown",
                     TeamMembers = project.Members
                         .Where(m => m.User != null && m.User.Email != null)
                         .Select(m => new TeamMemberDto

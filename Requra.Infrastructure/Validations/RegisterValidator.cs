@@ -1,8 +1,9 @@
-﻿using System;
+﻿using FluentValidation;
+using Requra.Application.DTOs.Auth.Register;
+using Requra.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using FluentValidation;
-using Requra.Application.DTOs.Auth.Register;
 
 namespace Requra.Infrastructure.Validations
 {
@@ -33,7 +34,9 @@ namespace Requra.Infrastructure.Validations
     
 
             RuleFor(x => x.Role)
+                 .Must(role => role != UserRole.None)
                 .IsInEnum().WithMessage("Invalid role selected.");
+                
         }
     }
 }

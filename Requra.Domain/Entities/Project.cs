@@ -36,22 +36,15 @@ namespace Requra.Domain.Entities
         {
             
         }
-        public Project( string name, Language language = Language.En)
+        public Project( string name, string? description, ProjectType projectType, Language language = Language.En)
         {
             Id = Guid.NewGuid();
             Name = name;
-            Language = language;
-
-            Status = ProjectStatus.InProgress;
-            CreatedAt = DateTime.UtcNow;
-            UpdatedAt = DateTime.UtcNow;
-        }
-      
-        public void UpdateDetails(string name, string? description, Language language)
-        {
-            Name = name;
             Description = description;
             Language = language;
+            ProjectType = projectType;
+            Status = ProjectStatus.InProgress;
+            CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
 
@@ -87,10 +80,7 @@ namespace Requra.Domain.Entities
             IsDeleted = true;
             UpdatedAt = DateTime.UtcNow;
         }
-        public void SetProjectType(ProjectType type)
-        {
-            ProjectType = type;
-        }
+
         public void AddMember(string userId, ProjectRole role)
         {
             if (Members.Any(m => m.UserId == userId))
