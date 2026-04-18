@@ -18,17 +18,13 @@ namespace Requra.Infrastructure.Repositories.Project
 
         public async Task<Domain.Entities.Project?> GetByIdWithMembersAsync(Guid id)
         {
+            //gonna achieve projection later
             return await _context.Projects
                 .Include(p => p.Members)
                 .ThenInclude(m => m.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        //public async Task<Domain.Entities.Project?> GetByIdAsync(Guid id)
-        //{
-        //    return await _context.Projects
-        //        .FirstOrDefaultAsync(p => p.Id == id);
-        //}
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();
