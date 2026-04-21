@@ -230,7 +230,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 var isOwner = project.Members.Any(m => m.UserId == currentUserId && m.Role == ProjectRole.Owner);
                 if (!isOwner)
                 {
-                    return Response<bool>.Failure(false, "Unauthorized", 403);
+                    return Response<bool>.Failure(false, "Only the owner can Delete the project", 403);
                 }
 
                 project.Delete();
@@ -276,8 +276,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 {
                     return Response<ProjectUpdateResponseDto>.Failure(new(), "Only the owner can update the project", 403);
                 }
-            
-
+                
                 project.UpdateDetails(dto.Name, dto.Description, dto.ProjectType, dto.Status, dto.Language);
 
 
