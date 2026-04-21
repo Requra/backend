@@ -14,8 +14,10 @@ using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
+using Requra.Infrastructure.ExternalInterfaces.IExternalAuth;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
 using Requra.Infrastructure.ExternalServices.CloudinaryService;
+using Requra.Infrastructure.ExternalServices.ExternalAuth;
 using Requra.Infrastructure.Initializers;
 using Requra.Infrastructure.Repositories.Project;
 using Requra.Infrastructure.Services.AuthService;
@@ -71,6 +73,8 @@ namespace Requra.Infrastructure.DependencyInjection
 
             //external services registration
             services.AddScoped<ICloudinaryService, CloudinaryService>();
+            services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+
 
             //Application Services Registration
             services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Requra.Application.DTOs.Auth.RefreshToken;
 using Requra.Application.DTOs.Auth.Register;
@@ -18,7 +19,7 @@ using System.Security.Principal;
 namespace Requra.Infrastructure.Services.AuthService
 {
 
-    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config) : IAuthService
+    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config, IServiceScopeFactory serviceScopeFactory) : IAuthService
     {
         public async Task<Response<string>> RegisterAsync(RegisterRequestDto request)
         {
@@ -190,6 +191,31 @@ namespace Requra.Infrastructure.Services.AuthService
                 return Response<RefreshTokenResponseDto>.Failure($"An unexpected error occurred.",500,[]);
             }
         }
+
+
+        public async Task<RefreshToken> GetOrCreateRefreshToken(ApplicationUser user)
+        {
+            using var scope = serviceScopeFactory.CreateScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var jwtService = scope.ServiceProvider.GetRequiredService<IJwtTokenService>();
+
+            var userFromDb = await userManager.FindByIdAsync(user.Id);
+
+            if (userFromDb == null)
+                throw new Exception("User not found in database");
+
+            var activeToken = userFromDb.RefreshTokens.FirstOrDefault(t => t.IsActive);
+            if (activeToken != null)
+                return activeToken;
+
+            var newRefreshToken =  jwtService.CreateRefreshToken();
+
+            userFromDb.RefreshTokens.Add(newRefreshToken);
+            await userManager.UpdateAsync(userFromDb);
+
+            return newRefreshToken;
+        }
+
 
         public async Task<Response<string>> LogoutAsync(string userId)
         {
