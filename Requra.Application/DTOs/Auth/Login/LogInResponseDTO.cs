@@ -7,22 +7,16 @@ namespace Requra.Application.DTOs.Auth.Login
 {
     public class LogInResponseDTO
     {
-        public string UserId { get; set; }
-        public string Name { get; set; }
-        public bool IsAuthenticated { get; set; }
-        public string Token { get; set; }
-        public List<string> Roles { get; set; }
-        public string? ProfilePicture { get; set; }
+        public string UserId { get; set; }=string.Empty;
+        public string Name { get; set; }=string.Empty;
+        public bool IsAuthenticated { get; set; }=false;
+        public string Token { get; set; }=string.Empty; 
+        public List<string> Roles { get; set; }=new List<string>();
+        public string? ProfilePicture { get; set; }=string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime TokenExpiry { get; set; }
 
-        public LogInResponseDTO()
-        {
-            IsAuthenticated = false;
-            Name = string.Empty;
-            UserId = string.Empty;
-            Roles = new List<string>();
-            Token = string.Empty;
-            ProfilePicture = string.Empty;
-        }
+
 
     }
     
