@@ -30,6 +30,7 @@ namespace Requra.Presentation
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<UpdateProjectValidator>();
+            builder.Services.AddValidatorsFromAssemblyContaining<UploadAvatarDtoValidator>();
 
 
             builder.Services.AddOpenApi();

@@ -87,6 +87,7 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IProfileService, ProfileService>();
             services.AddScoped<IProjectRepository, ProjectRepository>();
 
+
             // Auto Mapper
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
 
