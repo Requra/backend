@@ -37,7 +37,7 @@ namespace Requra.Infrastructure.ExternalServices.CloudinaryService
             return _cloudinary.Api.UrlImgUp.BuildUrl(publicId);
         }
 
-        public async Task<UploadResultDto> UploadFileAsync(IFormFile file,string folderName = "general",CancellationToken cancellationToken = default)
+        public async Task<UploadResultDto> UploadFileAsync(IFormFile file,string folderName = "general",CancellationToken cancellationToken = default, string? publicId = null,bool overwrite = false)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File is empty");
@@ -77,8 +77,10 @@ namespace Requra.Infrastructure.ExternalServices.CloudinaryService
                 {
                     File = new FileDescription(fileName + extension, stream),
                     Folder = folderName,
-                    UseFilename = true,
-                    UniqueFilename = true,
+                    PublicId = publicId,               
+                    Overwrite = overwrite,
+                    UseFilename = publicId == null,
+                    UniqueFilename = publicId == null,
 
                     //Optimization
                     Transformation = new Transformation()
