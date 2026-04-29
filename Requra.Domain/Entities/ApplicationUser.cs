@@ -53,6 +53,12 @@ namespace Requra.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        public void UpdateAvatar(string avatarUrl)
+        {
+            AvatarUrl = avatarUrl;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void MarkLogin()
         {
             LastLoginAt = DateTime.UtcNow;
