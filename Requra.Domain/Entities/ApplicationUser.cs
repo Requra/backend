@@ -45,11 +45,11 @@ namespace Requra.Domain.Entities
 
         
 
-        public void UpdateProfile(string? fullName, Language? preferredLanguage, string? avatarUrl)
+        public void UpdateProfile(string? fullName, Language? preferredLanguage=Language.En, string? avatarUrl = null)
         {
             FullName = fullName;
             PreferredLanguage = preferredLanguage;
-            AvatarUrl = avatarUrl;
+            AvatarUrl = avatarUrl ?? AvatarUrl;
             UpdatedAt = DateTime.UtcNow;
         }
 

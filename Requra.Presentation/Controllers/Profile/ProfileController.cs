@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Profile;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Response;
+using Requra.Infrastructure.Services.ProfileService;
 using System.Security.Claims;
 
 namespace Requra.Presentation.Controllers.Profile
@@ -16,10 +18,47 @@ namespace Requra.Presentation.Controllers.Profile
         public async Task<IActionResult> UploadAvatar([FromForm] UploadAvatarDto uploadAvatar, CancellationToken cancellationToken)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<UploadAvatarResponse>.Failure(new(), "User not authenticated", 401));
+            }
 
-            var result = await profileService.UploadAvatarAsync(uploadAvatar, userId!, cancellationToken);
+            var result = await profileService.UploadAvatarAsync(uploadAvatar, userId, cancellationToken);
 
             return StatusCode(result.StatusCode, result);
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProfile()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<ProfileDto>.Failure(new(), "User not authenticated", 401));
+            }
+
+
+            var profile = await profileService.GetProfileAsync(userId);
+            return StatusCode(profile.StatusCode, profile);
+        }
+        [HttpPut]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<ProfileDto>.Failure(new(), "User not authenticated", 401));
+
+            }
+
+            var updateProfile = await profileService.UpdateNameAsync(userId, request);
+            return StatusCode(updateProfile.StatusCode, updateProfile);
+
+
+
+        }
+
     }
 }
