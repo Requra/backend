@@ -10,6 +10,7 @@ namespace Requra.Application.Interfaces.IProfileService
     public interface IProfileService
     {
         public  Task<Response<UploadAvatarResponse>> UploadAvatarAsync(UploadAvatarDto uploadAvatar, string userId, CancellationToken cancellationToken = default);
+        Task<Response<ProfileDto>> GetProfileAsync(string userId);
 
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Profile;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Response;
+using Requra.Infrastructure.Services.ProfileService;
 using System.Security.Claims;
 
 namespace Requra.Presentation.Controllers.Profile
@@ -20,6 +21,21 @@ namespace Requra.Presentation.Controllers.Profile
             var result = await profileService.UploadAvatarAsync(uploadAvatar, userId!, cancellationToken);
 
             return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProfile()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<ProfileDto>.Failure(new(), "User not authenticated", 401));
+            }
+
+
+            var profile = await profileService.GetProfileAsync(userId);
+            return StatusCode(profile.StatusCode, profile);
         }
     }
 }

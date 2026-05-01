@@ -16,9 +16,9 @@ using System.Text;
 
 namespace Requra.Infrastructure.Services.ProfileService
 {
-    public class ProfileService(UserManager<ApplicationUser> _userManager, ICloudinaryService _cloudinaryService, RequraDbContext _context,IValidator<UploadAvatarDto> validator,ILogger<ProfileService> logger) : IProfileService
+    public class ProfileService(UserManager<ApplicationUser> _userManager, ICloudinaryService _cloudinaryService, RequraDbContext _context, IValidator<UploadAvatarDto> validator, ILogger<ProfileService> logger) : IProfileService
     {
-        public async Task<Response<UploadAvatarResponse>> UploadAvatarAsync(UploadAvatarDto uploadAvatar,string userId,CancellationToken cancellationToken = default)
+        public async Task<Response<UploadAvatarResponse>> UploadAvatarAsync(UploadAvatarDto uploadAvatar, string userId, CancellationToken cancellationToken = default)
         {
             var validation = await validator.ValidateAsync(uploadAvatar);
 
@@ -50,7 +50,7 @@ namespace Requra.Infrastructure.Services.ProfileService
 
                 var uploadResult = await _cloudinaryService.UploadFileAsync(
                     uploadAvatar.File,
-                    folder, 
+                    folder,
                     publicId: publicId,
                     overwrite: true,
                     cancellationToken: cancellationToken
@@ -77,6 +77,28 @@ namespace Requra.Infrastructure.Services.ProfileService
                     500
                 );
             }
+        }
+
+        public async Task<Response<ProfileDto>> GetProfileAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+                return Response<ProfileDto>.Failure(new ProfileDto(), "User not found", 404);
+
+
+            return Response<ProfileDto>.Success(
+                new ProfileDto
+                {
+                    Id = user.Id,
+                    Name = user.UserName,
+                    Email = user.Email,
+                    JobTitle = user.Role,
+                    AvatarUrl = user.AvatarUrl,
+                    CreatedAt = user.CreatedAt
+                },
+                "Profile fetched successfully");
+
         }
     }
 }
