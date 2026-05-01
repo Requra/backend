@@ -16,7 +16,7 @@ using System.Text;
 
 namespace Requra.Infrastructure.Services.ProfileService
 {
-    public class ProfileService(UserManager<ApplicationUser> _userManager, ICloudinaryService _cloudinaryService, RequraDbContext _context, IValidator<UploadAvatarDto> validator, ILogger<ProfileService> logger) : IProfileService
+    public class ProfileService(UserManager<ApplicationUser> _userManager, ICloudinaryService _cloudinaryService, RequraDbContext _context, IValidator<UploadAvatarDto> validator,IValidator<UpdateProfileDto> updateProfileValidator, ILogger<ProfileService> logger) : IProfileService
     {
         public async Task<Response<UploadAvatarResponse>> UploadAvatarAsync(UploadAvatarDto uploadAvatar, string userId, CancellationToken cancellationToken = default)
         {
@@ -29,10 +29,6 @@ namespace Requra.Infrastructure.Services.ProfileService
             }
             if (uploadAvatar == null || uploadAvatar.File == null || uploadAvatar.File.Length == 0)
                 return Response<UploadAvatarResponse>.Failure(new(), "File is required", 400);
-
-            if (string.IsNullOrEmpty(userId))
-                return Response<UploadAvatarResponse>.Failure(new(), "Token missing or expired", 401);
-
 
             await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -81,24 +77,67 @@ namespace Requra.Infrastructure.Services.ProfileService
 
         public async Task<Response<ProfileDto>> GetProfileAsync(string userId)
         {
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+
+                if (user == null)
+                    return Response<ProfileDto>.Failure(new ProfileDto(), "User not found", 404);
+
+
+                return Response<ProfileDto>.Success(
+                    new ProfileDto
+                    {
+                        Id = user.Id,
+                        Name = user.FullName,
+                        Email = user.Email,
+                        JobTitle = user.Role,
+                        AvatarUrl = user.AvatarUrl,
+                        CreatedAt = user.CreatedAt
+                    },
+                    "Profile fetched successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error fetching profile for user {UserId}", userId);
+                return Response<ProfileDto>.Failure(new ProfileDto(), "Error fetching profile", 500);
+
+            }
+        }
+        public async Task<Response<ProfileDto>> UpdateNameAsync(string userId, UpdateProfileDto updateProfile)
+        {
+            var validation = await updateProfileValidator.ValidateAsync(updateProfile);
+
+            if (!validation.IsValid)
+            {
+                var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
+                return Response<ProfileDto>.Failure(new(), "Validation failed", 400, errors);
+            }
             var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null)
                 return Response<ProfileDto>.Failure(new ProfileDto(), "User not found", 404);
 
+            user.UpdateProfile(updateProfile.Name);
 
-            return Response<ProfileDto>.Success(
-                new ProfileDto
-                {
-                    Id = user.Id,
-                    Name = user.UserName,
-                    Email = user.Email,
-                    JobTitle = user.Role,
-                    AvatarUrl = user.AvatarUrl,
-                    CreatedAt = user.CreatedAt
-                },
-                "Profile fetched successfully");
+            var result = await _userManager.UpdateAsync(user);
 
+            if (!result.Succeeded)
+            {
+
+                logger.LogError(string.Join(", ", result.Errors.Select(e => e.Description)), "Error updating profile for user {UserId}: {Errors}", userId);
+                return Response<ProfileDto>.Failure(new ProfileDto(), "Error updating profile", 500);
+            }
+
+            return Response<ProfileDto>.Success(new ProfileDto
+            {
+                Id = user.Id,
+                Name = user.FullName,
+                Email = user.Email,
+                JobTitle = user.Role,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt
+            }, "Profile updated successfully");
         }
     }
 }

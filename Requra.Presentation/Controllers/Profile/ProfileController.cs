@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Profile;
 using Requra.Application.Interfaces.IProfileService;
@@ -17,8 +18,12 @@ namespace Requra.Presentation.Controllers.Profile
         public async Task<IActionResult> UploadAvatar([FromForm] UploadAvatarDto uploadAvatar, CancellationToken cancellationToken)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<UploadAvatarResponse>.Failure(new(), "User not authenticated", 401));
+            }
 
-            var result = await profileService.UploadAvatarAsync(uploadAvatar, userId!, cancellationToken);
+            var result = await profileService.UploadAvatarAsync(uploadAvatar, userId, cancellationToken);
 
             return StatusCode(result.StatusCode, result);
         }
@@ -37,5 +42,23 @@ namespace Requra.Presentation.Controllers.Profile
             var profile = await profileService.GetProfileAsync(userId);
             return StatusCode(profile.StatusCode, profile);
         }
+        [HttpPut]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<ProfileDto>.Failure(new(), "User not authenticated", 401));
+
+            }
+
+            var updateProfile = await profileService.UpdateNameAsync(userId, request);
+            return StatusCode(updateProfile.StatusCode, updateProfile);
+
+
+
+        }
+
     }
 }

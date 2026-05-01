@@ -45,11 +45,10 @@ namespace Requra.Infrastructure.Services.AuthService
                         ["A user with this email is already registered."]
                     );
                 }
-                var user = new ApplicationUser(request.Email, request.Email)
+                var user = new ApplicationUser(request.Email, request.Email,request.FullName,Language.En)
                 {
                     Role = request.Role
                 };
-                user.UpdateProfile(request.FullName, Language.En, null);
 
                 var result = await userManager.CreateAsync(user, request.Password);
 
