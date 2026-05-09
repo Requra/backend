@@ -37,7 +37,7 @@ namespace Requra.Infrastructure.Services.AuthService
 
                 //needs refactoring later
                 var existingUser = await userManager.FindByEmailAsync(request.Email);
-                if (existingUser is not null)
+                if (existingUser != null && existingUser.IsActive)  //Instead of Reregistering the user, we can REACTIVATE the user later
                 {
                     return Response<string>.Failure("",
                         "Email already exists",
@@ -140,7 +140,7 @@ namespace Requra.Infrastructure.Services.AuthService
                 
                 var user = await userManager.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(u => u.Id == userId);
 
-                if (user == null)
+                if (user == null || !user.IsActive)
                     return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(),"User not found", 404);
 
                 var storedToken = user.RefreshTokens.FirstOrDefault(rt => rt.Token.Trim() == request.RefreshToken.Trim());
@@ -225,7 +225,7 @@ namespace Requra.Infrastructure.Services.AuthService
                  .Include(u => u.RefreshTokens)
                  .FirstOrDefaultAsync(u => u.Id == userId);
 
-                if (user == null)
+                if (user == null || !user.IsActive)
                     return Response<string>.Failure("", "User not found", 404);
 
                 foreach (var token in user.RefreshTokens)
