@@ -37,7 +37,7 @@ namespace Requra.Infrastructure.Services.ProfileService
 
                 var user = await _userManager.FindByIdAsync(userId);
 
-                if (user == null)
+                if (user == null || !user.IsActive)
                     return Response<UploadAvatarResponse>.Failure(new UploadAvatarResponse(), "User not found", 404);
 
                 var folder = $"users/{userId}/avatar";
@@ -81,7 +81,7 @@ namespace Requra.Infrastructure.Services.ProfileService
             {
                 var user = await _userManager.FindByIdAsync(userId);
 
-                if (user == null)
+                if (user == null || !user.IsActive)
                     return Response<ProfileDto>.Failure(new ProfileDto(), "User not found", 404);
 
 
@@ -115,7 +115,7 @@ namespace Requra.Infrastructure.Services.ProfileService
             }
             var user = await _userManager.FindByIdAsync(userId);
 
-            if (user == null)
+            if (user == null || !user.IsActive)
                 return Response<ProfileDto>.Failure(new ProfileDto(), "User not found", 404);
 
             user.UpdateProfile(updateProfile.Name);
@@ -138,6 +138,50 @@ namespace Requra.Infrastructure.Services.ProfileService
                 AvatarUrl = user.AvatarUrl,
                 CreatedAt = user.CreatedAt
             }, "Profile updated successfully");
+        }
+
+        public async Task<Response<string>> DeleteAccountAsync(string userId, CancellationToken cancellationToken = default)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+
+                if (user == null || !user.IsActive)
+                    return Response<string>.Failure(string.Empty, "User not found", 404);
+
+                user.Deactivate();
+
+                var result = await _userManager.UpdateAsync(user);
+
+                if (!result.Succeeded)
+                {
+                    logger.LogError(
+                        "Error deleting account for user {UserId}: {Errors}",
+                        userId,
+                        string.Join(", ", result.Errors.Select(e => e.Description))
+                    );
+
+                    return Response<string>.Failure(string.Empty, "Error deleting account", 500);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+
+                return Response<string>.Success(
+                    string.Empty,
+                    "Account deleted successfully",
+                    200
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+
+                logger.LogError(ex, "Exception while deleting account for user {UserId}", userId);
+
+                return Response<string>.Failure(string.Empty, "Error deleting account", 500);
+            }
         }
     }
 }

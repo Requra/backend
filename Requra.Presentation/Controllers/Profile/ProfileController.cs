@@ -59,6 +59,20 @@ namespace Requra.Presentation.Controllers.Profile
 
 
         }
+        [HttpDelete]
+        public async Task<IActionResult> DeleteAccount(CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<string>.Failure(string.Empty, "User not authenticated", 401));
+            }
+
+            var result = await profileService.DeleteAccountAsync(userId, cancellationToken);
+
+            return StatusCode(result.StatusCode, result);
+        }
 
     }
 }

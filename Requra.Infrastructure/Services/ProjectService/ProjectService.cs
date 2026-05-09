@@ -87,9 +87,19 @@ namespace Requra.Infrastructure.Services.ProjectService
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
                     return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(), "Validation failed", 400, errors);
                 }
+                var currentUser = await _userManager.FindByIdAsync(currentUserId);
+
+                if (currentUser == null || !currentUser.IsActive)
+                {
+                    return Response<ProjectResponseDto>.Failure(
+                        new (),
+                        "User not found",
+                        404
+                    );
+                }
                 var client = await _userManager.FindByEmailAsync(request.ClientEmail);
 
-                if (client == null)
+                if (client == null || !client.IsActive)
                 {
                     return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),
                         "Client does not exist",
@@ -108,7 +118,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 {
                     var user = await _userManager.FindByEmailAsync(member.Email);
 
-                    if (user == null){
+                    if (user == null || !user.IsActive){
                         return Response<ProjectResponseDto>.Failure(new (),
                         $"{member.Email} does not exist",
                         404
@@ -158,6 +168,16 @@ namespace Requra.Infrastructure.Services.ProjectService
         {
             try
             {
+                var currentUser = await _userManager.FindByIdAsync(currentUserId);
+
+                if (currentUser == null || !currentUser.IsActive)
+                {
+                    return Response<ProjectDetailsDto>.Failure(
+                        new ProjectDetailsDto(),
+                        "User not found",
+                        404
+                    );
+                }
                 var project = await _projectRepository.GetByIdWithMembersAsync(projectId);
 
                 if (project == null || project.IsDeleted)
@@ -168,7 +188,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                         404
                     );
                 }
-
+                //check is active later
                 var isMember = project.Members.Any(m => m.UserId == currentUserId);
 
                 if (!isMember)
@@ -179,11 +199,24 @@ namespace Requra.Infrastructure.Services.ProjectService
                     );
                 }
 
+                //var clientMember = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer);
+
+                //var clientUser = clientMember != null
+                //    ? await _userManager.FindByIdAsync(clientMember.UserId)
+                //    : null;
                 var clientMember = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer);
 
-                var clientUser = clientMember != null
-                    ? await _userManager.FindByIdAsync(clientMember.UserId)
-                    : null;
+                ApplicationUser? clientUser = null;
+
+                if (clientMember != null)
+                {
+                    var user = await _userManager.FindByIdAsync(clientMember.UserId);
+
+                    if (user != null && user.IsActive)
+                    {
+                        clientUser = user;
+                    }
+                }
 
                 var dto = new ProjectDetailsDto
                 {
@@ -196,7 +229,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                     CreatedAt = project.CreatedAt,
 
                     TeamMembers = project.Members
-                        .Where(m => m.User != null && m.User.Email != null)
+                        .Where(m => m.User != null && m.User.Email != null && m.User.IsActive)
                         .Select(m => new TeamMemberDto
                         {
                             Email = m.User.Email!
@@ -222,6 +255,16 @@ namespace Requra.Infrastructure.Services.ProjectService
 
             try
             {
+                var currentUser = await _userManager.FindByIdAsync(currentUserId);
+
+                if (currentUser == null || !currentUser.IsActive)
+                {
+                    return Response<bool>.Failure(
+                        false,
+                        "User not found",
+                        404
+                    );
+                }
                 var project = await  _projectRepository.GetByIdWithMembersAsync(id);
                 if (project == null || project.IsDeleted)
                 {
@@ -265,6 +308,16 @@ namespace Requra.Infrastructure.Services.ProjectService
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
                     return Response<ProjectUpdateResponseDto>.Failure(new (), "Validation failed", 400, errors);
                 }
+                var currentUser = await _userManager.FindByIdAsync(currentUserId);
+
+                if (currentUser == null || !currentUser.IsActive)
+                {
+                    return Response<ProjectUpdateResponseDto>.Failure(
+                        new (),
+                        "User not found",
+                        404
+                    );
+                }
 
                 var project = await _projectRepository.GetByIdWithMembersAsync(id);
                 if (project == null || project.IsDeleted)
@@ -280,6 +333,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 project.UpdateDetails(dto.Name, dto.Description, dto.ProjectType, dto.Status, dto.Language);
 
 
+                //Checking Isactive later
 
                 if (dto.TeamMembers != null && dto.TeamMembers.Any())
                 {
@@ -289,7 +343,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                         .ToList();
 
                     var users = await _userManager.Users
-                            .Where(u => u.Email != null && emails.Contains(u.Email.ToLower()))
+                            .Where(u => u.Email != null && emails.Contains(u.Email.ToLower()) && u.IsActive)
                             .ToListAsync();
 
                     var userDict = users
@@ -344,7 +398,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 if (dto.ClientEmail != null)
                 {
                     var client = await _userManager.FindByEmailAsync(dto.ClientEmail);
-                    if (client == null)
+                    if (client == null || !client.IsActive)
                     {
                         return Response<ProjectUpdateResponseDto>.Failure(new(),
                             "Client does not exist",
@@ -365,7 +419,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                     Status = project.Status,
                     ClientEmail = project.Members.FirstOrDefault(m => m.Role == ProjectRole.Viewer)?.User.Email ?? "Unknown",
                     TeamMembers = project.Members
-                        .Where(m => m.User != null && m.User.Email != null)
+                        .Where(m => m.User != null && m.User.Email != null && m.User.IsActive)
                         .Select(m => new TeamMemberDto
                         {
                             Email = m.User.Email!
