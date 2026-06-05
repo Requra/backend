@@ -14,5 +14,10 @@ namespace Requra.Domain.Entities
         public DateTime CreatedOn { get; set; }
         public DateTime? RevokedOn { get; set; }
         public bool IsActive => RevokedOn == null && !IsExpired;
+
+
+        //public string DeviceId { get; set; } = string.Empty;
+
+        //public string Platform { get; set; } = string.Empty;
     }
 }
