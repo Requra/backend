@@ -1,9 +1,11 @@
 ﻿using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Requra.Application.DTOs.Auth.Login;
 using Requra.Application.DTOs.Auth.RefreshToken;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Interfaces.IAuthService;
@@ -12,14 +14,16 @@ using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
 using Requra.Infrastructure.Helpers;
+using Requra.Infrastructure.Services.JWTService;
 using System.ComponentModel.DataAnnotations;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Principal;
 
 namespace Requra.Infrastructure.Services.AuthService
 {
 
-    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config, IServiceScopeFactory serviceScopeFactory) : IAuthService
+    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config, IServiceScopeFactory serviceScopeFactory, IHttpContextAccessor httpContextAccessor) : IAuthService
     {
         public async Task<Response<string>> RegisterAsync(RegisterRequestDto request)
         {
@@ -219,6 +223,26 @@ namespace Requra.Infrastructure.Services.AuthService
             return newRefreshToken;
         }
 
+        public async Task<RefreshToken> CreateRefreshTokenForLogin(ApplicationUser user,ClientPlatform platform=ClientPlatform.Web)
+        {
+            var refreshToken =
+                _jwtService.CreateRefreshToken();
+
+            //refreshToken.Platform =
+            //    platform.ToString();
+
+            user.RefreshTokens.Add(refreshToken);
+
+            var result =
+                await userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                throw new Exception(
+                    "Unable to save refresh token");
+
+            return refreshToken;
+        }
+
 
         public async Task<Response<string>> LogoutAsync(string userId)
         {
@@ -246,6 +270,77 @@ namespace Requra.Infrastructure.Services.AuthService
                 return Response<string>.Failure("", $"An unexpected error occurred.", 500, []);
             }
 
+        }
+
+        public async Task<Response<LogInResponseDTO>> LoginAsync(LoginRequestDto request)
+        {
+            var user =await userManager.FindByEmailAsync(request.Email);
+
+            if (user == null)
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Invalid credentials", 401);
+            }
+
+            var passwordValid = await userManager.CheckPasswordAsync( user, request.Password);
+
+            if (!passwordValid)
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Invalid credentials",401);
+            }
+
+            //after Carol Part for confirm email
+            //if (!user.EmailConfirmed)
+            //{
+            //    return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Email not confirmed",403);
+            //}
+
+            var jwt =await _jwtService.GenerateJwtToken(user);
+
+            var accessToken =new JwtSecurityTokenHandler().WriteToken(jwt);
+
+            var refreshToken =await CreateRefreshTokenForLogin(user,request.Platform);
+
+            if (request.Platform == ClientPlatform.Web)
+            {
+                SetRefreshTokenCookie(refreshToken.Token);
+            }
+
+            var roles =await userManager.GetRolesAsync(user);
+
+            return Response<LogInResponseDTO>
+                .Success(
+                    new LogInResponseDTO
+                    {
+                        UserId = user.Id,
+                        Name = user.FullName,
+                        ProfilePicture = user.AvatarUrl,
+                        Roles = roles.ToList(),
+                        Token = accessToken,
+                        TokenExpiry = jwt.ValidTo,
+                        IsAuthenticated = true,
+
+                        RefreshToken =
+                            request.Platform ==
+                            ClientPlatform.Web
+                            ? string.Empty
+                            : refreshToken.Token
+                    },
+                    "Login successful",
+                    200);
+        }
+
+        private void SetRefreshTokenCookie(string refreshToken)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddDays(7)
+            };
+
+            httpContextAccessor.HttpContext!.Response.Cookies
+                .Append("secure_rtk", refreshToken, cookieOptions);
         }
     }
 }
