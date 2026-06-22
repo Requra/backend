@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Requra.Application.Interfaces.IAIService;
+using Requra.Application.Interfaces.IAnalysisRunService;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Interfaces.IDocumentService;
 using Requra.Application.Interfaces.IProfileService;
@@ -17,10 +19,12 @@ using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
 using Requra.Infrastructure.ExternalInterfaces.IExternalAuth;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
+using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.ExternalServices.CloudinaryService;
 using Requra.Infrastructure.ExternalServices.ExternalAuth;
 using Requra.Infrastructure.Initializers;
 using Requra.Infrastructure.Repositories.Project;
+using Requra.Infrastructure.Services.AnalysisRunService;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.DocumentService;
 using Requra.Infrastructure.Services.JWTService;
@@ -86,6 +90,8 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IProfileService, ProfileService>();
             services.AddScoped<IProjectRepository, ProjectRepository>();
+            services.AddScoped<IAnalysisRunService, AnalysisRunService>();
+            services.AddScoped<IAIClient,FakeAIClient>();
 
 
             // Auto Mapper
