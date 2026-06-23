@@ -6,7 +6,7 @@ namespace Requra.Application.DTOs.AI
 {
     public class ProcessJsonRequest
     {
-        public string Job_Id { get; set; }
+        public Guid Job_Id { get; set; }
 
         public string Source_Type { get; set; }
         // e.g. "multi_document" or "meeting"

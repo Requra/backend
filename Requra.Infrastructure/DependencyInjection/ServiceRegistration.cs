@@ -7,8 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Requra.Application.Interfaces.IAIService;
 using Requra.Application.Interfaces.IAnalysisRunService;
+using Requra.Application.Interfaces.IAnalysisRunWorker;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Interfaces.IDocumentService;
+using Requra.Application.Interfaces.IFileDownloader;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
@@ -22,6 +24,7 @@ using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
 using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.ExternalServices.CloudinaryService;
 using Requra.Infrastructure.ExternalServices.ExternalAuth;
+using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Initializers;
 using Requra.Infrastructure.Repositories.Project;
 using Requra.Infrastructure.Services.AnalysisRunService;
@@ -31,7 +34,9 @@ using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.ProfileService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
+using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.UnitOfWork;
+using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
 
 namespace Requra.Infrastructure.DependencyInjection
@@ -91,6 +96,16 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IProfileService, ProfileService>();
             services.AddScoped<IProjectRepository, ProjectRepository>();
             services.AddScoped<IAnalysisRunService, AnalysisRunService>();
+            services.AddScoped<IAnalysisRunWorker, AnalysisRunWorker>();
+            //commented as we have a fake one now!
+            //services.AddHttpClient<IAIClient, AIClient>(client =>
+            //{
+            //    client.BaseAddress = new Uri("https://ai-service.com");
+            //    client.Timeout = TimeSpan.FromSeconds(60);
+            //});
+            services.AddHttpClient<IFileDownloader, FileDownloader>();
+            //for recovery of analysis runs that were in processing state when the application was stopped.
+            services.AddHostedService<StartupRecoveryService>();
             services.AddScoped<IAIClient,FakeAIClient>();
 
 

@@ -2,8 +2,10 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Requra.Application.Interfaces.IAIService;
+using Requra.Application.Interfaces.IFileDownloader;
 using Requra.Infrastructure.DependencyInjection;
 using Requra.Infrastructure.ExternalServices.AIClient;
+using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Validations;
 using System.Text.Json.Serialization;
 
@@ -29,6 +31,7 @@ namespace Requra.Presentation
             //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);
 
+            //should be added after services registration
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<CreateProjectValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<UpdateProjectValidator>();
@@ -36,12 +39,7 @@ namespace Requra.Presentation
             builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileDtoValidator>();
 
 
-            //commented as we have a fake one now!
-            //builder.Services.AddHttpClient<IAIClient, AIClient>(client =>
-            //{
-            //    client.BaseAddress = new Uri("https://ai-service.com");
-            //    client.Timeout = TimeSpan.FromSeconds(60);
-            //});
+        
             builder.Services.AddOpenApi();
             builder.Services.AddSwaggerGen();
 

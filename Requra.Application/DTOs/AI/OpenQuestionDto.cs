@@ -6,6 +6,8 @@ namespace Requra.Application.DTOs.AI
 {
     public class OpenQuestionDto
     {
-        public string Question { get; set; } = string.Empty;
+        public string Id { get; set; }
+        public string Question { get; set; }
+        public List<string> SourceDocumentIds { get; set; }
     }
 }

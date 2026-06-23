@@ -14,7 +14,7 @@ namespace Requra.Application.DTOs.AI
         public string ContractVersion { get; set; } = string.Empty;
 
         [JsonPropertyName("job_id")]
-        public string JobId { get; set; } = string.Empty;
+        public Guid JobId { get; set; } 
 
         [JsonPropertyName("status")]
         public AnalysisRunStatus Status { get; set; } 

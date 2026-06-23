@@ -3,25 +3,26 @@ using AutoMapper.QueryableExtensions;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs.Document;
 using Requra.Application.Interfaces.IDocumentService;
+using Requra.Application.Interfaces.IFileDownloader;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
 using Requra.Infrastructure.UnitOfWork;
-using DocumentFormat.OpenXml.Wordprocessing;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Requra.Infrastructure.Services.DocumentService
 {
-    public class DocumentService(IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger, ICloudinaryService _cloudinaryService) : IDocumentService
+    public class DocumentService(IFileDownloader _fileDownloader,IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger, ICloudinaryService _cloudinaryService) : IDocumentService
     {
         public async Task<Response<List<DocumentDto>>> GetDocumentsByProjectIdAsync(Guid projectId)
         {
@@ -115,42 +116,37 @@ namespace Requra.Infrastructure.Services.DocumentService
             }
         }
 
+       
+
         public async Task<string> GetCombinedText(Guid projectId, List<Guid> documentIds)
         {
-            // 1. Fetch documents using UnitOfWork
-            var documents =_context.Documents.Where(d =>
-                d.ProjectId == projectId &&
-                documentIds.Contains(d.Id)).ToList();
-            //var documents = await _unitOfWork.Documents.GetAllAsync(d =>
-            //    d.ProjectId == projectId &&
-            //    documentIds.Contains(d.Id));
+            var documents = await _context.Documents
+                .Where(d => d.ProjectId == projectId && documentIds.Contains(d.Id))
+                .OrderBy(d => d.CreatedAt)
+                .ToListAsync();
 
-            if (documents == null || !documents.Any())
+            if (!documents.Any())
                 throw new Exception("No documents found for this project.");
-
-            documents = documents.OrderBy(d => d.CreatedAt).ToList();
 
             var combinedText = new StringBuilder();
 
-            // 2. Extract + Combine
             foreach (var doc in documents)
             {
-                var extractedText = await ExtractTextAsync(doc);
+                var text = await ExtractTextAsync(doc);
 
-                if (!string.IsNullOrWhiteSpace(extractedText))
+                if (!string.IsNullOrWhiteSpace(text))
                 {
-                    combinedText.AppendLine($"--- Document: {doc.Title} ---");
-                    combinedText.AppendLine(extractedText);
+                    combinedText.AppendLine($"--- Document: {doc.Title} --- Document ID : {doc.Id}");
+                    combinedText.AppendLine(text);
                     combinedText.AppendLine();
                 }
             }
 
             var result = combinedText.ToString();
 
-            if (result.Length > 20000)
-                result = result.Substring(0, 20000);
-
-            return result;
+            return result.Length > 20000
+                ? result[..20000]
+                : result;
         }
 
         private async Task<string> ExtractTextAsync(Domain.Entities.Document document)
@@ -158,43 +154,52 @@ namespace Requra.Infrastructure.Services.DocumentService
             if (!string.IsNullOrWhiteSpace(document.TranscriptText))
                 return document.TranscriptText;
 
-            if (!string.IsNullOrWhiteSpace(document.StorageUrl))
+            if (string.IsNullOrWhiteSpace(document.StorageUrl))
+                return string.Empty;
+
+            try
             {
-                if (!File.Exists(document.StorageUrl))
-                    return string.Empty;
+                var fileBytes = await _fileDownloader.DownloadAsync(document.StorageUrl);
 
                 var extension = Path.GetExtension(document.StorageUrl).ToLower();
 
                 return extension switch
                 {
-                    ".txt" => await File.ReadAllTextAsync(document.StorageUrl),
+                    ".txt" => ExtractTxt(fileBytes),
 
-                    ".docx" => ExtractDocxText(document.StorageUrl),
+                    ".docx" => ExtractDocx(fileBytes),
 
                     ".pdf" => "[PDF extraction not implemented yet]",
 
                     _ => "[Unsupported file type]"
                 };
             }
-
-            return string.Empty;
+            catch (Exception ex)
+            {
+                return $"[Download/Extraction Error: {ex.Message}]";
+            }
         }
-        private string ExtractDocxText(string filePath)
+
+        private string ExtractTxt(byte[] fileBytes)
+        {
+            return Encoding.UTF8.GetString(fileBytes);
+        }
+
+        private string ExtractDocx(byte[] fileBytes)
         {
             try
             {
-                using var wordDoc = WordprocessingDocument.Open(filePath, false);
+                using var stream = new MemoryStream(fileBytes);
+                using var doc = WordprocessingDocument.Open(stream, false);
 
-                var body = wordDoc.MainDocumentPart?.Document?.Body;
+                var body = doc.MainDocumentPart?.Document?.Body;
 
                 if (body == null)
                     return string.Empty;
 
-                var paragraphs = body.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>();
-
                 var text = new StringBuilder();
 
-                foreach (var para in paragraphs)
+                foreach (var para in body.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
                 {
                     text.AppendLine(para.InnerText);
                 }
@@ -207,4 +212,7 @@ namespace Requra.Infrastructure.Services.DocumentService
             }
         }
     }
+
+
 }
+
