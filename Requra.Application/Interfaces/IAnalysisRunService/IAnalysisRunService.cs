@@ -9,8 +9,10 @@ namespace Requra.Application.Interfaces.IAnalysisRunService
 {
     public interface IAnalysisRunService
     {
-        Task<Response<AnalysisRunDto>> StartRunAsync(Guid projectId, List<Guid> documentIds, Guid? meetingId);
-        Task<Response<AnalysisRunStatusDto>> GetRunAsync(Guid runId);
-        Task<Response<ResultsDashboardDto>> GetResultAsync(Guid runId);
+        Task<Response<AnalysisRunDto>> StartRunAsync(Guid projectId, StartRunRequest request);
+        Task<Response<AnalysisRunDto>> GetRunAsync(Guid projectId, Guid runId);
+        //Task<Response<ResultsDashboardDto>> GetResultAsync(Guid runId);
+        Task<Response<ResultDto>> GetResultAsync(Guid projectId, Guid runId);
+
     }
 }

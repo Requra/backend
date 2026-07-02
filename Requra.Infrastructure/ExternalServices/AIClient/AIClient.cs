@@ -16,13 +16,49 @@ namespace Requra.Infrastructure.ExternalServices.AIClient
             _httpClient = httpClient;
         }
 
-        public async Task<ProcessJsonResponse> ProcessAsync(ProcessJsonRequest request)
+        public async Task<JobStatusResponseDto> GetStatusAsync(string jobId)
         {
+            var response = await _httpClient.GetAsync($"/status/{jobId}");
+
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<JobStatusResponseDto>();
+
+            return result!;
+        
+        }
+
+        //public async Task<ProcessJsonResponse> ProcessAsync(ProcessJsonRequest request)
+        //{
+        //    //var response = await _httpClient.PostAsJsonAsync("/process-json", request);
+        //    //var content = await response.Content.ReadAsStringAsync();
+        //    //Console.WriteLine(content);
+        //    //response.EnsureSuccessStatusCode();
+
+        //    //return await response.Content.ReadFromJsonAsync<ProcessJsonResponse>();
+        //    request.JobId ??= Guid.NewGuid().ToString();
+
+        //    var response = await _httpClient.PostAsJsonAsync("/process-json", request);
+
+        //    response.EnsureSuccessStatusCode();
+
+        //    var result = await response.Content.ReadFromJsonAsync<ProcessJsonResponse>();
+
+        //    return result!;
+        //}
+        public async Task<string> ProcessAsync(ProcessJsonRequest request)
+        {
+            request.JobId ??= Guid.NewGuid().ToString(); //optional step
+
             var response = await _httpClient.PostAsJsonAsync("/process-json", request);
 
             response.EnsureSuccessStatusCode();
 
-            return await response.Content.ReadFromJsonAsync<ProcessJsonResponse>();
+            var result = await response.Content.ReadFromJsonAsync<ProcessJsonResponse>();
+
+            Console.WriteLine($"JobId: {result?.JobId}, Status: {result?.Status}");
+
+            return result?.JobId.ToString() ?? string.Empty;
         }
     }
 }

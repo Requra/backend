@@ -7,6 +7,11 @@ namespace Requra.Application.Interfaces.IAIService
 {
     public interface IAIClient
     {
-        Task<ProcessJsonResponse> ProcessAsync(ProcessJsonRequest request);
+        //Task<ProcessJsonResponse> ProcessAsync(ProcessJsonRequest request);
+        Task<string> ProcessAsync(ProcessJsonRequest request);
+
+
+        Task<JobStatusResponseDto> GetStatusAsync(string jobId);
+        
     }
 }

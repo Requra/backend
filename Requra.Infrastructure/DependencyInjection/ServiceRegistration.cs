@@ -98,15 +98,15 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IAnalysisRunService, AnalysisRunService>();
             services.AddScoped<IAnalysisRunWorker, AnalysisRunWorker>();
             //commented as we have a fake one now!
-            //services.AddHttpClient<IAIClient, AIClient>(client =>
-            //{
-            //    client.BaseAddress = new Uri("https://ai-service.com");
-            //    client.Timeout = TimeSpan.FromSeconds(60);
-            //});
+            services.AddHttpClient<IAIClient, AIClient>(client =>
+            {
+                client.BaseAddress = new Uri("http://localhost:8000");
+                client.Timeout = TimeSpan.FromSeconds(60);
+            });
             services.AddHttpClient<IFileDownloader, FileDownloader>();
             //for recovery of analysis runs that were in processing state when the application was stopped.
             services.AddHostedService<StartupRecoveryService>();
-            services.AddScoped<IAIClient,FakeAIClient>();
+            //services.AddScoped<IAIClient,FakeAIClient>();
 
 
             // Auto Mapper

@@ -26,21 +26,21 @@ namespace Requra.Presentation.Controllers.AiRunsController
         [HttpPost("runs")]
         public async Task<IActionResult> StartRun(Guid projectId, [FromBody] StartRunRequest request)
         {
-            var response = await _service.StartRunAsync(projectId,request.DocumentIds,request.MeetingId);
+            var response = await _service.StartRunAsync(projectId,request);
 
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpGet("runs/{runId}")]
-        public async Task<IActionResult> GetRun(Guid runId)
+        public async Task<IActionResult> GetRun(Guid projectId, Guid runId)
         {
-            return Ok(await _service.GetRunAsync(runId));
+            return Ok(await _service.GetRunAsync(projectId, runId));
         }
 
         [HttpGet("results-dashboard")]
-        public async Task<IActionResult> GetResults(Guid runId)
+        public async Task<IActionResult> GetResults(Guid projectId, Guid runId)
         {
-            var response = await _service.GetResultAsync(runId);
+            var response = await _service.GetResultAsync(projectId, runId);
 
             return StatusCode(response.StatusCode, response);
         }

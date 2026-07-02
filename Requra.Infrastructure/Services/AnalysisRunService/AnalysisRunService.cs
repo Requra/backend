@@ -24,8 +24,25 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
     public class AnalysisRunService(ILogger<AnalysisRunService> _logger, IAnalysisRunWorker _worker, IServiceScopeFactory _scopeFactory, RequraDbContext dbContext, IAIClient aiClient, IDocumentService documentService) : IAnalysisRunService
     {
 
-        public async Task<Response<AnalysisRunDto>> StartRunAsync(Guid projectId, List<Guid>? documentIds, Guid? meetingId)
+        public async Task<Response<AnalysisRunDto>> StartRunAsync(Guid projectId, StartRunRequest request)
         {
+            //check first if projectId Exists
+            var project = await dbContext.Projects.FindAsync(projectId);
+            if (project == null)
+            {
+                return Response<AnalysisRunDto>.Failure("Project not found", 404);
+            }
+            if (request.DocumentIds != null) {
+                //check if all documentIds exist and belong to the project
+                var documents = await dbContext.Documents
+                    .Where(d => request.DocumentIds.Contains(d.Id) && d.ProjectId == projectId)
+                    .ToListAsync();
+                if (documents.Count != request.DocumentIds.Count)
+                {
+                    return Response<AnalysisRunDto>.Failure("One or more documents not found or do not belong to the project", 404);
+                }
+            }
+
             var activeRun = await dbContext.AnalysisRuns
                 .Where(x => x.ProjectId == projectId &&
                        (x.Status == AnalysisRunStatus.QUEUED ||
@@ -41,18 +58,26 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                         Id = activeRun.Id,
                         ProjectId = activeRun.ProjectId,
                         Status = activeRun.Status,
-                        DocumentIds = documentIds ?? new List<Guid>(),
-                        MeetingId = meetingId,
-                        CreatedAt = activeRun.CreatedAt
+                        Progress = activeRun.Progress,
+                        CurrentNode = activeRun.CurrentNode,
+                        //CurrentNodeLabel = activeRun.CurrentNodeLabel, //want to know Different Nodes and their labels, so later
+                        //job_id will be added later "Inicates job id of the current agent"
+                        ErrorMessage = activeRun.ErrorMessage,
+                        DocumentIds = request.DocumentIds ?? new List<Guid>(),
+                        MeetingId = request.MeetingId,
+                        CreatedAt = activeRun.CreatedAt,
+                        UpdatedAt = activeRun.UpdatedAt,
+                        StartedAt = activeRun.StartedAt,
+                        CompletedAt = activeRun.CompletedAt
                     },
                     "An active analysis run already exists for this project",
                     200
                 );
             }
 
-            if (documentIds == null || !documentIds.Any())
+            if (request.DocumentIds == null || !request.DocumentIds.Any())
             {
-                documentIds = await dbContext.Documents
+                request.DocumentIds = await dbContext.Documents
                     .Where(d => d.ProjectId == projectId)
                     .Select(d => d.Id)
                     .ToListAsync();
@@ -73,7 +98,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             {
                 try
                 {
-                    await _worker.ProcessRun(run.Id, projectId, documentIds);
+                    await _worker.ProcessRun(run.Id, projectId, request.DocumentIds);
                 }
                 catch (Exception ex)
                 {
@@ -98,8 +123,8 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                     Id = run.Id,
                     ProjectId = run.ProjectId,
                     Status = run.Status,
-                    DocumentIds = documentIds,
-                    MeetingId = meetingId,
+                    DocumentIds = request.DocumentIds ?? new List<Guid>(),
+                    MeetingId = request.MeetingId,
                     CreatedAt = run.CreatedAt
                 },
                 "Analysis run started successfully",
@@ -108,38 +133,39 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
         }
 
 
-        public async Task<Response<AnalysisRunStatusDto>> GetRunAsync(Guid runId)
+        public async Task<Response<AnalysisRunDto>> GetRunAsync(Guid projectId, Guid runId)
         {
             var analysisRun = await dbContext.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId);
-            return Response<AnalysisRunStatusDto>.Success(
-                  new AnalysisRunStatusDto
-                  {
-                      Id = analysisRun.Id,
-                      ProjectId = analysisRun.ProjectId,
-                      Status = analysisRun.Status,
-                      //progress should be handeled
-                      Progress = analysisRun.Progress,
-                      Messsage = analysisRun.Status switch
-                      {
-                          AnalysisRunStatus.QUEUED =>
-                              "Your analysis is waiting in the queue",
+       
+            var project = await dbContext.Projects.FindAsync(projectId);
 
-                          AnalysisRunStatus.PROCESSING =>
-                              "AI is analyzing documents and extracting requirements",
+            if (project == null)
+                return Response<AnalysisRunDto?>.Failure(new(), "Project not found.", 404);
+            if (project.Id != analysisRun.ProjectId)
+                return Response<AnalysisRunDto?>.Failure(new(), "Run does not belong to the specified project.", 400);
+            var documents = await dbContext.Documents
+                .Where(d => d.ProjectId == analysisRun.ProjectId)
+                .Select(d => d.Id)
+                .ToListAsync();
+            return Response<AnalysisRunDto>.Success(
 
-                          AnalysisRunStatus.COMPLETED =>
-                              "Analysis completed successfully",
-
-                          AnalysisRunStatus.FAILED =>
-                              "Analysis failed. Please check error details",
-
-                          _ => "Unknown status"
-                      },
-                      ErrorMessage = analysisRun.ErrorMessage,
-                      CreatedAt = analysisRun.CreatedAt,
-                      StartedAt = analysisRun.StartedAt,
-                      CompletedAt = analysisRun.CompletedAt,
-                  },
+                 new AnalysisRunDto
+                 {
+                     Id = analysisRun.Id,
+                     ProjectId = analysisRun.ProjectId,
+                     Status = analysisRun.Status,
+                     Progress = analysisRun.Progress,
+                     CurrentNode = analysisRun.CurrentNode,
+                     //CurrentNodeLabel = activeRun.CurrentNodeLabel, //want to know Different Nodes and their labels, so later
+                     //job_id will be added later "Inicates job id of the current agent"
+                     DocumentIds = documents,
+                     //MeetingId will be Ignored now
+                     ErrorMessage = analysisRun.ErrorMessage,
+                     CreatedAt = analysisRun.CreatedAt,
+                     UpdatedAt = analysisRun.UpdatedAt,
+                     StartedAt = analysisRun.StartedAt,
+                     CompletedAt = analysisRun.CompletedAt
+                 },
                   "Analysis run status retrieved successfully",
                   200
               );
@@ -147,18 +173,24 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
         }
 
-        public async Task<Response<ResultsDashboardDto?>> GetResultAsync(Guid runId)
+        public async Task<Response<ResultDto?>> GetResultAsync(Guid projectId, Guid runId)
         {
             var run = await dbContext.AnalysisRuns
-                .FirstOrDefaultAsync(r => r.Id == runId);
+                .FirstOrDefaultAsync(r => r.Id==runId);
+            var project = await dbContext.Projects.FindAsync(projectId);
+            if(project == null)
+                return Response<ResultDto?>.Failure(new(), "Project not found.", 404);
+            if(project.Id !=run.ProjectId)
+                return Response<ResultDto?>.Failure(new(), "Run does not belong to the specified project.", 400);
+        
 
             if (run == null)
-                return Response<ResultsDashboardDto?>.Failure(new(),"Run not found.", 404);
+                return Response<ResultDto?>.Failure(new(),"Run not found.", 404);
 
             if (run.Status == AnalysisRunStatus.QUEUED ||
                 run.Status == AnalysisRunStatus.PROCESSING)
             {
-                return Response<ResultsDashboardDto?>.Success(
+                return Response<ResultDto?>.Success(
                     new(),
                     "Result is not ready yet."
                 );
@@ -166,7 +198,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
             if (run.Status == AnalysisRunStatus.FAILED)
             {
-                return Response<ResultsDashboardDto?>.Failure(new(),
+                return Response<ResultDto?>.Failure(new(),
                     run.ErrorMessage ?? "Analysis failed.",
                     200 // still OK request, but failed business-wise
                 );
@@ -177,55 +209,55 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
             if (result == null)
             {
-                return Response<ResultsDashboardDto?>.Failure(new(),
+                return Response<ResultDto?>.Failure(new(),
                     "Run completed but result is missing.",
                     500
                 );
             }
 
-            ProcessJsonResponse aiData;
+            ResultDto aiData;
 
             try
             {
-                aiData = JsonSerializer.Deserialize<ProcessJsonResponse>(result.RawJson);
+                aiData = JsonSerializer.Deserialize<ResultDto>(result.RawJson);
             }
             catch
             {
-                return Response<ResultsDashboardDto?>.Failure(new(),
+                return Response<ResultDto?>.Failure(new(),
                     "Invalid AI JSON format",
                     500
                 );
             }
 
-            var dashboard = new ResultsDashboardDto
-            {
-                ProjectId = run.ProjectId.ToString(),
-                AnalysisRunId = run.Id.ToString(),
-                Status = run.Status.ToString(),
+            //var dashboard = new ResultsDashboardDto
+            //{
+            //    ProjectId = run.ProjectId.ToString(),
+            //    AnalysisRunId = run.Id.ToString(),
+            //    Status = run.Status.ToString(),
 
-                Summary = aiData.Summary,
+            //    Summary = aiData.Summary,
 
-                Metrics = new MetricsDto
-                {
-                    TotalRequirements = aiData.Requirements?.Count ?? 0,
-                    FunctionalRequirements = aiData.Requirements?.Count(r => r.Type == "Functional") ?? 0,
-                    NonFunctionalRequirements = aiData.Requirements?.Count(r => r.Type == "NonFunctional") ?? 0,
-                    HighPriorityItems = aiData.Requirements?.Count(r => r.Priority == "High") ?? 0,
-                    RisksCount = aiData.Risks?.Count ?? 0,
-                    OpenQuestionsCount = aiData.OpenQuestions?.Count ?? 0
-                },
+            //    Metrics = new MetricsDto
+            //    {
+            //        TotalRequirements = aiData.Requirements?.Count ?? 0,
+            //        FunctionalRequirements = aiData.Requirements?.Count(r => r.Type == "Functional") ?? 0,
+            //        NonFunctionalRequirements = aiData.Requirements?.Count(r => r.Type == "NonFunctional") ?? 0,
+            //        HighPriorityItems = aiData.Requirements?.Count(r => r.Priority == "High") ?? 0,
+            //        RisksCount = aiData.Risks?.Count ?? 0,
+            //        OpenQuestionsCount = aiData.OpenQuestions?.Count ?? 0
+            //    },
 
-                Requirements = aiData.Requirements,
-                UserStories = aiData.UserStories,
-                Risks = aiData.Risks,
-                OpenQuestions = aiData.OpenQuestions,
-                ActionItems = aiData.ActionItems,
+            //    Requirements = aiData.Requirements,
+            //    UserStories = aiData.UserStories,
+            //    Risks = aiData.Risks,
+            //    OpenQuestions = aiData.OpenQuestions,
+            //    ActionItems = aiData.ActionItems,
 
-                GeneratedAt = run.CompletedAt ?? DateTime.UtcNow
-            };
+            //    GeneratedAt = run.CompletedAt ?? DateTime.UtcNow
+            //};
 
-            return Response<ResultsDashboardDto?>.Success(
-                dashboard,
+            return Response<ResultDto?>.Success(
+                aiData,
                 "Results retrieved successfully"
             );
         }
