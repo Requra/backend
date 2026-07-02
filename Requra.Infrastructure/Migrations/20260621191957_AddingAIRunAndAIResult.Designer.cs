@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260621191957_AddingAIRunAndAIResult")]
+    partial class AddingAIRunAndAIResult
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -256,14 +259,12 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("NOW()");
 
-                    b.Property<string>("CurrentNode")
-                        .HasColumnType("text");
-
                     b.Property<string>("ErrorMessage")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("error_message");
 
-                    b.Property<int?>("Progress")
+                    b.Property<int>("Progress")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
@@ -282,9 +283,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
