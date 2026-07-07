@@ -2,6 +2,7 @@
 using Requra.Application.Interfaces.IAIService;
 using System;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 
@@ -60,5 +61,32 @@ namespace Requra.Infrastructure.ExternalServices.AIClient
 
             return result?.JobId.ToString() ?? string.Empty;
         }
+        public async Task<string> ProcessSingleFileAsync(
+    byte[] bytes,
+    string fileName,
+    string contentType,
+    string metadataJson)
+{
+    using var form = new MultipartFormDataContent();
+
+    var fileContent = new ByteArrayContent(bytes);
+    fileContent.Headers.ContentType =
+        new MediaTypeHeaderValue(contentType);
+
+    form.Add(fileContent, "file", fileName);
+
+    form.Add(new StringContent(metadataJson, Encoding.UTF8, "application/json"), "metadata");
+
+    var response = await _httpClient.PostAsync("/process", form);
+
+    if (!response.IsSuccessStatusCode)
+    {
+        var error = await response.Content.ReadAsStringAsync();
+        throw new Exception($"AI Error: {error}");
+    }
+
+    var result = await response.Content.ReadFromJsonAsync<ProcessJsonResponse>();
+    return result?.JobId.ToString() ?? string.Empty;
+}
     }
 }

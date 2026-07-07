@@ -81,6 +81,13 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                     .Where(d => d.ProjectId == projectId)
                     .Select(d => d.Id)
                     .ToListAsync();
+                if (request.DocumentIds == null || !request.DocumentIds.Any())
+                {
+                    return Response<AnalysisRunDto>.Failure(
+                        "This project does not contain any documents to process",
+                        400
+                    );
+                }
             }
 
             var run = new AnalysisRun
@@ -135,7 +142,11 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
         public async Task<Response<AnalysisRunDto>> GetRunAsync(Guid projectId, Guid runId)
         {
+            if(runId == Guid.Empty)
+                return Response<AnalysisRunDto?>.Failure(new(), "Invalid run ID.", 400);
             var analysisRun = await dbContext.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId);
+            if (analysisRun == null)
+                return Response<AnalysisRunDto?>.Failure(new(), "Run not found.", 404);
        
             var project = await dbContext.Projects.FindAsync(projectId);
 
@@ -155,7 +166,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                      ProjectId = analysisRun.ProjectId,
                      Status = analysisRun.Status,
                      Progress = analysisRun.Progress,
-                     CurrentNode = analysisRun.CurrentNode,
+                     CurrentNode = analysisRun.CurrentNode, //Will be enum
                      //CurrentNodeLabel = activeRun.CurrentNodeLabel, //want to know Different Nodes and their labels, so later
                      //job_id will be added later "Inicates job id of the current agent"
                      DocumentIds = documents,
@@ -173,19 +184,33 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
         }
 
-        public async Task<Response<ResultDto?>> GetResultAsync(Guid projectId, Guid runId)
+        public async Task<Response<ResultDto?>> GetResultAsync(Guid projectId, Guid? runId)
         {
-            var run = await dbContext.AnalysisRuns
-                .FirstOrDefaultAsync(r => r.Id==runId);
             var project = await dbContext.Projects.FindAsync(projectId);
-            if(project == null)
+            if (project == null)
                 return Response<ResultDto?>.Failure(new(), "Project not found.", 404);
-            if(project.Id !=run.ProjectId)
-                return Response<ResultDto?>.Failure(new(), "Run does not belong to the specified project.", 400);
-        
+
+            AnalysisRun? run;
+
+            if (runId.HasValue)
+            {
+                run = await dbContext.AnalysisRuns
+                    .FirstOrDefaultAsync(r => r.Id == runId.Value);
+            }
+            else
+            {
+                // Get latest COMPLETED run
+                run = await dbContext.AnalysisRuns
+                    .Where(r => r.ProjectId == projectId && r.Status == AnalysisRunStatus.COMPLETED)
+                    .OrderByDescending(r => r.CompletedAt)
+                    .FirstOrDefaultAsync();
+            }
 
             if (run == null)
-                return Response<ResultDto?>.Failure(new(),"Run not found.", 404);
+                return Response<ResultDto?>.Failure(new(), "Run not found.", 404);
+
+            if (run.ProjectId != projectId)
+                return Response<ResultDto?>.Failure(new(), "Run does not belong to the specified project.", 400);
 
             if (run.Status == AnalysisRunStatus.QUEUED ||
                 run.Status == AnalysisRunStatus.PROCESSING)
@@ -198,18 +223,20 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
             if (run.Status == AnalysisRunStatus.FAILED)
             {
-                return Response<ResultDto?>.Failure(new(),
+                return Response<ResultDto?>.Failure(
+                    new(),
                     run.ErrorMessage ?? "Analysis failed.",
-                    200 // still OK request, but failed business-wise
+                    200
                 );
             }
 
             var result = await dbContext.AnalysisResults
-                .FirstOrDefaultAsync(r => r.AnalysisRunId == runId);
+                .FirstOrDefaultAsync(r => r.AnalysisRunId == run.Id);
 
             if (result == null)
             {
-                return Response<ResultDto?>.Failure(new(),
+                return Response<ResultDto?>.Failure(
+                    new(),
                     "Run completed but result is missing.",
                     500
                 );
@@ -223,38 +250,12 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             }
             catch
             {
-                return Response<ResultDto?>.Failure(new(),
+                return Response<ResultDto?>.Failure(
+                    new(),
                     "Invalid AI JSON format",
                     500
                 );
             }
-
-            //var dashboard = new ResultsDashboardDto
-            //{
-            //    ProjectId = run.ProjectId.ToString(),
-            //    AnalysisRunId = run.Id.ToString(),
-            //    Status = run.Status.ToString(),
-
-            //    Summary = aiData.Summary,
-
-            //    Metrics = new MetricsDto
-            //    {
-            //        TotalRequirements = aiData.Requirements?.Count ?? 0,
-            //        FunctionalRequirements = aiData.Requirements?.Count(r => r.Type == "Functional") ?? 0,
-            //        NonFunctionalRequirements = aiData.Requirements?.Count(r => r.Type == "NonFunctional") ?? 0,
-            //        HighPriorityItems = aiData.Requirements?.Count(r => r.Priority == "High") ?? 0,
-            //        RisksCount = aiData.Risks?.Count ?? 0,
-            //        OpenQuestionsCount = aiData.OpenQuestions?.Count ?? 0
-            //    },
-
-            //    Requirements = aiData.Requirements,
-            //    UserStories = aiData.UserStories,
-            //    Risks = aiData.Risks,
-            //    OpenQuestions = aiData.OpenQuestions,
-            //    ActionItems = aiData.ActionItems,
-
-            //    GeneratedAt = run.CompletedAt ?? DateTime.UtcNow
-            //};
 
             return Response<ResultDto?>.Success(
                 aiData,

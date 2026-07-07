@@ -97,6 +97,9 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IProjectRepository, ProjectRepository>();
             services.AddScoped<IAnalysisRunService, AnalysisRunService>();
             services.AddScoped<IAnalysisRunWorker, AnalysisRunWorker>();
+
+   
+
             //commented as we have a fake one now!
             services.AddHttpClient<IAIClient, AIClient>(client =>
             {

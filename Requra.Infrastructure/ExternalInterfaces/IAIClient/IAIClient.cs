@@ -9,9 +9,16 @@ namespace Requra.Application.Interfaces.IAIService
     {
         //Task<ProcessJsonResponse> ProcessAsync(ProcessJsonRequest request);
         Task<string> ProcessAsync(ProcessJsonRequest request);
+        Task<string> ProcessSingleFileAsync(
+    byte[] bytes,
+    string fileName,
+    string contentType,
+    string metadataJson);
+        
 
 
-        Task<JobStatusResponseDto> GetStatusAsync(string jobId);
+
+       Task<JobStatusResponseDto> GetStatusAsync(string jobId);
         
     }
 }
