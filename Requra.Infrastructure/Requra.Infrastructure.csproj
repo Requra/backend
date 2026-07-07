@@ -10,6 +10,7 @@
     <Folder Include="ExternalServices\JwtService\" />
     <Folder Include="Hubs\" />
     <Folder Include="MiddleWares\" />
+    <Folder Include="Options\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,6 +32,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
   </ItemGroup>
 

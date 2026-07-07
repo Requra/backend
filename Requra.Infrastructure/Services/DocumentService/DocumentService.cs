@@ -126,7 +126,9 @@ namespace Requra.Infrastructure.Services.DocumentService
                 .ToListAsync();
 
             if (!documents.Any())
+            {
                 throw new Exception("No documents found for this project.");
+            }
 
             var combinedText = new StringBuilder();
 
@@ -169,7 +171,7 @@ namespace Requra.Infrastructure.Services.DocumentService
 
                     ".docx" => ExtractDocx(fileBytes),
 
-                    ".pdf" => "[PDF extraction not implemented yet]",
+                    ".pdf" => ExtractPdf(fileBytes),
 
                     _ => "[Unsupported file type]"
                 };
@@ -209,6 +211,27 @@ namespace Requra.Infrastructure.Services.DocumentService
             catch (Exception ex)
             {
                 return $"[DOCX Extraction Error: {ex.Message}]";
+            }
+        }
+        private string ExtractPdf(byte[] fileBytes)
+        {
+            try
+            {
+                using var stream = new MemoryStream(fileBytes);
+                using var document = UglyToad.PdfPig.PdfDocument.Open(stream);
+
+                var text = new StringBuilder();
+
+                foreach (var page in document.GetPages())
+                {
+                    text.AppendLine(page.Text);
+                }
+
+                return text.ToString();
+            }
+            catch (Exception ex)
+            {
+                return $"[PDF Extraction Error: {ex.Message}]";
             }
         }
     }

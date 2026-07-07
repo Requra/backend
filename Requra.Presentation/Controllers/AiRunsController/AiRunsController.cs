@@ -38,7 +38,7 @@ namespace Requra.Presentation.Controllers.AiRunsController
         }
 
         [HttpGet("results-dashboard")]
-        public async Task<IActionResult> GetResults(Guid projectId, Guid runId)
+        public async Task<IActionResult> GetResults(Guid projectId, [FromQuery] Guid? runId)
         {
             var response = await _service.GetResultAsync(projectId, runId);
 

@@ -1,12 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Requra.Application.DTOs.AI;
+using Requra.Application.DTOs.Document;
 using Requra.Application.Interfaces.IAIService;
 using Requra.Application.Interfaces.IAnalysisRunWorker;
 using Requra.Application.Interfaces.IDocumentService;
+using Requra.Application.Interfaces.IFileDownloader;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 
@@ -28,8 +30,8 @@ namespace Requra.Infrastructure.Workers.AnalysisRunWorker
             try
             {
                 var text = await _documentService.GetCombinedText(projectId, documentIds);
-              
-                var request =new ProcessJsonRequest
+
+                var request = new ProcessJsonRequest
                 {
                     JobId = runId.ToString(),
                     SourceType = "multi_document",
@@ -43,6 +45,7 @@ namespace Requra.Infrastructure.Workers.AnalysisRunWorker
 
 
                 var AIStartJobId = await _aiClient.ProcessAsync(request);
+
                 run.UpdateAnalysis(
                     AnalysisRunStatus.QUEUED,
                     0,

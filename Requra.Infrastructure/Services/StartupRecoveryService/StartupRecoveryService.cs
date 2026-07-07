@@ -21,7 +21,7 @@ namespace Requra.Infrastructure.Services.StartupRecoveryService
             var db = scope.ServiceProvider.GetRequiredService<RequraDbContext>();
 
             var stuckRuns = await db.AnalysisRuns
-                .Where(r => r.Status == AnalysisRunStatus.PROCESSING)
+                .Where(r => r.Status == AnalysisRunStatus.PROCESSING || r.Status == AnalysisRunStatus.QUEUED)
                 .ToListAsync();
 
             foreach (var run in stuckRuns)
