@@ -4,6 +4,7 @@ using Requra.Application.DTOs.Document;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
+using Requra.Application.DTOs.ProjectMembers;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using System;
@@ -89,6 +90,14 @@ namespace Requra.Application.Mappings
 
 
 
+            #endregion
+            #region ProjectMemberProfile
+            CreateMap<ProjectMember, ProjectMemberDto>()
+          .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
+          .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.User.FullName))
+          .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email))
+          .ForMember(dest => dest.ProjectRole, opt => opt.MapFrom(src => src.User.Role.ToString()))
+          .ForMember(dest => dest.avatarUrl, opt => opt.MapFrom(src => src.User.AvatarUrl));
             #endregion
 
         }

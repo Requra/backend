@@ -2,15 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Requra.Application.DTOs
+namespace Requra.Application.DTOs.ProjectMembers
 {
-    public class PagedResult<T>
+    public class GetProjectMembersQuery
     {
-        public IEnumerable<T> Items { get; set; } = [];
-        public int TotalCount { get; set; } 
-
+        public string? Search { get; set; }
         public int? PageNumber { get; set; } = 1;
-
         public int PageSize { get; set; } = 20;
-     }
+    }
 }

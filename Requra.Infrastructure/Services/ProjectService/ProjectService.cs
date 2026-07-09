@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using AutoMapper.Execution;
 using AutoMapper.QueryableExtensions;
+using DocumentFormat.OpenXml.Spreadsheet;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectDetails;
 using Requra.Application.DTOs.Project.ProjectUpdate;
+using Requra.Application.DTOs.ProjectMembers;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
@@ -104,6 +106,13 @@ namespace Requra.Infrastructure.Services.ProjectService
                     return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),
                         "Client does not exist",
                         404
+                    );
+                }
+                if(client.Id == currentUserId)
+                {
+                    return Response<ProjectResponseDto>.Failure(new ProjectResponseDto(),
+                        "Client cannot be the same as the project owner",
+                        400
                     );
                 }
                 //May Need Refactoring Later
@@ -438,9 +447,68 @@ namespace Requra.Infrastructure.Services.ProjectService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating project for user {UserId}", currentUserId);
-                return Response<ProjectUpdateResponseDto>.Failure(new (), "An unexpected error occurred while updating the project", 500, new List<string> { ex.Message });
+                return Response<ProjectUpdateResponseDto>.Failure(null, "An unexpected error occurred while updating the project", 500, new List<string> { ex.Message });
             }
         }
+
+        public async Task<Response<PagedResult<ProjectMemberDto>>> GetProjectMembersAsync(Guid projectId,GetProjectMembersQuery query, string userId)
+        {
+            try
+            {
+                var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId);
+                if (project == null)
+                    return Response<PagedResult<ProjectMemberDto>>.Failure(null, "Project not found", 404);
+
+                var isMember = await _context.ProjectMembers.AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+                if (!isMember)
+                    return Response<PagedResult<ProjectMemberDto>>.Failure(null, "You are not allowed to access this project", 403);
+
+
+
+
+                var pageNumber = query.PageNumber is null || query.PageNumber < 1 ? 1 : query.PageNumber.Value;
+
+                var pageSize = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, 100);
+
+                var baseQuery = _context.ProjectMembers.Where(pm => pm.ProjectId == projectId);
+
+                if (!string.IsNullOrWhiteSpace(query.Search))
+                {
+                    var search = query.Search.ToLower();
+
+                    baseQuery = baseQuery.Where(pm =>
+                        pm.User.FullName.ToLower().Contains(search) ||
+                        pm.User.Email.ToLower().Contains(search) ||
+                        pm.User.Role.ToString().ToLower().Contains(search));
+                }
+
+                var totalCount = await baseQuery.CountAsync();
+
+                var items = await baseQuery
+                    .OrderBy(pm => pm.User.FullName)
+                    .ProjectTo<ProjectMemberDto>(_mapper.ConfigurationProvider)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var result = new PagedResult<ProjectMemberDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+
+                return Response<PagedResult<ProjectMemberDto>>
+                    .Success(result, "Project members retrieved successfully");
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "Error retrieving project members for project {ProjectId}", projectId);
+                return Response<PagedResult<ProjectMemberDto>>.Failure(null, "An unexpected error occurred while retrieving project members", 500, new List<string> { ex.Message });
+            }
+        }
+
+
 
     }
 }
