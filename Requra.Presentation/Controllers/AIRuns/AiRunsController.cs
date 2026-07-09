@@ -8,7 +8,7 @@ using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
 using System.Text.Json;
 
-namespace Requra.Presentation.Controllers.AiRunsController
+namespace Requra.Presentation.Controllers.AIRuns
 {
     [ApiController]
     [Route("api/projects/{projectId}/ai")]

@@ -38,7 +38,7 @@ namespace Requra.Domain.Entities
         {
             
         }
-        public MeetingSession(Guid projectId,string hostId,string createdById,DateTime scheduledAt,string? title = null,string? description = null,string? sessionToken = null)
+        public MeetingSession(Guid projectId,string hostId,string createdById,DateTime? scheduledAt=null,string? title = null,string? description = null,string? sessionToken = null)
         {
             Id = Guid.NewGuid();
 

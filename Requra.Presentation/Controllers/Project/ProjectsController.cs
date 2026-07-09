@@ -127,12 +127,12 @@ namespace Requra.API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(Response<PagedResult<ProjectMemberDto>>.Failure(new(), "Unauthorized User", 401));
+                return Unauthorized(Response<PagedResult<ProjectMemberDto>>.Failure(null, "Unauthorized User", 401));
             }
             //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
 
             if (projectId == Guid.Empty || !Guid.TryParse(projectId.ToString(), out Guid validGuid))
-                return StatusCode(422, Response<PagedResult<ProjectMemberDto>>.Failure(new(), "Validation failed", 422, new List<string> { "Invalid projectId" }));
+                return StatusCode(422, Response<PagedResult<ProjectMemberDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId" }));
 
             var response = await _projectService.GetProjectMembersAsync(projectId, query, userId);
 
