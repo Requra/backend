@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260621191957_AddingAIRunAndAIResult")]
+    partial class AddingAIRunAndAIResult
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -256,14 +259,12 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("NOW()");
 
-                    b.Property<string>("CurrentNode")
-                        .HasColumnType("text");
-
                     b.Property<string>("ErrorMessage")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("error_message");
 
-                    b.Property<int?>("Progress")
+                    b.Property<int>("Progress")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
@@ -282,9 +283,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -817,18 +815,9 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<DateTime?>("AbandonedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("abandoned_at");
-
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_at");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("content_type");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -839,14 +828,9 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("created_by_id");
 
-                    b.Property<int?>("ExpectedChunks")
+                    b.Property<int>("ExpectedChunks")
                         .HasColumnType("integer")
                         .HasColumnName("expected_chunks");
-
-                    b.Property<string>("FailureReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("failure_reason");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -854,36 +838,13 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("file_name");
 
-                    b.Property<long?>("FinalFileSizeBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("final_file_size_bytes");
-
-                    b.Property<string>("FinalizationError")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("finalization_error");
-
-                    b.Property<DateTime?>("LastChunkReceivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_chunk_received_at");
-
                     b.Property<Guid>("MeetingId")
                         .HasColumnType("uuid")
                         .HasColumnName("meeting_id");
 
-                    b.Property<string>("OriginalExtension")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("original_extension");
-
                     b.Property<string>("PublicId")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("public_id");
-
-                    b.Property<long>("ReceivedBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("received_bytes");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone")
@@ -894,51 +855,29 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
-                    b.Property<DateTime?>("StoppedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("stopped_at");
-
-                    b.Property<string>("StorageKey")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("storage_key");
-
                     b.Property<string>("StorageUrl")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
+                        .HasColumnType("text")
                         .HasColumnName("storage_url");
+
+                    b.Property<long>("TotalSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("total_size_bytes");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<string>("UploadMode")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("upload_mode");
-
                     b.Property<int>("UploadedChunks")
                         .HasColumnType("integer")
                         .HasColumnName("uploaded_chunks");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("MeetingId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_recordings_meeting_id_one_active")
-                        .HasFilter("\"status\" IN ('Started', 'Uploading', 'Ending')");
+                    b.HasIndex("MeetingId");
 
                     b.HasIndex("Status");
-
-                    b.HasIndex("MeetingId", "Status");
 
                     b.ToTable("recordings", (string)null);
                 });
@@ -950,33 +889,14 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Checksum")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("checksum");
-
                     b.Property<int>("ChunkNumber")
                         .HasColumnType("integer")
                         .HasColumnName("chunk_number");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("content_type");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("error_message");
 
                     b.Property<string>("PublicId")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("public_id");
-
-                    b.Property<DateTime>("ReceivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("received_at");
 
                     b.Property<Guid>("RecordingId")
                         .HasColumnType("uuid")
@@ -986,45 +906,22 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("size");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<string>("StorageKey")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("storage_key");
-
                     b.Property<string>("StorageUrl")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("storage_url");
 
-                    b.Property<int>("UploadAttemptCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("upload_attempt_count");
-
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("uploaded_at");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
                     b.HasIndex("RecordingId");
 
-                    b.HasIndex("Status");
-
                     b.HasIndex("RecordingId", "ChunkNumber")
-                        .IsUnique()
-                        .HasDatabaseName("ux_recording_chunks_recording_id_chunk_number");
+                        .IsUnique();
 
                     b.ToTable("recording_chunks", (string)null);
                 });

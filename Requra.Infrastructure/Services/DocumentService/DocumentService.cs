@@ -1,11 +1,15 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs.Document;
 using Requra.Application.Interfaces.IDocumentService;
+using Requra.Application.Interfaces.IFileDownloader;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
@@ -18,7 +22,7 @@ using System.Text;
 
 namespace Requra.Infrastructure.Services.DocumentService
 {
-    public class DocumentService(IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger, ICloudinaryService _cloudinaryService) : IDocumentService
+    public class DocumentService(IFileDownloader _fileDownloader,IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger, ICloudinaryService _cloudinaryService) : IDocumentService
     {
         public async Task<Response<List<DocumentDto>>> GetDocumentsByProjectIdAsync(Guid projectId)
         {
@@ -76,7 +80,7 @@ namespace Requra.Infrastructure.Services.DocumentService
 
                 var uploadResult = await _cloudinaryService.UploadFileAsync(model.File, folder, cancellationToken);
 
-                var document = new Document(model.ProjectId, userId, model.Title, model.Type, model.Language);
+                var document = new Domain.Entities.Document(model.ProjectId, userId, model.Title, model.Type, model.Language);
                 document.SetStorage(uploadResult.Url, uploadResult.Size);
 
                 if (model.MeetingId.HasValue)
@@ -85,7 +89,7 @@ namespace Requra.Infrastructure.Services.DocumentService
                 }
 
 
-                await _unitOfWork.Repository<Document>().AddAsync(document);
+                await _unitOfWork.Repository<Domain.Entities.Document>().AddAsync(document);
                 await _unitOfWork.SaveAsync();
 
                 await transaction.CommitAsync(cancellationToken);
@@ -111,5 +115,127 @@ namespace Requra.Infrastructure.Services.DocumentService
                     new List<string> { ex.Message });
             }
         }
+
+       
+
+        public async Task<string> GetCombinedText(Guid projectId, List<Guid> documentIds)
+        {
+            var documents = await _context.Documents
+                .Where(d => d.ProjectId == projectId && documentIds.Contains(d.Id))
+                .OrderBy(d => d.CreatedAt)
+                .ToListAsync();
+
+            if (!documents.Any())
+            {
+                throw new Exception("No documents found for this project.");
+            }
+
+            var combinedText = new StringBuilder();
+
+            foreach (var doc in documents)
+            {
+                var text = await ExtractTextAsync(doc);
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    combinedText.AppendLine($"--- Document: {doc.Title} --- Document ID : {doc.Id}");
+                    combinedText.AppendLine(text);
+                    combinedText.AppendLine();
+                }
+            }
+
+            var result = combinedText.ToString();
+
+            return result.Length > 20000
+                ? result[..20000]
+                : result;
+        }
+
+        private async Task<string> ExtractTextAsync(Domain.Entities.Document document)
+        {
+            if (!string.IsNullOrWhiteSpace(document.TranscriptText))
+                return document.TranscriptText;
+
+            if (string.IsNullOrWhiteSpace(document.StorageUrl))
+                return string.Empty;
+
+            try
+            {
+                var fileBytes = await _fileDownloader.DownloadAsync(document.StorageUrl);
+
+                var extension = Path.GetExtension(document.StorageUrl).ToLower();
+
+                return extension switch
+                {
+                    ".txt" => ExtractTxt(fileBytes),
+
+                    ".docx" => ExtractDocx(fileBytes),
+
+                    ".pdf" => ExtractPdf(fileBytes),
+
+                    _ => "[Unsupported file type]"
+                };
+            }
+            catch (Exception ex)
+            {
+                return $"[Download/Extraction Error: {ex.Message}]";
+            }
+        }
+
+        private string ExtractTxt(byte[] fileBytes)
+        {
+            return Encoding.UTF8.GetString(fileBytes);
+        }
+
+        private string ExtractDocx(byte[] fileBytes)
+        {
+            try
+            {
+                using var stream = new MemoryStream(fileBytes);
+                using var doc = WordprocessingDocument.Open(stream, false);
+
+                var body = doc.MainDocumentPart?.Document?.Body;
+
+                if (body == null)
+                    return string.Empty;
+
+                var text = new StringBuilder();
+
+                foreach (var para in body.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
+                {
+                    text.AppendLine(para.InnerText);
+                }
+
+                return text.ToString();
+            }
+            catch (Exception ex)
+            {
+                return $"[DOCX Extraction Error: {ex.Message}]";
+            }
+        }
+        private string ExtractPdf(byte[] fileBytes)
+        {
+            try
+            {
+                using var stream = new MemoryStream(fileBytes);
+                using var document = UglyToad.PdfPig.PdfDocument.Open(stream);
+
+                var text = new StringBuilder();
+
+                foreach (var page in document.GetPages())
+                {
+                    text.AppendLine(page.Text);
+                }
+
+                return text.ToString();
+            }
+            catch (Exception ex)
+            {
+                return $"[PDF Extraction Error: {ex.Message}]";
+            }
+        }
     }
+
+
 }
+
