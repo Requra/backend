@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260611234452_UpdatesInRecordingEntityandRecordingChunk")]
+    partial class UpdatesInRecordingEntityandRecordingChunk
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -847,10 +850,7 @@ namespace Requra.Infrastructure.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("MeetingId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_recordings_meeting_id_one_active")
-                        .HasFilter("\"status\" IN ('Started', 'Uploading', 'Ending')");
+                    b.HasIndex("MeetingId");
 
                     b.HasIndex("Status");
 
@@ -939,8 +939,7 @@ namespace Requra.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("RecordingId", "ChunkNumber")
-                        .IsUnique()
-                        .HasDatabaseName("ux_recording_chunks_recording_id_chunk_number");
+                        .IsUnique();
 
                     b.ToTable("recording_chunks", (string)null);
                 });

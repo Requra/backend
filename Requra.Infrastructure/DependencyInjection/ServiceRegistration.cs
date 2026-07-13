@@ -11,6 +11,7 @@ using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
+using Requra.Application.Interfaces.IRecordingService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
@@ -27,6 +28,7 @@ using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.ProfileService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
+using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.UnitOfWork;
 using System.Text;
 
@@ -86,6 +88,11 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IDocumentService, DocumentService>();
             services.AddScoped<IProfileService, ProfileService>();
             services.AddScoped<IProjectRepository, ProjectRepository>();
+            services.AddScoped<IRecordingService, RecordingService>();
+            services.AddScoped<IRecordingBackgroundJobService, RecordingBackgroundJobService>();
+            services.AddScoped<IRecordingFinalizationService, RecordingFinalizationService>();
+            services.AddScoped<IRecordingChunkStorageReader, RecordingChunkStorageReader>();
+
 
 
             // Auto Mapper

@@ -4,13 +4,12 @@ using System.Text;
 
 namespace Requra.Domain.Enums
 {
-    public enum RecordingStatus
+    public enum RecordingChunkStatus
     {
-        Started,
-        Uploading ,
-        Ending,
-        Completed,
+        Pending ,
+        Uploaded,
         Failed ,
-        Expired 
+        Duplicate,
+        Ignored
     }
 }
