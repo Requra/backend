@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Auth.Login;
+using Requra.Application.DTOs.Auth.Otp;
 using Requra.Application.DTOs.Auth.RefreshToken;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Interfaces.IAuthService;
@@ -206,6 +207,40 @@ namespace Requra.Presentation.Controllers.Auth
                 logger.LogError(ex, "Unexpected error during Google login");
                 return StatusCode(500, Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"An unexpected error occurred. Please try again later.",500,[ex.Message]));
             }
+        }
+        [HttpPost("confirm-account")]
+        public async Task<IActionResult> ConfirmAccount(ConfirmAccountRequestDto request)
+        {
+            var result = await authService.ConfirmAccountAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("password/forgot")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequestDto request)
+        {
+            var result = await authService.ForgotPasswordAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("otp/resend")]
+        public async Task<IActionResult> ResendOtp(ResendOtpRequestDto request)
+        {
+            var result = await authService.ResendOtpAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("password/verifyotp")]
+        public async Task<IActionResult> VerifyPasswordOtp(VerifyOtpRequestDto request)
+        {
+            var result = await authService.VerifyOtpAsync(request);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("password/reset")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordRequestDto request)
+        {
+            var result = await authService.ResetPasswordAsync(request);
+            return StatusCode(result.StatusCode, result);
         }
     }
 

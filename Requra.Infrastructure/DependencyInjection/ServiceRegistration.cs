@@ -11,6 +11,7 @@ using Requra.Application.Interfaces.IAnalysisRunWorker;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Interfaces.IDocumentService;
 using Requra.Application.Interfaces.IFileDownloader;
+using Requra.Application.Interfaces.IOtpService;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
@@ -19,11 +20,14 @@ using Requra.Application.Interfaces.IRecordingService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
+using Requra.Infrastructure.ExternalDTOs.Email;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
+using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
 using Requra.Infrastructure.ExternalInterfaces.IExternalAuth;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
 using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.ExternalServices.CloudinaryService;
+using Requra.Infrastructure.ExternalServices.EmailSender;
 using Requra.Infrastructure.ExternalServices.ExternalAuth;
 using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Initializers;
@@ -32,11 +36,12 @@ using Requra.Infrastructure.Services.AnalysisRunService;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.DocumentService;
 using Requra.Infrastructure.Services.JWTService;
+using Requra.Infrastructure.Services.OtpService;
 using Requra.Infrastructure.Services.ProfileService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
-using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.Services.RecordingService;
+using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
@@ -88,6 +93,10 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<ICloudinaryService, CloudinaryService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
+            services.AddDistributedMemoryCache(); 
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.AddScoped<IEmailSender, EmailSender>();
+            services.AddScoped<IOtpService, OtpService>();
 
             //Application Services Registration
             services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();

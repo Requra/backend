@@ -1,4 +1,5 @@
 ﻿using Requra.Application.DTOs.Auth.Login;
+using Requra.Application.DTOs.Auth.Otp;
 using Requra.Application.DTOs.Auth.RefreshToken;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Response;
@@ -22,7 +23,11 @@ namespace Requra.Application.Interfaces.IAuthService
         Task<RefreshToken> CreateRefreshTokenForLogin(ApplicationUser user, ClientPlatform platform = ClientPlatform.Web);
         Task<Response<string>> LogoutAsync(string userId);
 
-
+        Task<Response<string>> ConfirmAccountAsync(ConfirmAccountRequestDto request);
+        Task<Response<bool>> ForgotPasswordAsync(ForgotPasswordRequestDto request);
+        Task<Response<bool>> ResendOtpAsync(ResendOtpRequestDto request);
+        Task<Response<bool>> VerifyOtpAsync(VerifyOtpRequestDto request);
+        Task<Response<bool>> ResetPasswordAsync(ResetPasswordRequestDto request);
     }
 
 

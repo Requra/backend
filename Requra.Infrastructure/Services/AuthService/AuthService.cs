@@ -6,9 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Requra.Application.DTOs.Auth.Login;
+using Requra.Application.DTOs.Auth.Otp;
 using Requra.Application.DTOs.Auth.RefreshToken;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.Interfaces.IAuthService;
+using Requra.Application.Interfaces.IOtpService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
@@ -23,7 +25,7 @@ using System.Security.Principal;
 namespace Requra.Infrastructure.Services.AuthService
 {
 
-    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config, IServiceScopeFactory serviceScopeFactory, IHttpContextAccessor httpContextAccessor) : IAuthService
+    public class AuthService(UserManager<ApplicationUser> userManager, IValidator<RegisterRequestDto> validator, IValidator<RefreshTokenRequestDto> refreshTokenValidator, IJwtTokenService _jwtService, IConfiguration config, IServiceScopeFactory serviceScopeFactory, IHttpContextAccessor httpContextAccessor, IOtpService otpService) : IAuthService
     {
         public async Task<Response<string>> RegisterAsync(RegisterRequestDto request)
         {
@@ -98,7 +100,8 @@ namespace Requra.Infrastructure.Services.AuthService
                 Console.WriteLine(newAccessToken);
                 ////---------------------------------------
 
-                // await _emailService.SendOtpAsync(user.Email);        
+                // await _emailService.SendOtpAsync(user.Email);
+                await otpService.GenerateAndSendAsync(user, OtpPurpose.EmailConfirmation);
 
                 return Response<string>.Success("Done successfully", "User registered successfully", 201);
             }
@@ -289,6 +292,8 @@ namespace Requra.Infrastructure.Services.AuthService
             //{
             //    return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Email not confirmed",403);
             //}
+            if (!user.EmailConfirmed)
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Please confirm your email before logging in.", 403);
 
             var jwt =await _jwtService.GenerateJwtToken(user);
 
@@ -337,6 +342,101 @@ namespace Requra.Infrastructure.Services.AuthService
 
             httpContextAccessor.HttpContext!.Response.Cookies
                 .Append("secure_rtk", refreshToken, cookieOptions);
+        }
+        public async Task<Response<string>> ConfirmAccountAsync(ConfirmAccountRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Code))
+                return Response<string>.Failure("", "Email and code are required.", 400);
+
+            var user = await userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+                return Response<string>.Failure("", "Invalid email or code.", 400);
+
+            if (user.EmailConfirmed)
+                return Response<string>.Success("Account already confirmed", "Account is already confirmed.", 200);
+
+            var otpResult = await otpService.VerifyAsync(user, request.Code, OtpPurpose.EmailConfirmation);
+            if (!otpResult.IsSuccess)
+                return Response<string>.Failure("", otpResult.Message, otpResult.StatusCode);
+
+            user.EmailConfirmed = true;
+            await userManager.UpdateAsync(user);
+
+            return Response<string>.Success("Account confirmed", "Account confirmed successfully.", 200);
+        }
+
+        public async Task<Response<bool>> ForgotPasswordAsync(ForgotPasswordRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return Response<bool>.Failure(false, "Email is required.", 400);
+
+            var user = await userManager.FindByEmailAsync(request.Email);
+
+            // Always return the same success shape regardless of whether the email exists —
+            // prevents attackers from using this endpoint to discover registered emails.
+            if (user != null && user.IsActive)
+                await otpService.GenerateAndSendAsync(user, OtpPurpose.PasswordReset);
+
+            return Response<bool>.Success(true, "If an account exists with this email, a reset code has been sent.", 200);
+        }
+
+        public async Task<Response<bool>> ResendOtpAsync(ResendOtpRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return Response<bool>.Failure(false, "Email is required.", 400);
+
+            var user = await userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+                return Response<bool>.Success(true, "If an account exists with this email, a new code has been sent.", 200);
+
+            if (request.Purpose == OtpPurpose.EmailConfirmation && user.EmailConfirmed)
+                return Response<bool>.Failure(false, "Account is already confirmed.", 400);
+
+            return await otpService.ResendAsync(user, request.Purpose);
+        }
+
+        public async Task<Response<bool>> VerifyOtpAsync(VerifyOtpRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Code))
+                return Response<bool>.Failure(false, "Email and code are required.", 400);
+
+            var user = await userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+                return Response<bool>.Failure(false, "Invalid email or code.", 400);
+
+            // Read-only check — does NOT consume the code. Safe to call for live validation in the UI.
+            return await otpService.CheckAsync(user, request.Code, OtpPurpose.PasswordReset);
+        }
+
+        public async Task<Response<bool>> ResetPasswordAsync(ResetPasswordRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Code))
+                return Response<bool>.Failure(false, "Email and code are required.", 400);
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword != request.ConfirmNewPassword)
+                return Response<bool>.Failure(false, "Passwords do not match.", 400);
+
+            var user = await userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+                return Response<bool>.Failure(false, "Invalid request.", 400);
+
+            // Real check — consumes the code so it can't be reused.
+            var otpResult = await otpService.VerifyAsync(user, request.Code, OtpPurpose.PasswordReset);
+            if (!otpResult.IsSuccess)
+                return Response<bool>.Failure(false, otpResult.Message, otpResult.StatusCode);
+
+            await userManager.RemovePasswordAsync(user);
+            var addResult = await userManager.AddPasswordAsync(user, request.NewPassword);
+
+            if (!addResult.Succeeded)
+                return Response<bool>.Failure(false, "Failed to reset password", 400, addResult.Errors.Select(e => e.Description).ToList());
+
+            // Force re-login on every device after a password change.
+            foreach (var token in user.RefreshTokens ?? [])
+                token.RevokedOn = DateTime.UtcNow;
+            await userManager.UpdateAsync(user);
+
+            return Response<bool>.Success(true, "Password reset successfully.", 200);
         }
     }
 }
