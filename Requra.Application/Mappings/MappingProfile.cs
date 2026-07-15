@@ -1,6 +1,7 @@
 ﻿
 using AutoMapper;
 using Requra.Application.DTOs.Document;
+using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
@@ -100,6 +101,34 @@ namespace Requra.Application.Mappings
           .ForMember(dest => dest.avatarUrl, opt => opt.MapFrom(src => src.User.AvatarUrl));
             #endregion
 
+            #region
+            //CreateMap<MeetingSession, ProjectMeetingsDto>()
+            //.ForMember(dest => dest.Status,
+            //    opt => opt.MapFrom(src => src.Status.ToString().ToUpper()))
+
+            ////will be edited after know more about join url
+            //.ForMember(dest => dest.JoinUrl,
+            //    opt => opt.MapFrom(src =>
+            //        $"https://app.requra.ai/meetings/{src.Id}/join"))
+
+            //.ForMember(dest => dest.ParticipantsCount,
+            //    opt => opt.MapFrom(src => src.Participants.Count))
+
+            ////what if there are more than one record for each meeting?
+            //.ForMember(dest => dest.ActiveRecordingId,
+            //    opt => opt.MapFrom(src =>
+            //        src.Recordings
+            //            .Select(r => (Guid?)r.Id)
+            //            .FirstOrDefault()))
+
+            //.ForMember(dest => dest.HostParticipantId,
+            //    opt => opt.MapFrom(src =>
+            //        src.Participants
+            //            .Where(p => p.Role == MeetingRole.Host)
+            //            .Select(p => p.UserId)
+            //            .FirstOrDefault()));
         }
+            #endregion
+
     }
 }

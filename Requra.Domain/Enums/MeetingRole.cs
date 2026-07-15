@@ -7,6 +7,7 @@ namespace Requra.Domain.Enums
     public enum MeetingRole
     {
         Host, 
-        Participant
+        Participant,
+        Viewer
     }
 }

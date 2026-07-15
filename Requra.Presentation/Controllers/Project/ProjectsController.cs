@@ -1,11 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using DocumentFormat.OpenXml.Office2010.Excel;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
+using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.Project.ProjectDetails;
 using Requra.Application.DTOs.Project.ProjectUpdate;
 using Requra.Application.DTOs.ProjectMembers;
+using Requra.Application.Interfaces.IMeetingService;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
 using System;
@@ -16,16 +19,9 @@ namespace Requra.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ProjectsController : ControllerBase
+    public class ProjectsController(IProjectService _projectService, ILogger<ProjectsController> _logger, IMeetingService _meetingService) : ControllerBase
     {
-        private readonly IProjectService _projectService;
-        private readonly ILogger<ProjectsController> _logger;
-
-        public ProjectsController(IProjectService projectService, ILogger<ProjectsController> logger)
-        {
-            _projectService = projectService;
-            _logger = logger;
-        }
+      
 
         [HttpGet]
         public async Task<IActionResult> GetProjects([FromQuery] ProjectFilter filter)
@@ -122,21 +118,66 @@ namespace Requra.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
         [HttpGet("{projectId}/members")]
-        public async Task<IActionResult> GetProjectMembers(Guid projectId,[FromQuery] GetProjectMembersQuery query)
+        public async Task<IActionResult> GetProjectMembers(string projectId,[FromQuery] GetProjectMembersQuery query)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(Response<PagedResult<ProjectMemberDto>>.Failure(new(), "Unauthorized User", 401));
+                return Unauthorized(Response<PagedResult<ProjectMemberDto>>.Failure(null, "Unauthorized User", 401));
             }
             //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
 
-            if (projectId == Guid.Empty || !Guid.TryParse(projectId.ToString(), out Guid validGuid))
-                return StatusCode(422, Response<PagedResult<ProjectMemberDto>>.Failure(new(), "Validation failed", 422, new List<string> { "Invalid projectId" }));
+            if (!Guid.TryParse(projectId, out var guid))
+            {
+                return StatusCode(422, Response<PagedResult<ProjectMemberDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+
+            }
 
             var response = await _projectService.GetProjectMembersAsync(projectId, query, userId);
 
             return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPost("{projectId}/meetings")]
+        public async Task<IActionResult> CreateMeeting(
+           string projectId,
+           [FromBody] CreateMeetingRequest request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<MeetingDto>.Failure(null, "Unauthorized User", 401));
+
+            //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
+            if (!Guid.TryParse(projectId, out var Projectguid))
+            {
+                return StatusCode(422, Response<PagedResult<ProjectMemberDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+
+            }
+            var result = await _meetingService
+                .CreateMeetingAsync(Projectguid, request, userId);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{projectId}/meetings")]
+        public async Task<IActionResult> GetMeetings(
+    string projectId,
+    [FromQuery] GetMeetingsQuery query)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<PagedResult<ProjectMeetingsDto>>.Failure(null, "Unauthorized User", 401));
+            //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
+
+            if (!Guid.TryParse(projectId, out var Projectguid))
+            {
+                return StatusCode(422, Response<PagedResult<ProjectMemberDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+
+            }
+            var result = await _meetingService.GetMeetingsAsync(Projectguid, userId, query);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

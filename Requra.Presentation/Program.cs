@@ -8,6 +8,7 @@ using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Validations;
 using System.Text.Json.Serialization;
+using Requra.Application.ApplicationServiceRegistration;
 
 namespace Requra.Presentation
 {
@@ -30,6 +31,8 @@ namespace Requra.Presentation
 
             //Services Registration
             builder.Services.AddInfrastructureServices(builder.Configuration);
+            builder.Services.AddApplicationServices();
+
 
             //should be added after services registration
             builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();

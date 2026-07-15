@@ -30,15 +30,15 @@ namespace Requra.Domain.Entities
         public Project Project { get; private set; } = null!;
         public ICollection<Document> Documents { get; private set; } = new List<Document>();
         public ICollection<MeetingParticipant> Participants { get; private set; } = new List<MeetingParticipant>();
-        public ICollection<Recording> Recordings { get; private set; }= new List<Recording>();
+        public ICollection<Recording> Recordings { get; private set; } = new List<Recording>();
 
         // Constructor
 
         private MeetingSession()
         {
-            
+
         }
-        public MeetingSession(Guid projectId,string hostId,string createdById,DateTime scheduledAt,string? title = null,string? description = null,string? sessionToken = null)
+        public MeetingSession(Guid projectId, string hostId, string createdById, DateTime? scheduledAt = null, string? title = null, string? description = null, string? sessionToken = null)
         {
             Id = Guid.NewGuid();
 
@@ -57,24 +57,27 @@ namespace Requra.Domain.Entities
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
-        public MeetingSession( string? sessionToken = null)
+        public MeetingSession(string? sessionToken = null)
         {
             Id = Guid.NewGuid();
             SessionToken = sessionToken;
 
             Status = MeetingStatus.Scheduled;
             CreatedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void Start()
         {
             Status = MeetingStatus.Live;
             StartedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void End()
         {
             Status = MeetingStatus.Ended;
+            UpdatedAt = DateTime.UtcNow;
             EndedAt = DateTime.UtcNow;
 
             if (StartedAt.HasValue)
@@ -87,16 +90,32 @@ namespace Requra.Domain.Entities
         public void Cancel()
         {
             Status = MeetingStatus.Cancelled;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void SetPlatform(string url)
         {
             PlatformUrl = url;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void SetSessionToken(string token)
         {
             SessionToken = token;
+            UpdatedAt = DateTime.UtcNow;
+        }
+        public void UpdateDetails(string? title,string? description,DateTime? scheduledAt)
+        {
+            if (title != null)
+                Title = title;
+
+            if (description != null)
+                Description = description;
+
+            if (scheduledAt.HasValue)
+                ScheduledAt = scheduledAt.Value;
+
+            UpdatedAt = DateTime.UtcNow;
         }
     }
 }

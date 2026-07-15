@@ -12,6 +12,7 @@ using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Interfaces.IDocumentService;
 using Requra.Application.Interfaces.IFileDownloader;
 using Requra.Application.Interfaces.IOtpService;
+using Requra.Application.Interfaces.IMeetingService;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
@@ -37,6 +38,7 @@ using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.DocumentService;
 using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.OtpService;
+using Requra.Infrastructure.Services.MeetingService;
 using Requra.Infrastructure.Services.ProfileService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
@@ -108,8 +110,9 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IProjectRepository, ProjectRepository>();
             services.AddScoped<IAnalysisRunService, AnalysisRunService>();
             services.AddScoped<IAnalysisRunWorker, AnalysisRunWorker>();
+            services.AddScoped<IMeetingService, MeetingService>();
 
-   
+
 
             //commented as we have a fake one now!
             services.AddHttpClient<IAIClient, AIClient>(client =>
