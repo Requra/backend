@@ -451,15 +451,15 @@ namespace Requra.Infrastructure.Services.ProjectService
             }
         }
 
-        public async Task<Response<PagedResult<ProjectMemberDto>>> GetProjectMembersAsync(Guid projectId,GetProjectMembersQuery query, string userId)
+        public async Task<Response<PagedResult<ProjectMemberDto>>> GetProjectMembersAsync(string projectId,GetProjectMembersQuery query, string userId)
         {
             try
             {
-                var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId);
+                var project = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
                 if (project == null)
                     return Response<PagedResult<ProjectMemberDto>>.Failure(null, "Project not found", 404);
 
-                var isMember = await _context.ProjectMembers.AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+                var isMember = await _context.ProjectMembers.AnyAsync(pm => pm.ProjectId.ToString() == projectId && pm.UserId == userId);
                 if (!isMember)
                     return Response<PagedResult<ProjectMemberDto>>.Failure(null, "You are not allowed to access this project", 403);
 
@@ -470,7 +470,7 @@ namespace Requra.Infrastructure.Services.ProjectService
 
                 var pageSize = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, 100);
 
-                var baseQuery = _context.ProjectMembers.Where(pm => pm.ProjectId == projectId);
+                var baseQuery = _context.ProjectMembers.Where(pm => pm.ProjectId.ToString() == projectId);
 
                 if (!string.IsNullOrWhiteSpace(query.Search))
                 {
@@ -500,7 +500,7 @@ namespace Requra.Infrastructure.Services.ProjectService
                 };
 
                 return Response<PagedResult<ProjectMemberDto>>
-                    .Success(result, "Project members retrieved successfully");
+                    .Success(result, totalCount > 0 ? "Project members retrieved successfully" : "No project members found");
             }
             catch (Exception ex) {
                 _logger.LogError(ex, "Error retrieving project members for project {ProjectId}", projectId);

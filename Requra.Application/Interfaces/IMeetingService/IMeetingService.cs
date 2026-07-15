@@ -1,4 +1,5 @@
-﻿using Requra.Application.DTOs.Meeting;
+﻿using Requra.Application.DTOs;
+using Requra.Application.DTOs.Meeting;
 using Requra.Application.Response;
 using System;
 using System.Collections.Generic;
@@ -12,5 +13,13 @@ namespace Requra.Application.Interfaces.IMeetingService
             Guid projectId,
             CreateMeetingRequest request,
             string currentUserId);
+        Task<Response<PagedResult<ProjectMeetingsDto>>> GetMeetingsAsync(
+        Guid projectId,
+        string currentUserId,
+        GetMeetingsQuery query);
+
+        Task<Response<MeetingDetailsDto>> GetMeetingByIdAsync(Guid meetingId,string currentUserId);
+        Task<Response<MeetingDto>> CancelMeetingAsync(Guid meetingId,string currentUserId);
+        Task<Response<MeetingDto>> UpdateMeetingAsync(Guid meetingId,UpdateMeetingRequest request,string currentUserId);
     }
 }

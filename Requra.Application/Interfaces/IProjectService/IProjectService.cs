@@ -23,7 +23,7 @@ namespace Requra.Application.Interfaces.IProjectService
 
         Task<Response<ProjectUpdateResponseDto>> UpdateProjectAsync(Guid id, ProjectUpdateRequestDto dto, string currentUserId);
 
-        Task<Response<PagedResult<ProjectMemberDto>>> GetProjectMembersAsync(Guid projectId, GetProjectMembersQuery query, string userId);
+        Task<Response<PagedResult<ProjectMemberDto>>> GetProjectMembersAsync(string projectId, GetProjectMembersQuery query, string userId);
 
     }
 }
