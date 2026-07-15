@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713225226_addRecordandChunkIndexes")]
+    partial class addRecordandChunkIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -205,90 +208,6 @@ namespace Requra.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ai_models", (string)null);
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.AnalysisResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<Guid>("AnalysisRunId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("analysis_run_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("NOW()");
-
-                    b.Property<string>("RawJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("raw_json");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AnalysisRunId")
-                        .IsUnique();
-
-                    b.ToTable("analysis_results", (string)null);
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.AnalysisRun", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("completed_at");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("NOW()");
-
-                    b.Property<string>("CurrentNode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("text")
-                        .HasColumnName("error_message");
-
-                    b.Property<int?>("Progress")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("progress");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
-                    b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("started_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("analysis_runs", (string)null);
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.ApplicationUser", b =>
@@ -1260,15 +1179,6 @@ namespace Requra.Infrastructure.Migrations
                     b.HasOne("Requra.Domain.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.AnalysisResult", b =>
-                {
-                    b.HasOne("Requra.Domain.Entities.AnalysisRun", null)
-                        .WithOne()
-                        .HasForeignKey("Requra.Domain.Entities.AnalysisResult", "AnalysisRunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

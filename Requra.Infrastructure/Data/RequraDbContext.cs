@@ -37,6 +37,8 @@ namespace Requra.Infrastructure.Data
         public DbSet<ProjectMember> ProjectMembers { get; set; }
         public DbSet<Requirement> Requirements { get; set; }
         public DbSet<Summary> Summaries { get; set; }
+        public DbSet<Recording> Recordings { get; set; }
+        public DbSet<RecordingChunk> RecordingChunks { get; set; }
 
         public DbSet<AnalysisRun> AnalysisRuns { get; set; }
         public DbSet<AnalysisResult> AnalysisResults { get; set; }
