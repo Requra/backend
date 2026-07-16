@@ -5,14 +5,10 @@ using System.Text;
 
 namespace Requra.Application.DTOs.Recordings
 {
-    public class StartRecordingRequest
+    public class StartRecordingApiRequest
     {
-        public Guid MeetingId { get; set; }
-        public string CreatedById { get; set; } = null!; //current user id
-
         public RecordingUploadMode UploadMode { get; set; }
-
         public string MimeType { get; set; }
-
+       
     }
 }

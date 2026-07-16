@@ -1,14 +1,21 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Requra.Application.DTOs;
+using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Recordings;
 using Requra.Application.Interfaces.IRecordingService;
 using Requra.Application.Response;
 using Requra.Domain.Enums;
+using System.Security.Claims;
 
 namespace Requra.Presentation.Controllers.Recording
 {
     [ApiController]
     [Route("api")]
+    [Authorize]
     public class RecordingsController : ControllerBase
     {
         private readonly IRecordingService _recordingService;
@@ -18,12 +25,44 @@ namespace Requra.Presentation.Controllers.Recording
             _recordingService = recordingService;
         }
 
-        [HttpPost("meetings/{meetingId:guid}/recordings/start")]
-        public async Task<IActionResult> StartRecording(Guid meetingId,[FromBody] StartRecordingRequest request,CancellationToken cancellationToken)
+        [HttpGet("recordings/{recordingId:guid}")]
+        public async Task<IActionResult> GetRecordingStatus( Guid recordingId, CancellationToken cancellationToken)
         {
-            request.MeetingId = meetingId;
+            var response = await _recordingService.GetRecordingStatusAsync(recordingId, cancellationToken);
 
-            var response = await _recordingService.StartRecordingAsync(request, cancellationToken);
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpPost("meetings/{meetingId:guid}/recordings/start")]
+        [ProducesResponseType(typeof(Response<StartRecordingResponse>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(Response<StartRecordingResponse>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Response<StartRecordingResponse>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Response<StartRecordingResponse>), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(Response<StartRecordingResponse>), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> StartRecording(Guid meetingId, [FromBody] StartRecordingApiRequest request, CancellationToken cancellationToken)
+        {
+            var CreatedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(CreatedBy))
+                return Unauthorized(Response<StartRecordingResponse>.Failure(new StartRecordingResponse(), "Unauthorized User", 401));
+            var serviceRequest = new StartRecordingRequest
+            {
+                MeetingId = meetingId,
+                CreatedById = CreatedBy,
+                UploadMode = request.UploadMode,
+                MimeType = request.MimeType,
+            };
+
+            var response = await _recordingService.StartRecordingAsync(serviceRequest, cancellationToken);
 
             return response.StatusCode switch
             {
@@ -38,33 +77,17 @@ namespace Requra.Presentation.Controllers.Recording
             };
         }
 
+
+
         [HttpPost("recordings/{recordingId:guid}/chunks")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(100_000_000)]
-        public async Task<IActionResult> UploadChunk(Guid recordingId,[FromForm] int chunkNumber,[FromForm] string? checksum,[FromForm] IFormFile chunk,CancellationToken cancellationToken)
+        public async Task<IActionResult> UploadChunk(
+           Guid recordingId,
+           [FromForm] UploadChunkRequest request,
+           CancellationToken cancellationToken)
         {
-            if (chunk is null)
-            {
-                return BadRequest(new
-                {
-                    message = "Chunk file is required."
-                });
-            }
-
-            await using var stream = chunk.OpenReadStream();
-
-            var request = new UploadChunkRequest
-            {
-                RecordingId = recordingId,
-                ChunkNumber = chunkNumber,
-                ChunkStream = stream,
-                FileName = chunk.FileName,
-                ContentType = string.IsNullOrWhiteSpace(chunk.ContentType)
-                    ? "application/octet-stream"
-                    : chunk.ContentType,
-                Size = chunk.Length,
-                Checksum = checksum
-            };
+            request.RecordingId = recordingId;
 
             var response = await _recordingService.UploadChunkAsync(request, cancellationToken);
 
@@ -84,11 +107,16 @@ namespace Requra.Presentation.Controllers.Recording
         [HttpPost("recordings/{recordingId:guid}/file")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(500_000_000)]
-        public async Task<IActionResult> UploadRecordingFile(Guid recordingId,[FromForm] UploadRecordingFileRequest request,CancellationToken cancellationToken)
+        public async Task<IActionResult> UploadRecordingFile(Guid recordingId, [FromForm] UploadRecordingFileApiRequest request, CancellationToken cancellationToken)
         {
-            request.RecordingId = recordingId;
+            var serviceRequest = new UploadRecordingFileRequest
+            {
+                RecordingId = recordingId,
+                File = request.File,
+                durationSeconds = request.durationSeconds
+            };
 
-            var response = await _recordingService.UploadRecordingFileAsync(request, cancellationToken);
+            var response = await _recordingService.UploadRecordingFileAsync(serviceRequest, cancellationToken);
 
             return response.StatusCode switch
             {
@@ -104,11 +132,17 @@ namespace Requra.Presentation.Controllers.Recording
         }
 
         [HttpPost("recordings/{recordingId:guid}/stop")]
-        public async Task<IActionResult> StopRecording(Guid recordingId,[FromBody] StopRecordingRequest request,CancellationToken cancellationToken)
+        public async Task<IActionResult> StopRecording(Guid recordingId, [FromBody] StopRecordingApiRequest request, CancellationToken cancellationToken)
         {
-            request.RecordingId = recordingId;
 
-            var response = await _recordingService.StopRecordingAsync(request, cancellationToken);
+            var serviceRequest = new StopRecordingRequest
+            {
+               RecordingId= recordingId,
+               DurationSeconds= request.DurationSeconds,
+               lastChunkIndex = request.lastChunkIndex,
+            };
+
+            var response = await _recordingService.StopRecordingAsync(serviceRequest, cancellationToken);
 
             return response.StatusCode switch
             {
@@ -123,15 +157,7 @@ namespace Requra.Presentation.Controllers.Recording
             };
         }
 
-        [HttpGet("recordings/{recordingId:guid}")]
-        public IActionResult GetRecordingStatus(Guid recordingId)
-        {
-            return Ok(new
-            {
-                recordingId,
-                message = "Status endpoint placeholder."
-            });
-        }
-    
-}
+       
+
+    }
     }

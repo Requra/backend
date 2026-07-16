@@ -6,11 +6,13 @@ namespace Requra.Domain.Enums
 {
     public enum RecordingStatus
     {
-        Started,
-        Uploading ,
-        Ending,
-        Completed,
-        Failed ,
-        Expired 
+
+        READY,      //started
+        ACTIVE,     //uploading
+        STOPPED,    //completed
+        FINALIZING, //ending
+        FAILED,
+        EXPIRED
+    
     }
 }

@@ -9,6 +9,7 @@ namespace Requra.Application.Interfaces.IRecordingService
 {
     public interface IRecordingService
     {
+        Task<Response<GetRecordingStatusResponse>> GetRecordingStatusAsync(Guid recordingId,CancellationToken cancellationToken = default);
         Task<Response<StartRecordingResponse>> StartRecordingAsync(StartRecordingRequest request,CancellationToken cancellationToken = default);
 
         Task<Response<UploadChunkResponse>> UploadChunkAsync(UploadChunkRequest request,CancellationToken cancellationToken = default);

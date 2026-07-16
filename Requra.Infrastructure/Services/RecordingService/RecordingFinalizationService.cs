@@ -29,7 +29,7 @@ namespace Requra.Infrastructure.Services.RecordingService
             if (recording is null)
                 throw new InvalidOperationException("Recording not found.");
 
-            if (recording.Status != RecordingStatus.Ending)
+            if (recording.Status != RecordingStatus.FINALIZING)
                 throw new InvalidOperationException("Recording is not in ending state.");
 
             var chunks = await _context.RecordingChunks

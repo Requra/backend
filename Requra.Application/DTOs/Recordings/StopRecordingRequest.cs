@@ -7,6 +7,12 @@ namespace Requra.Application.DTOs.Recordings
     public class StopRecordingRequest
     {
         public Guid RecordingId { get; set; }
-        public int? ExpectedChunks { get; set; }
+        public int DurationSeconds { get; set; }
+        public int? lastChunkIndex { get; set; }
+    }
+    public class StopRecordingApiRequest
+    {
+        public int DurationSeconds { get; set; }
+        public int? lastChunkIndex { get; set; }
     }
 }

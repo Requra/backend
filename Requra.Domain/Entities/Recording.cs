@@ -49,18 +49,18 @@ namespace Requra.Domain.Entities
 
         private Recording() { }
 
-        public Recording(Guid meetingId,string createdById,string fileName,RecordingUploadMode uploadMode,string? contentType = null,string? originalExtension = null,int? expectedChunks = null)
+        public Recording(Guid meetingId,string createdById,RecordingUploadMode uploadMode,string? contentType = null,string? originalExtension = null,int? expectedChunks = null)
         {
             Id = Guid.NewGuid();
             MeetingId = meetingId;
             CreatedById = createdById;
-            FileName = fileName;
+            FileName = $"Rec_{meetingId}";
             UploadMode = uploadMode;
             ContentType = contentType;
             OriginalExtension = originalExtension;
             ExpectedChunks = expectedChunks;
 
-            Status = RecordingStatus.Started;
+            Status = RecordingStatus.READY;
             StartedAt = DateTime.UtcNow;
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
@@ -68,9 +68,9 @@ namespace Requra.Domain.Entities
 
         public void MarkUploading()
         {
-            if (Status == RecordingStatus.Started)
+            if (Status == RecordingStatus.READY)
             {
-                Status = RecordingStatus.Uploading;
+                Status = RecordingStatus.ACTIVE;
                 UpdatedAt = DateTime.UtcNow;
             }
         }
@@ -80,8 +80,8 @@ namespace Requra.Domain.Entities
             if (chunkSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
 
-            if (Status == RecordingStatus.Started)
-                Status = RecordingStatus.Uploading;
+            if (Status == RecordingStatus.READY)
+                Status = RecordingStatus.ACTIVE;
 
             ReceivedBytes += chunkSize;
             UploadedChunks++;
@@ -109,24 +109,24 @@ namespace Requra.Domain.Entities
 
         public void MarkFinalizing()
         {
-            if (Status == RecordingStatus.Completed || Status == RecordingStatus.Failed || Status == RecordingStatus.Expired)
+            if (Status == RecordingStatus.STOPPED || Status == RecordingStatus.FAILED || Status == RecordingStatus.EXPIRED)
                 throw new InvalidOperationException("Recording cannot be finalized from current state.");
 
-            Status = RecordingStatus.Ending;
+            Status = RecordingStatus.FINALIZING;
             StoppedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
 
         public void MarkCompleted()
         {
-            Status = RecordingStatus.Completed;
+            Status = RecordingStatus.STOPPED;
             CompletedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
 
         public void MarkFailed(string reason, string? finalizationError = null)
         {
-            Status = RecordingStatus.Failed;
+            Status = RecordingStatus.FAILED;
             FailureReason = reason;
             FinalizationError = finalizationError;
             UpdatedAt = DateTime.UtcNow;
@@ -134,10 +134,27 @@ namespace Requra.Domain.Entities
 
         public void MarkAbandoned(string? reason = null)
         {
-            Status = RecordingStatus.Expired;
+            Status = RecordingStatus.EXPIRED;
             FailureReason = reason;
             AbandonedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetPlannedStorage(string storageUrl, string storageKey, string publicId)
+        {
+            StorageUrl = storageUrl;
+            StorageKey = storageKey;
+            PublicId = publicId;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetOriginalExtension(string extension)
+        {
+            OriginalExtension = extension;
+        }
+        public void SetContentType(string contentType)
+        {
+            ContentType = contentType;
         }
 
     }

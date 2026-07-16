@@ -28,6 +28,8 @@ namespace Requra.Domain.Entities
         public RecordingChunkStatus Status { get; private set; }
 
         public int UploadAttemptCount { get; private set; }
+        public long? EndedAtMs { get; private set; }
+        public long? StartedAtMs { get; private set; }
 
         public DateTime ReceivedAt { get; private set; }
 
@@ -44,7 +46,7 @@ namespace Requra.Domain.Entities
         {
         }
 
-        public RecordingChunk(Guid recordingId,int chunkNumber,string storageUrl,long size,string? storageKey = null,string? publicId = null,string? checksum = null,string? contentType = null)
+        public RecordingChunk(Guid recordingId,int chunkNumber,string storageUrl,long size,string? storageKey = null,string? publicId = null,string? checksum = null,string? contentType = null, long? startedAtMs = null, long? endedAtMs = null)
         {
             Id = Guid.NewGuid();
             RecordingId = recordingId;
@@ -59,6 +61,8 @@ namespace Requra.Domain.Entities
             UploadAttemptCount = 1;
             ReceivedAt = DateTime.UtcNow;
             UploadedAt = DateTime.UtcNow;
+            StartedAtMs = startedAtMs;
+            EndedAtMs = endedAtMs;
         }
 
         public void MarkDuplicate()
@@ -75,6 +79,11 @@ namespace Requra.Domain.Entities
         public void IncrementAttempt()
         {
             UploadAttemptCount++;
+        }
+        public void SetTimeRange(long? startedAtMs, long? endedAtMs)
+        {
+            StartedAtMs = startedAtMs;
+            EndedAtMs = endedAtMs;
         }
     }
 }

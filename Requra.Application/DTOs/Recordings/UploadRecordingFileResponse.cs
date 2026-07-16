@@ -7,11 +7,22 @@ namespace Requra.Application.DTOs.Recordings
 {
     public class UploadRecordingFileResponse
     {
-        public Guid RecordingId { get; set; }
-        public string StorageUrl { get; set; } = null!;
-        public string PublicId { get; set; } = null!;
-        public long FinalFileSizeBytes { get; set; }
+        public Guid Id { get; set; }
+
+        public Guid MeetingId { get; set; }
+
+        public string FileUrl { get; set; } = null!;
+
+        public string MimeType { get; set; }
+        public RecordingUploadMode UploadMode { get; set; }
+
         public RecordingStatus Status { get; set; }
+
+        public int? DurationSeconds { get; set; }
+        public int ChunksCount { get; set; } = 0;
+        public List<int> MissingChunkIndexes { get; set; } = new List<int>();
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? CompletedAt { get; set; }
+        public Guid? DocumentId { get; set; }
     }
 }
