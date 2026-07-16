@@ -2,12 +2,14 @@
 using AutoMapper.QueryableExtensions;
 using DocumentFormat.OpenXml.Spreadsheet;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.ProjectMembers;
+using Requra.Application.DTOs.Recordings;
 using Requra.Application.Interfaces.IMeetingService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
@@ -413,6 +415,111 @@ namespace Requra.Infrastructure.Services.MeetingService
                 dto,
                 "Meeting updated successfully",
                 200);
+        }
+
+
+
+
+
+
+        public async Task<Response<StartMeetingResponse>> StartMeetingAsync(Guid MeetingId , CancellationToken cancellationToken = default)
+        {
+            if (MeetingId == Guid.Empty)
+            {
+                return Response<StartMeetingResponse>.Failure(new StartMeetingResponse(),"MeetingId is required.",StatusCodes.Status400BadRequest);
+            }
+
+            try
+            {
+                var meeting = await _context.MeetingSessions.FirstOrDefaultAsync(x => x.Id == MeetingId, cancellationToken);
+
+                if (meeting is null)
+                {
+                    return Response<StartMeetingResponse>.Failure(new StartMeetingResponse(),"Meeting not found.",StatusCodes.Status404NotFound);
+                }
+
+                var previousStatus = meeting.Status.ToString().ToUpper();
+
+                if (meeting.Status != MeetingStatus.Scheduled)
+                {
+                    return Response<StartMeetingResponse>.Failure(new StartMeetingResponse(),$"Meeting cannot be started. Current status: {previousStatus}.",StatusCodes.Status409Conflict);
+                }
+
+                meeting.Start();
+                await _context.SaveChangesAsync(cancellationToken);
+                var response = new StartMeetingResponse
+                {
+                    MeetingId = meeting.Id,
+                    PreviousStatus = previousStatus,
+                    Status = meeting.Status.ToString().ToUpper(),
+                    StartedAt = meeting.StartedAt,
+                    EndedAt = meeting.EndedAt
+                };
+
+                return Response<StartMeetingResponse>.Success(response,"Meeting started successfully.",StatusCodes.Status200OK);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<StartMeetingResponse>.Failure(new StartMeetingResponse(),"A concurrency error occurred while starting the meeting.",StatusCodes.Status409Conflict,new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<StartMeetingResponse>.Failure(new StartMeetingResponse(),"A database error occurred while starting the meeting.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return Response<StartMeetingResponse>.Failure(new StartMeetingResponse(),"An unexpected error occurred while starting the meeting.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<EndMeetingResponse>> EndMeetingAsync(Guid MeetingId,CancellationToken cancellationToken = default)
+        {
+            if (MeetingId == Guid.Empty)
+            {
+                return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"MeetingId is required.",StatusCodes.Status400BadRequest);
+            }
+
+            try
+            {
+                var meeting = await _context.MeetingSessions.FirstOrDefaultAsync(x => x.Id == MeetingId, cancellationToken);
+
+                if (meeting is null)
+                {
+                    return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"Meeting not found.",StatusCodes.Status404NotFound);
+                }
+
+                var previousStatus = meeting.Status.ToString().ToUpper();
+
+                if (meeting.Status == MeetingStatus.Ended)
+                {
+                    return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"Meeting is already ended.",StatusCodes.Status409Conflict);
+                }
+                meeting.End();
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var response = new EndMeetingResponse
+                {
+                    MeetingId = meeting.Id,
+                    PreviousStatus = previousStatus,
+                    Status = meeting.Status.ToString().ToUpper(),
+                    StartedAt = meeting.StartedAt,
+                    EndedAt = meeting.EndedAt
+                };
+
+                return Response<EndMeetingResponse>.Success(response,"Meeting ended successfully",StatusCodes.Status200OK);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"A concurrency error occurred while ending the meeting.",StatusCodes.Status409Conflict,new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"A database error occurred while ending the meeting.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"An unexpected error occurred while ending the meeting.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
         }
     }
 }

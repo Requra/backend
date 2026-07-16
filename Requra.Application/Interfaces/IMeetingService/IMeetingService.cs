@@ -21,5 +21,9 @@ namespace Requra.Application.Interfaces.IMeetingService
         Task<Response<MeetingDetailsDto>> GetMeetingByIdAsync(Guid meetingId,string currentUserId);
         Task<Response<MeetingDto>> CancelMeetingAsync(Guid meetingId,string currentUserId);
         Task<Response<MeetingDto>> UpdateMeetingAsync(Guid meetingId,UpdateMeetingRequest request,string currentUserId);
+
+
+        Task<Response<StartMeetingResponse>> StartMeetingAsync(Guid MeetingId, CancellationToken cancellationToken = default);
+        Task<Response<EndMeetingResponse>> EndMeetingAsync(Guid MeetingId, CancellationToken cancellationToken = default);
     }
 }

@@ -78,5 +78,46 @@ namespace Requra.Presentation.Controllers.Meeting
             return StatusCode(result.StatusCode, result);
         }
 
+
+
+
+        [HttpPost("{meetingId:guid}/start")]
+        public async Task<IActionResult> StartMeeting([FromRoute] Guid meetingId,CancellationToken cancellationToken)
+        {
+            var response = await _meetingService.StartMeetingAsync(meetingId, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpPost("{meetingId:guid}/end")]
+        public async Task<IActionResult> EndMeeting(
+        [FromRoute] Guid meetingId,
+        CancellationToken cancellationToken)
+        {
+            var response = await _meetingService.EndMeetingAsync(meetingId, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
     }
 }
