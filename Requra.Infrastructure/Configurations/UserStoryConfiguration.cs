@@ -80,10 +80,10 @@ namespace Requra.Infrastructure.Configurations
                    .HasForeignKey(us => us.RequirementId)
                    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany(us => us.Comments)
-                   .WithOne(c => c.UserStory)
-                   .HasForeignKey(c => c.UserStoryId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            //builder.HasMany(us => us.Comments)
+            //       .WithOne(c => c.UserStory)
+            //       .HasForeignKey(c => c.UserStoryId)
+            //       .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(us => us.Project)
                    .WithMany(p => p.UserStories)

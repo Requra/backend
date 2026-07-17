@@ -19,10 +19,13 @@ namespace Requra.Domain.Entities
         public DateTime CreatedAt { get; private set; }
 
         public DateTime UpdatedAt { get; private set; }
+        public Guid? ProjectId { get; private set; }
 
         // Navigation
         public ICollection<DocumentRequirement> DocumentRequirements { get; private set; } = new List<DocumentRequirement>();
         public ICollection<UserStory> UserStories { get; private set; } = new List<UserStory>();
+        public Project? Project { get; private set; } 
+
         public ICollection<Approval> Approvals { get; private set; } = new List<Approval>();
 
         // Constructor

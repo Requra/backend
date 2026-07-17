@@ -11,12 +11,13 @@ using Requra.Application.Interfaces.IAnalysisRunWorker;
 using Requra.Application.Interfaces.IAuthService;
 using Requra.Application.Interfaces.IDocumentService;
 using Requra.Application.Interfaces.IFileDownloader;
-using Requra.Application.Interfaces.IOtpService;
 using Requra.Application.Interfaces.IMeetingService;
+using Requra.Application.Interfaces.IOtpService;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
+using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
 using Requra.Application.Interfaces.IRecordingService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
@@ -37,11 +38,12 @@ using Requra.Infrastructure.Services.AnalysisRunService;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.DocumentService;
 using Requra.Infrastructure.Services.JWTService;
-using Requra.Infrastructure.Services.OtpService;
 using Requra.Infrastructure.Services.MeetingService;
+using Requra.Infrastructure.Services.OtpService;
 using Requra.Infrastructure.Services.ProfileService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
+using Requra.Infrastructure.Services.ProjectService.ProjectReviewService;
 using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.UnitOfWork;
@@ -111,6 +113,12 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IAnalysisRunService, AnalysisRunService>();
             services.AddScoped<IAnalysisRunWorker, AnalysisRunWorker>();
             services.AddScoped<IMeetingService, MeetingService>();
+            services.AddScoped<IRecordingService, RecordingService>();
+            services.AddScoped<IRecordingBackgroundJobService, RecordingBackgroundJobService>();
+            services.AddScoped<IRecordingFinalizationService, RecordingFinalizationService>();
+            services.AddScoped<IRecordingChunkStorageReader, RecordingChunkStorageReader>();
+            services.AddScoped<IProjectReviewService, ProjectReviewService>();
+
 
 
 
@@ -124,10 +132,7 @@ namespace Requra.Infrastructure.DependencyInjection
             //for recovery of analysis runs that were in processing state when the application was stopped.
             services.AddHostedService<StartupRecoveryService>();
             //services.AddScoped<IAIClient,FakeAIClient>();
-            services.AddScoped<IRecordingService, RecordingService>();
-            services.AddScoped<IRecordingBackgroundJobService, RecordingBackgroundJobService>();
-            services.AddScoped<IRecordingFinalizationService, RecordingFinalizationService>();
-            services.AddScoped<IRecordingChunkStorageReader, RecordingChunkStorageReader>();
+            
 
 
 

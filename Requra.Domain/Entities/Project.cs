@@ -30,6 +30,9 @@ namespace Requra.Domain.Entities
 
         public ICollection<ProjectMember> Members { get; private set; } = new List<ProjectMember>();
         public ICollection<UserStory> UserStories { get; private set; } = new List<UserStory>();
+        public ICollection<Requirement> Requirements { get; private set; } = new List<Requirement>();
+        public ICollection<Summary> Summaries { get; private set; } = new List<Summary>();
+
 
 
         private Project()

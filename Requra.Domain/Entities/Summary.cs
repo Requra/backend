@@ -23,10 +23,12 @@ namespace Requra.Domain.Entities
         public DateTime CreatedAt { get; private set; }
 
         public DateTime UpdatedAt { get; private set; }
+        public Guid? ProjectId { get; private set; }
 
         // Navigation
         public Document Document { get; private set; } = null!;
         public AIModel AIModel { get; private set; } = null!;
+        public Project? Project { get; private set; }
 
         // Constructor
 

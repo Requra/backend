@@ -34,7 +34,7 @@ namespace Requra.Domain.Entities
         public ApplicationUser Creator { get; private set; } = null!;
         public Requirement Requirement { get; private set; } = null!;
         public Project Project { get; private set; } = null!;   
-        public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
+        //public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
 
         // Constructor
         private UserStory()

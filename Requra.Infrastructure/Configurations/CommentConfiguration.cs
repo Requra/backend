@@ -13,52 +13,90 @@ namespace Requra.Infrastructure.Configurations
         {
             builder.ToTable("comments");
 
-            builder.HasKey(c => c.Id);
+            builder.HasKey(x => x.Id);
 
-            builder.Property(c => c.Id)
-                   .HasColumnName("id")
-                   .HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.Id)
+                .HasColumnName("id");
 
-            builder.Property(c => c.UserStoryId)
-                   .HasColumnName("user_story_id")
-                   .IsRequired();
+            builder.Property(x => x.ProjectId)
+                .HasColumnName("project_id")
+                .IsRequired();
 
-            builder.Property(c => c.AuthorId)
-                   .HasColumnName("author_id")
-                   .IsRequired();
+            builder.Property(x => x.TargetType)
+                .HasColumnName("target_type")
+                .HasConversion<string>()
+                .HasMaxLength(30)
+                .IsRequired();
 
-            builder.Property(c => c.ParentCommentId)
-                   .HasColumnName("parent_comment_id");
+            builder.Property(x => x.TargetId)
+                .HasColumnName("target_id")
+                .IsRequired();
 
-            builder.Property(c => c.Content)
-                   .HasColumnName("content")
-                   .HasColumnType("text")
-                   .IsRequired();
+            builder.Property(x => x.TargetTitle)
+                .HasColumnName("target_title")
+                .HasMaxLength(300);
 
-            builder.Property(c => c.CreatedAt)
-                   .HasColumnName("created_at")
-                   .HasColumnType("timestamptz")
-                   .HasDefaultValueSql("NOW()");
+            builder.Property(x => x.AuthorId)
+                .HasColumnName("author_id")
+                .HasMaxLength(450)
+                .IsRequired();
 
-            builder.Property(c => c.UpdatedAt)
-                   .HasColumnName("updated_at")
-                   .HasColumnType("timestamptz")
-                   .HasDefaultValueSql("NOW()");
+            builder.Property(x => x.ParentCommentId)
+                .HasColumnName("parent_comment_id");
 
-            builder.HasOne(c => c.UserStory)
-                   .WithMany(us => us.Comments)
-                   .HasForeignKey(c => c.UserStoryId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            builder.Property(x => x.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
 
-            builder.HasOne(c => c.Author)
-                   .WithMany(u => u.Comments)
-                   .HasForeignKey(c => c.AuthorId)
-                   .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(x => x.IsRead)
+                .HasColumnName("is_read")
+                .IsRequired();
 
-            builder.HasOne(c => c.ParentComment)
-                   .WithMany(c => c.Replies)
-                   .HasForeignKey(c => c.ParentCommentId)
-                   .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(x => x.Content)
+                .HasColumnName("content")
+                .HasMaxLength(4000)
+                .IsRequired();
+
+            builder.Property(x => x.ResolutionNote)
+                .HasColumnName("resolution_note")
+                .HasMaxLength(4000);
+
+            builder.Property(x => x.ResolvedById)
+                .HasColumnName("resolved_by_id")
+                .HasMaxLength(450);
+
+            builder.Property(x => x.ResolvedAt)
+                .HasColumnName("resolved_at");
+
+            builder.Property(x => x.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            builder.Property(x => x.UpdatedAt)
+                .HasColumnName("updated_at")
+                .IsRequired();
+
+            builder.HasIndex(x => x.ProjectId)
+                .HasDatabaseName("ix_comments_project_id");
+
+            builder.HasIndex(x => new { x.TargetType, x.TargetId })
+                .HasDatabaseName("ix_comments_target_type_target_id");
+
+            builder.HasIndex(x => x.AuthorId)
+                .HasDatabaseName("ix_comments_author_id");
+
+            builder.HasOne(x => x.Author)
+                .WithMany()
+                .HasForeignKey(x => x.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.ParentComment)
+                .WithMany(x => x.Replies)
+                .HasForeignKey(x => x.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
+    
     }
 }

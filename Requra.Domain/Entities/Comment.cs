@@ -11,37 +11,48 @@ namespace Requra.Domain.Entities
     {
         public Guid Id { get; private set; }
 
-        public Guid UserStoryId { get; private set; }
+        public Guid ProjectId { get; private set; }
+        public FeedbackTargetType TargetType { get; private set; }
+        public Guid TargetId { get; private set; }
+        public string? TargetTitle { get; private set; }
 
         public string AuthorId { get; private set; } = null!;
-
         public Guid? ParentCommentId { get; private set; }
 
-        public CommentStatus Status { get; private set; }   
+        public StakeholderFeedbackStatus Status { get; private set; }
+        public bool IsRead { get; private set; }
+
         public string Content { get; private set; } = null!;
 
-        public DateTime CreatedAt { get; private set; }
+        public string? ResolutionNote { get; private set; }
+        public string? ResolvedById { get; private set; }
+        public DateTime? ResolvedAt { get; private set; }
 
+        public DateTime CreatedAt { get; private set; }
         public DateTime UpdatedAt { get; private set; }
 
         // Navigation
-        public UserStory UserStory { get; private set; } = null!;
         public ApplicationUser Author { get; private set; } = null!;
         public Comment? ParentComment { get; private set; }
         public ICollection<Comment> Replies { get; private set; } = new List<Comment>();
 
-        // Constructor
         private Comment()
         {
-            
         }
-        public Comment(Guid userStoryId, string authorId, string content, Guid? parentCommentId = null)
+
+        public Comment(Guid projectId,FeedbackTargetType targetType,Guid targetId,string? targetTitle,string authorId,string content,Guid? parentCommentId = null)
         {
             Id = Guid.NewGuid();
-            UserStoryId = userStoryId;
+            ProjectId = projectId;
+            TargetType = targetType;
+            TargetId = targetId;
+            TargetTitle = targetTitle;
             AuthorId = authorId;
             Content = content;
             ParentCommentId = parentCommentId;
+
+            Status = StakeholderFeedbackStatus.OPEN;
+            IsRead = false;
 
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
@@ -53,9 +64,41 @@ namespace Requra.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+        public void MarkAsRead()
+        {
+            IsRead = true;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Resolve(string resolvedById, string? resolutionNote)
+        {
+            Status = StakeholderFeedbackStatus.RESOLVED;
+            ResolutionNote = resolutionNote;
+            ResolvedById = resolvedById;
+            ResolvedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Reopen()
+        {
+            Status = StakeholderFeedbackStatus.OPEN;
+            ResolutionNote = null;
+            ResolvedById = null;
+            ResolvedAt = null;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void AddReply(Comment reply)
         {
             Replies.Add(reply);
         }
+
+        public void MarkAsUnread()
+        {
+            IsRead = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+
     }
 }

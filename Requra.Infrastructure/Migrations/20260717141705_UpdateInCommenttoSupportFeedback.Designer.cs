@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717141705_UpdateInCommenttoSupportFeedback")]
+    partial class UpdateInCommenttoSupportFeedback
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1182,9 +1185,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("language");
 
-                    b.Property<Guid?>("ProjectId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1208,8 +1208,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasDefaultValueSql("NOW()");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
 
                     b.ToTable("requirements", (string)null);
                 });
@@ -1252,9 +1250,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("open_questions");
 
-                    b.Property<Guid?>("ProjectId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1271,8 +1266,6 @@ namespace Requra.Infrastructure.Migrations
                     b.HasIndex("AIModelId");
 
                     b.HasIndex("DocumentId");
-
-                    b.HasIndex("ProjectId");
 
                     b.ToTable("summaries", (string)null);
                 });
@@ -1669,15 +1662,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Navigation("Recording");
                 });
 
-            modelBuilder.Entity("Requra.Domain.Entities.Requirement", b =>
-                {
-                    b.HasOne("Requra.Domain.Entities.Project", "Project")
-                        .WithMany("Requirements")
-                        .HasForeignKey("ProjectId");
-
-                    b.Navigation("Project");
-                });
-
             modelBuilder.Entity("Requra.Domain.Entities.Summary", b =>
                 {
                     b.HasOne("Requra.Domain.Entities.AIModel", "AIModel")
@@ -1692,15 +1676,9 @@ namespace Requra.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Requra.Domain.Entities.Project", "Project")
-                        .WithMany("Summaries")
-                        .HasForeignKey("ProjectId");
-
                     b.Navigation("AIModel");
 
                     b.Navigation("Document");
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.UserStory", b =>
@@ -1784,10 +1762,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Navigation("Documents");
 
                     b.Navigation("Members");
-
-                    b.Navigation("Requirements");
-
-                    b.Navigation("Summaries");
 
                     b.Navigation("UserStories");
                 });

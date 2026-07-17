@@ -131,6 +131,12 @@ namespace Requra.Domain.Entities
             FinalizationError = finalizationError;
             UpdatedAt = DateTime.UtcNow;
         }
+        public void MarkActive()
+        {
+            Status = RecordingStatus.ACTIVE;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
 
         public void MarkAbandoned(string? reason = null)
         {

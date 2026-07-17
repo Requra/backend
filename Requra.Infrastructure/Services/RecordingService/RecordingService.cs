@@ -134,7 +134,9 @@ namespace Requra.Infrastructure.Services.RecordingService
                 var predictedUrl = _cloudinaryService.GetFileUrl($"{folder}/{finalPublicId}", "video");
 
                 recording.SetPlannedStorage(predictedUrl,$"{folder}/{finalPublicId}",finalPublicId);
+                recording.MarkActive();
                 await _context.Recordings.AddAsync(recording, cancellationToken);
+
 
                 try
                 {
@@ -542,10 +544,10 @@ namespace Requra.Infrastructure.Services.RecordingService
                     return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"Recording not found.",404);
                 }
 
-                if (recording.UploadMode != RecordingUploadMode.Chunked)
-                {
-                    return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"Stop endpoint is only valid for chunked recordings.",400);
-                }
+                //if (recording.UploadMode != RecordingUploadMode.Chunked)
+                //{
+                //    return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"Stop endpoint is only valid for chunked recordings.",400);
+                //}
 
                 if (recording.Status == RecordingStatus.STOPPED)
                 {

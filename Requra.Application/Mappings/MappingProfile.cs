@@ -43,15 +43,15 @@ namespace Requra.Application.Mappings
                     src.Documents
                         .SelectMany(d => d.DocumentRequirements)
                         .SelectMany(dr => dr.Requirement.UserStories)
-                        .Count()))
-
-            .ForMember(dest => dest.TotalComments,
-                opt => opt.MapFrom(src =>
-                    src.Documents
-                        .SelectMany(d => d.DocumentRequirements)
-                        .SelectMany(dr => dr.Requirement.UserStories)
-                        .SelectMany(us => us.Comments)
                         .Count()));
+
+            //.ForMember(dest => dest.TotalComments,
+            //    opt => opt.MapFrom(src =>
+            //        src.Documents
+            //            .SelectMany(d => d.DocumentRequirements)
+            //            .SelectMany(dr => dr.Requirement.UserStories)
+            //            .SelectMany(us => us.Comments)
+            //            .Count()));
 
 
             #endregion
