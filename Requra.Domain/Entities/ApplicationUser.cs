@@ -29,6 +29,7 @@ namespace Requra.Domain.Entities
         public ICollection<UserStory> CreatedUserStories { get; private set; } = new List<UserStory>();
         public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
         public ICollection<Approval> Approvals { get; private set; } = new List<Approval>();
+        public ICollection<Invitation> Invitations { get; private set; } = new List<Invitation>();
 
         // Constructor
         public ApplicationUser(string userName, string email, string? fullName = null, Language? preferredLanguage = null, string? avatarUrl = null)

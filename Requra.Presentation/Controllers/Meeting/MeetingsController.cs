@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs;
+using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project.ProjectDetails;
 using Requra.Application.DTOs.ProjectMembers;
@@ -118,6 +119,60 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(response.StatusCode, response)
             };
         }
+
+        [HttpPost("{meetingId:guid}/invitations/participants")]
+        public async Task<IActionResult> InviteParticipants([FromRoute] Guid meetingId,[FromBody] InviteMeetingParticipantsApiRequest request,CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var requestdto = new InviteMeetingParticipantsRequest
+            {
+                MeetingId = meetingId,
+                Members = request.Members,
+                InvitedById = userId
+            };
+
+            var response = await _meetingService.InviteParticipantsAsync(requestdto, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpPost("{meetingId:guid}/invitations/guests")]
+        public async Task<IActionResult> InviteGuests([FromRoute] Guid meetingId,[FromBody] InviteGuestsApiRequest request,CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var requestdto = new InviteGuestsRequest
+            {
+                MeetingId = meetingId,
+                Guests = request.Guests,
+                InvitedById = userId
+            };
+
+            var response = await _meetingService.InviteGuestsAsync(requestdto, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        } 
 
     }
 }

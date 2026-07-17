@@ -1,4 +1,5 @@
 ﻿using Requra.Application.DTOs;
+using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.Response;
 using System;
@@ -25,5 +26,7 @@ namespace Requra.Application.Interfaces.IMeetingService
 
         Task<Response<StartMeetingResponse>> StartMeetingAsync(Guid MeetingId, CancellationToken cancellationToken = default);
         Task<Response<EndMeetingResponse>> EndMeetingAsync(Guid MeetingId, CancellationToken cancellationToken = default);
+        Task<Response<InviteMeetingParticipantsResponse>> InviteParticipantsAsync(InviteMeetingParticipantsRequest request, CancellationToken cancellationToken = default);
+        Task<Response<InviteGuestsResponse>> InviteGuestsAsync(InviteGuestsRequest request, CancellationToken cancellationToken = default);
     }
 }

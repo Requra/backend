@@ -42,6 +42,7 @@ namespace Requra.Infrastructure.Data
 
         public DbSet<AnalysisRun> AnalysisRuns { get; set; }
         public DbSet<AnalysisResult> AnalysisResults { get; set; }
+        public DbSet<Invitation> Invitations { get; set; }
 
 
 

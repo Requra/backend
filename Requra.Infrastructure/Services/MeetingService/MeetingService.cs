@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
+using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.ProjectMembers;
@@ -15,10 +16,14 @@ using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
+using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
+using Requra.Infrastructure.ExternalServices.EmailSender;
+using Requra.Infrastructure.Services.InvitationService.MeetingInvitationService;
+using System.Security.Claims;
 
 namespace Requra.Infrastructure.Services.MeetingService
 {
-    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper) : IMeetingService
+    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender) : IMeetingService
     {
 
         public async Task<Response<MeetingDto>> CreateMeetingAsync(
@@ -519,6 +524,404 @@ namespace Requra.Infrastructure.Services.MeetingService
             catch (Exception ex)
             {
                 return Response<EndMeetingResponse>.Failure(new EndMeetingResponse(),"An unexpected error occurred while ending the meeting.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<InviteMeetingParticipantsResponse>> InviteParticipantsAsync(InviteMeetingParticipantsRequest request,CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (request.MeetingId == Guid.Empty)
+                errors.Add("MeetingId is required.");
+
+            if (request.Members == null || !request.Members.Any())
+                errors.Add("At least one member is required.");
+
+            if (request.Members != null)
+            {
+                foreach (var member in request.Members)
+                {
+                    if (string.IsNullOrWhiteSpace(member.MemberId))
+                        errors.Add("MemberId is required for each member item.");
+                }
+            }
+
+            if (errors.Any())
+            {
+                return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+            }
+
+            if (string.IsNullOrWhiteSpace(request.InvitedById))
+            {
+                return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"Current user is not authenticated.",StatusCodes.Status401Unauthorized);
+            }
+
+            try
+            {
+                var meeting = await _context.MeetingSessions.FirstOrDefaultAsync(x => x.Id == request.MeetingId, cancellationToken);
+
+                if (meeting is null)
+                {
+                    return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"Meeting not found.",StatusCodes.Status404NotFound);
+                }
+
+                var requestedMemberIds = request.Members
+                    .Where(x => !string.IsNullOrWhiteSpace(x.MemberId))
+                    .Select(x => x.MemberId)
+                    .Distinct()
+                    .ToList();
+
+                var projectMembers = await _context.ProjectMembers
+                    .Include(x => x.User)
+                    .Where(x => x.ProjectId == meeting.ProjectId && requestedMemberIds.Contains(x.UserId))
+                    .ToListAsync(cancellationToken);
+
+                var projectMemberMap = projectMembers.ToDictionary(x => x.UserId, x => x);
+
+                var existingParticipants = await _context.MeetingParticipants
+                    .Where(x => x.MeetingId == meeting.Id && requestedMemberIds.Contains(x.UserId))
+                    .Select(x => x.UserId)
+                    .ToListAsync(cancellationToken);
+
+                var existingParticipantSet = existingParticipants.ToHashSet();
+                var normalizedEmails = projectMembers
+                    .Where(x => x.User != null && !string.IsNullOrWhiteSpace(x.User.Email))
+                    .Select(x => x.User.Email!.Trim().ToLower())
+                    .Distinct()
+                    .ToList();
+
+                var existingPendingInvitations = await _context.Invitations
+                    .Where(x =>
+                        x.MeetingId == meeting.Id &&
+                        x.Status == InvitationStatus.Pending &&
+                        normalizedEmails.Contains(x.Email.ToLower()))
+                    .Select(x => x.Email.ToLower())
+                    .ToListAsync(cancellationToken);
+
+                var existingPendingInvitationSet = existingPendingInvitations.ToHashSet();
+
+
+                var invitations = new List<Invitation>();
+                var responseItems = new List<MeetingInvitationItemResponse>();
+
+                foreach (var memberRequest in request.Members)
+                {
+                    if (!projectMemberMap.TryGetValue(memberRequest.MemberId, out var projectMember))
+                    {
+                        errors.Add($"Project member '{memberRequest.MemberId}' was not found in the meeting project.");
+                        continue;
+                    }
+
+                    if (existingParticipantSet.Contains(memberRequest.MemberId))
+                    {
+                        errors.Add($"Member '{memberRequest.MemberId}' is already a participant in this meeting.");
+                        continue;
+                    }
+
+                    var user = projectMember.User;
+                    if (user == null)
+                    {
+                        errors.Add($"User '{memberRequest.MemberId}' could not be loaded.");
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(user.Email))
+                    {
+                        errors.Add($"User '{memberRequest.MemberId}' does not have a valid email.");
+                        continue;
+                    }
+
+                    var normalizedEmail = user.Email.Trim().ToLower();
+
+                    if (existingPendingInvitationSet.Contains(normalizedEmail))
+                    {
+                        errors.Add($"A pending invitation already exists for '{user.Email}'.");
+                        continue;
+                    }
+
+                    var meetingRole = MeetingRole.Participant;
+
+                    var stakeholderId = memberRequest.Role == ProjectRole.Viewer
+                        ? memberRequest.MemberId
+                        : null;
+                    var projectMemberId = memberRequest.Role != ProjectRole.Viewer
+                        ? memberRequest.MemberId
+                        : null;
+
+                    var displayName =
+                        user.GetType().GetProperty("FullName")?.GetValue(user)?.ToString()
+                        ?? user.UserName
+                        ?? "User";
+
+                    var invitation = new Invitation(
+                        meetingId: meeting.Id,
+                        inviteType: InviteType.Participant,
+                        email: user.Email.Trim(),
+                        displayName: displayName,
+                        projectMemberId: projectMemberId,
+                        stakeholderId: stakeholderId,
+                        role: meetingRole,
+                        invitedById: request.InvitedById,
+                        expiresAt: DateTime.UtcNow.AddDays(3));
+
+                    invitations.Add(invitation);
+                    existingPendingInvitationSet.Add(normalizedEmail);
+                }
+
+                if (!invitations.Any() && errors.Any())
+                {
+                    return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"No valid invitations could be created.",StatusCodes.Status400BadRequest,errors);
+                }
+
+
+                _context.Invitations.AddRange(invitations);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                foreach (var invitation in invitations)
+                {
+                    responseItems.Add(new MeetingInvitationItemResponse
+                    {
+                        Id = invitation.Id,
+                        MeetingId = request.MeetingId,
+                        InviteType = InviteType.Participant,
+                        Email = invitation.Email,
+                        DisplayName = invitation.DisplayName,
+                        ProjectMemberId = invitation.ProjectMemberId,
+                        StakeholderId = invitation.StakeholderId,
+                        Role = MeetingRole.Participant,
+                        Status = invitation.Status,
+                        InvitedById = invitation.InvitedById,
+                        ExpiresAt = invitation.ExpiresAt,
+                        CreatedAt = invitation.CreatedAt
+                    });
+                }
+                var currentUser=_context.Users.FirstOrDefault(x => x.Id == request.InvitedById);
+                foreach (var invitation in invitations)
+                {
+                    try
+                    {
+                        var subject = $"Invitation to meeting: {meeting.Title ?? "Meeting"}";
+
+                        var body = MeetingInvitationTemplete.MeetingInvitationEmail(
+                            userName: invitation.DisplayName ?? "User",
+                            meetingTitle: meeting.Title ?? "Meeting",
+                            inviteType: invitation.InviteType.ToString().ToUpper(),
+                            meetingRole: invitation.Role.ToString().ToUpper(),
+                            scheduledAt: meeting.ScheduledAt,
+                            expiresAt: invitation.ExpiresAt,
+                            meetingUrl: meeting.PlatformUrl,
+                            invitedByName: currentUser.FullName ?? currentUser.UserName ?? "Requra Team",
+                            meetingDescription: meeting.Description,
+                            isGuest: false);
+
+                        await _emailSender.SendEmailAsync(invitation.Email, subject, body);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send invitation email to {Email}", invitation.Email);
+                    }
+                }
+
+                return Response<InviteMeetingParticipantsResponse>.Success(
+                    new InviteMeetingParticipantsResponse
+                    {
+                        Items = responseItems
+                    },
+                    "Project members invited successfully",
+                    StatusCodes.Status201Created);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"A concurrency error occurred while sending invitations.",StatusCodes.Status409Conflict,new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"A database error occurred while sending invitations.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return Response<InviteMeetingParticipantsResponse>.Failure(new InviteMeetingParticipantsResponse(),"An unexpected error occurred while sending invitations.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<InviteGuestsResponse>> InviteGuestsAsync(InviteGuestsRequest request,CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (request.MeetingId == Guid.Empty)
+                errors.Add("MeetingId is required.");
+
+            if (request.Guests == null || !request.Guests.Any())
+                errors.Add("At least one guest is required.");
+
+            if (request.Guests != null)
+            {
+                foreach (var guest in request.Guests)
+                {
+                    if (string.IsNullOrWhiteSpace(guest.DisplayName))
+                        errors.Add("Guest display name is required.");
+
+                    if (string.IsNullOrWhiteSpace(guest.Email))
+                        errors.Add("Guest email is required.");
+                }
+            }
+
+            if (errors.Any())
+            {
+                return Response<InviteGuestsResponse>.Failure(new InviteGuestsResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+            }
+
+
+            if (string.IsNullOrWhiteSpace(request.InvitedById))
+            {
+                return Response<InviteGuestsResponse>.Failure(new InviteGuestsResponse(),"Current user is not authenticated.",StatusCodes.Status401Unauthorized);
+            }
+
+            try
+            {
+                var meeting = await _context.MeetingSessions.FirstOrDefaultAsync(x => x.Id == request.MeetingId, cancellationToken);
+
+                if (meeting is null)
+                {
+                    return Response<InviteGuestsResponse>.Failure(new InviteGuestsResponse(),"Meeting not found.",StatusCodes.Status404NotFound);
+                }
+
+                var currentUser = await _context.Users.FirstOrDefaultAsync(x => x.Id == request.InvitedById, cancellationToken);
+
+                if (currentUser is null)
+                {
+                    return Response<InviteGuestsResponse>.Failure(new InviteGuestsResponse(),"Current user not found.",StatusCodes.Status404NotFound);
+                }
+
+                var normalizedEmails = request.Guests
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Email))
+                    .Select(x => x.Email.Trim().ToLower())
+                    .Distinct()
+                    .ToList();
+
+                var existingPendingGuestInvitations = await _context.Invitations
+                    .Where(x =>
+                        x.MeetingId == meeting.Id &&
+                        x.InviteType == InviteType.Guest &&
+                        x.Status == InvitationStatus.Pending &&
+                        normalizedEmails.Contains(x.Email.ToLower()))
+                    .Select(x => x.Email.ToLower())
+                    .ToListAsync(cancellationToken);
+
+                var existingPendingSet = existingPendingGuestInvitations.ToHashSet();
+
+                var invitations = new List<Invitation>();
+                var responseItems = new List<MeetingInvitationItemResponse>();
+
+                foreach (var guest in request.Guests)
+                {
+                    var normalizedEmail = guest.Email.Trim().ToLower();
+
+                    if (existingPendingSet.Contains(normalizedEmail))
+                    {
+                        errors.Add($"A pending guest invitation already exists for '{guest.Email}'.");
+                        continue;
+                    }
+
+                    var invitation = new Invitation(
+                        meetingId: meeting.Id,
+                        inviteType: InviteType.Guest,
+                        email: guest.Email.Trim(),
+                        displayName: guest.DisplayName.Trim(),
+                        projectMemberId: null,
+                        stakeholderId: null,
+                        role: MeetingRole.Viewer,
+                        invitedById: request.InvitedById,
+                        expiresAt: DateTime.UtcNow.AddDays(3));
+
+                    invitations.Add(invitation);
+                    existingPendingSet.Add(normalizedEmail);
+                }
+
+                if (!invitations.Any() && errors.Any())
+                {
+                    return Response<InviteGuestsResponse>.Failure(new InviteGuestsResponse(),"No valid guest invitations could be created.",StatusCodes.Status400BadRequest,errors);
+                }
+
+                _context.Invitations.AddRange(invitations);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                foreach (var invitation in invitations)
+                {
+                    responseItems.Add(new MeetingInvitationItemResponse
+                    {
+                        Id = invitation.Id,
+                        MeetingId = request.MeetingId,
+                        InviteType = InviteType.Guest,
+                        Email = invitation.Email,
+                        DisplayName = invitation.DisplayName,
+                        ProjectMemberId = invitation.ProjectMemberId,
+                        StakeholderId = invitation.StakeholderId,
+                        Role = MeetingRole.Viewer,
+                        Status = invitation.Status,
+                        InvitedById = invitation.InvitedById,
+                        ExpiresAt = invitation.ExpiresAt,
+                        CreatedAt = invitation.CreatedAt
+                    });
+                }
+
+                foreach (var invitation in invitations)
+                {
+                    try
+                    {
+                        var subject = $"Guest invitation to meeting: {meeting.Title ?? "Meeting"}";
+
+                        var body = MeetingInvitationTemplete.MeetingInvitationEmail(
+                            userName: invitation.DisplayName ?? "Guest",
+                            meetingTitle: meeting.Title ?? "Meeting",
+                            inviteType: invitation.InviteType.ToString().ToUpper(),
+                            meetingRole: invitation.Role.ToString().ToUpper(),
+                            scheduledAt: meeting.ScheduledAt,
+                            expiresAt: invitation.ExpiresAt,
+                            meetingUrl: meeting.PlatformUrl,
+                            invitedByName: currentUser.FullName ?? currentUser.UserName ?? "Requra Team",
+                            meetingDescription: meeting.Description,
+                            isGuest: true);
+
+                        await _emailSender.SendEmailAsync(invitation.Email, subject, body);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send guest invitation email to {Email}", invitation.Email);
+                    }
+                }
+
+                return Response<InviteGuestsResponse>.Success(
+                    new InviteGuestsResponse
+                    {
+                        Items = responseItems
+                    },
+                    "Guests invited successfully",
+                    StatusCodes.Status201Created);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<InviteGuestsResponse>.Failure(
+                    new InviteGuestsResponse(),
+                    "A concurrency error occurred while sending guest invitations.",
+                    StatusCodes.Status409Conflict,
+                    new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<InviteGuestsResponse>.Failure(
+                    new InviteGuestsResponse(),
+                    "A database error occurred while sending guest invitations.",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return Response<InviteGuestsResponse>.Failure(
+                    new InviteGuestsResponse(),
+                    "An unexpected error occurred while sending guest invitations.",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
             }
         }
     }

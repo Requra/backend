@@ -31,6 +31,7 @@ namespace Requra.Domain.Entities
         public ICollection<Document> Documents { get; private set; } = new List<Document>();
         public ICollection<MeetingParticipant> Participants { get; private set; } = new List<MeetingParticipant>();
         public ICollection<Recording> Recordings { get; private set; } = new List<Recording>();
+        public ICollection<Invitation> Invitations { get; private set; } = new List<Invitation>();
 
         // Constructor
 
