@@ -185,11 +185,11 @@ namespace Requra.API.Controllers
         [HttpPost("{projectId}/review-invitations")]
         public async Task<IActionResult> Create(string projectId,[FromBody] CreateProjectReviewInvitationRequest request)
         {
-            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<List<ProjectReviewInvitationDto>>.Failure(null, "Unauthorized User", 401));
 
-            //if (string.IsNullOrEmpty(userId))
-            //    return Unauthorized(Response<List<ProjectReviewInvitationDto>>.Failure(null, "Unauthorized User", 401));
-            var userId = "18a8c6c8-4a2e-4aa7-8e3b-0c67964cb02f"; // Hardcoded userId for testing purposes
+            //var userId = "18a8c6c8-4a2e-4aa7-8e3b-0c67964cb02f"; // Hardcoded userId for testing purposes
 
             if (!Guid.TryParse(projectId, out var Projectguid))
             {
@@ -199,6 +199,21 @@ namespace Requra.API.Controllers
 
             var response = await _projectReviewService.CreateInvitationAsync(projectId, request, userId);
 
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpGet("{projectId}/review-invitations")]
+        public async Task<IActionResult> GetProjectReviewInvitations(string projectId,[FromQuery] GetProjectReviewInvitationsQuery query)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure(null, "Unauthorized User", 401));
+
+            //var userId = "18a8c6c8-4a2e-4aa7-8e3b-0c67964cb02f"; // Hardcoded userId for testing purposes
+
+
+            var response = await _projectReviewService.GetProjectReviewInvitationsAsync(projectId, query, userId);
             return StatusCode(response.StatusCode, response);
         }
     }

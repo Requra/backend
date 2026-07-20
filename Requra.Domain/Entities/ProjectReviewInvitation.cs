@@ -16,7 +16,7 @@ namespace Requra.Domain.Entities
         public string DisplayName { get; set; }
 
         public ProjectReviewPermission Permission { get; set; }
-        public string Status { get; set; } = "PENDING";
+        public InvitationStatus Status { get; set; } = InvitationStatus.Pending;
 
         public string ReviewToken { get; set; }
         public string ReviewUrl { get; set; }

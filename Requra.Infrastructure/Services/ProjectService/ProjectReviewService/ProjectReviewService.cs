@@ -23,7 +23,7 @@ using System.Text;
 namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 {
     public class ProjectReviewService(RequraDbContext _context, IEmailSender emailSender,
-    ILogger<ProjectReviewService> logger,IValidator<CreateProjectReviewInvitationRequest> validator) : IProjectReviewService
+    ILogger<ProjectReviewService> logger, IValidator<CreateProjectReviewInvitationRequest> validator) : IProjectReviewService
     {
         public async Task<Response<SubmitStakeholderFeedbackResponse>> SubmitStakeholderFeedbackAsync(SubmitStakeholderFeedbackRequest request, CancellationToken cancellationToken = default)
         {
@@ -488,12 +488,12 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 if (project == null)
                     return Response<List<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
 
-                if(string.IsNullOrWhiteSpace(userId))
+                if (string.IsNullOrWhiteSpace(userId))
                     return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
 
                 var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
 
-                if(UserInProject == null)
+                if (UserInProject == null)
                     return Response<List<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
 
 
@@ -506,7 +506,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         .Where(s => request.StakeholderIds.Contains(s.Id))
                         .ToListAsync();
 
-                    if(!existing.Any())
+                    if (!existing.Any())
                     {
                         return Response<List<ProjectReviewInvitationDto>>.Failure("one or more stakeholder Ids doesn't belong to this project", 422);
                     }
@@ -516,7 +516,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         var existingPending = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(i =>
                                   i.ProjectId == projectId &&
                                   i.Email == stakeholder.Email &&
-                                  i.Status == "PENDING" &&
+                                  i.Status == InvitationStatus.Pending &&
                                   i.ExpiresAt > DateTime.UtcNow);
                         if (existingPending != null)
                         {
@@ -532,12 +532,12 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         {
                             Id = Guid.NewGuid(),
                             ProjectId = projectId,
-                            StakeholderId = stakeholder.Id, 
+                            StakeholderId = stakeholder.Id,
                             Email = stakeholder.Email,
                             DisplayName = stakeholder.FullName,
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
-                            Status = "PENDING",
+                            Status = InvitationStatus.Pending,
                             ReviewUrl = $"https://app.requra.ai/project-review/{rawToken}",//Url will be edited later 
                             ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
                             InvitedById = userId,
@@ -561,13 +561,13 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         var existingPending = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(i =>
                                      i.ProjectId == projectId &&
                                      i.Email == s.Email &&
-                                     i.Status == "PENDING" &&
+                                     i.Status == InvitationStatus.Pending &&
                                      i.ExpiresAt > DateTime.UtcNow);
                         if (existingPending != null)
                         {
                             return Response<List<ProjectReviewInvitationDto>>.Failure(
                                 $"Invitation already pending for {s.Email}. You can resend it.",
-                                409 
+                                409
                             );
                         }
 
@@ -580,12 +580,12 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         {
                             Id = Guid.NewGuid(),
                             ProjectId = projectId,
-                            StakeholderId = Guid.NewGuid().ToString(), 
+                            StakeholderId = Guid.NewGuid().ToString(),
                             Email = s.Email,
                             DisplayName = s.DisplayName,
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
-                            Status = "PENDING",
+                            Status = InvitationStatus.Pending,
                             ReviewUrl = $"https://app.requra.ai/project-review/{rawToken}",//Url will be edited later
                             ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
                             InvitedById = userId,
@@ -610,7 +610,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
     request.Permission.ToString(),
     request.ExpiresAt,
     inv.ReviewUrl,
-    UserInProject.User.FullName //might need include
+    UserInProject.User.FullName
 );
 
                         await emailSender.SendEmailAsync(inv.Email, subject, body);
@@ -645,11 +645,119 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occurred while creating project review invitations." );
+                logger.LogError(ex, "An error occurred while creating project review invitations.");
                 return Response<List<ProjectReviewInvitationDto>>.Failure("An error occurred while creating project review invitations.", 500, new List<string> { ex.Message });
             }
 
 
+        }
+        public async Task<Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>>
+         GetProjectReviewInvitationsAsync(string projectId, GetProjectReviewInvitationsQuery query, string userId)
+        {
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(projectId))
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Invalid projectId", 422);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+
+                if (project == null)
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
+
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
+
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+
+                if (UserInProject == null)
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
+                var baseQuery = _context.ProjectReviewInvitations
+                .Where(i => i.ProjectId == projectId);
+
+                if (!string.IsNullOrWhiteSpace(query.Search))
+                {
+                    var search = query.Search.ToLower();
+
+                    baseQuery = baseQuery.Where(i =>
+                        i.Email.ToLower().Contains(search) ||
+                        i.DisplayName.ToLower().Contains(search));
+                }
+
+                if (query.Status.HasValue)
+                {
+                    baseQuery = baseQuery.Where(i => i.Status == query.Status);
+                }
+
+                var pendingCount = await baseQuery.CountAsync(i => i.Status == InvitationStatus.Pending);
+                var acceptedCount = await baseQuery.CountAsync(i => i.Status == InvitationStatus.Accepted);
+                var revokedCount = await baseQuery.CountAsync(i => i.Status == InvitationStatus.Revoked);
+
+
+                baseQuery = baseQuery.Select(i => new ProjectReviewInvitation
+                {
+                    Id = i.Id,
+                    ProjectId = i.ProjectId,
+                    StakeholderId = i.StakeholderId,
+                    Email = i.Email,
+                    DisplayName = i.DisplayName,
+                    Permission = i.Permission,
+                    Status = (i.Status == InvitationStatus.Pending && i.ExpiresAt <= DateTime.UtcNow)
+                                ? InvitationStatus.Expired
+                                : i.Status,
+                    ReviewUrl = i.ReviewUrl,
+                    ExpiresAt = i.ExpiresAt,
+                    AcceptedAt = i.AcceptedAt,
+                    RevokedAt = i.RevokedAt,
+                    InvitedById = i.InvitedById,
+                    CreatedAt = i.CreatedAt,
+                    UpdatedAt = i.UpdatedAt
+                });
+
+                var totalCount = await baseQuery.CountAsync();
+
+                var items = await baseQuery
+                    .OrderByDescending(i => i.CreatedAt)
+                    .Skip((query.PageNumber - 1) * query.PageSize)
+                    .Take(query.PageSize)
+                    .Select(inv => new ProjectReviewInvitationDto
+                    {
+                        Id = inv.Id,
+                        ProjectId = inv.ProjectId.ToString(),
+                        StakeholderId = inv.StakeholderId.ToString(),
+                        Email = inv.Email,
+                        DisplayName = inv.DisplayName,
+                        Permission = inv.Permission,
+                        Status = inv.Status,
+                        ReviewUrl = inv.ReviewUrl,
+                        ExpiresAt = inv.ExpiresAt,
+                        AcceptedAt = inv.AcceptedAt,
+                        RevokedAt = inv.RevokedAt,
+                        InvitedById = inv.InvitedById,
+                        CreatedAt = inv.CreatedAt,
+                        UpdatedAt = inv.UpdatedAt
+                    })
+                    .ToListAsync();
+
+                var result = new ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize,
+                    PendingCount = pendingCount,
+                    AcceptedCount = acceptedCount,
+                    RevokedCount = revokedCount
+                };
+
+                return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>
+                    .Success(result, "Project review invitations retrieved successfully.", 200);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while retrieving project review invitations.");
+                return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>
+                    .Failure("An error occurred while retrieving project review invitations.", 500, new List<string> { ex.Message });
+            }
         }
     }
 }
