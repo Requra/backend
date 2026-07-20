@@ -1,4 +1,6 @@
-﻿using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
+﻿using Requra.Application.DTOs;
+using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
+using Requra.Application.DTOs.ProjectReviewInvitaion;
 using Requra.Application.Response;
 using System;
 using System.Collections.Generic;
@@ -12,5 +14,6 @@ namespace Requra.Application.Interfaces.IProjectService.IProjectReviewService
         Task<Response<ListStakeholderFeedbackResponse>> ListStakeholderFeedbackAsync(ListStakeholderFeedbackRequest request, CancellationToken cancellationToken = default);
         Task<Response<SubmitStakeholderFeedbackResponse>> UpdateStakeholderFeedbackStatusAsync(UpdateStakeholderFeedbackStatusRequest request, CancellationToken cancellationToken = default);
         Task<Response<ListStakeholderFeedbackResponse>> ListProjectStakeholderFeedbackAsync(ListProjectStakeholderFeedbackRequest request, CancellationToken cancellationToken = default);
+        Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(string projectId,CreateProjectReviewInvitationRequest request,string userId);
     }
 }

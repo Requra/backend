@@ -44,6 +44,8 @@ namespace Requra.Infrastructure.Data
         public DbSet<AnalysisResult> AnalysisResults { get; set; }
         public DbSet<Invitation> Invitations { get; set; }
 
+        public DbSet<ProjectReviewInvitation> ProjectReviewInvitations { get; set; }
+
 
 
 
