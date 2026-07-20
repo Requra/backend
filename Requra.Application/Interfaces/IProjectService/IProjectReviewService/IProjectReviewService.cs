@@ -19,5 +19,7 @@ namespace Requra.Application.Interfaces.IProjectService.IProjectReviewService
         string projectId,
         GetProjectReviewInvitationsQuery query,
         string userId);
+
+        Task<Response<ProjectReviewInvitationDto>> ResendInvitationAsync(string projectId, Guid invitationId, string ResendByUserId);
     }
 }

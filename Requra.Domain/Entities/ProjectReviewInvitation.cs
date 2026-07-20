@@ -15,6 +15,10 @@ namespace Requra.Domain.Entities
         public string Email { get; set; }
         public string DisplayName { get; set; }
 
+        public string? RoleTitle { get; set; }
+
+        public string? Company { get; set; }
+
         public ProjectReviewPermission Permission { get; set; }
         public InvitationStatus Status { get; set; } = InvitationStatus.Pending;
 
@@ -29,5 +33,14 @@ namespace Requra.Domain.Entities
 
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+
+        public void UpdateProjectReviewInvitation(string ReviewToken, string ReviewUrl , DateTime ExpiresAt)
+        {
+            this.ReviewToken = ReviewToken;
+            this.ReviewUrl = ReviewUrl;
+            this.ExpiresAt = ExpiresAt;
+            this.UpdatedAt = DateTime.UtcNow;
+        }
+
     }
 }

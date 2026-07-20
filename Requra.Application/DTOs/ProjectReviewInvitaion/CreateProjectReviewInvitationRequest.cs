@@ -18,5 +18,7 @@ namespace Requra.Application.DTOs.ProjectReviewInvitaion
     {
         public string DisplayName { get; set; } = default!;
         public string Email { get; set; } = default!;
+        public string? RoleTitle { get; set; }
+        public string? Company { get; set; }
     }
 }

@@ -1,10 +1,7 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Requra.Application.DTOs;
-using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
 using Requra.Application.DTOs.ProjectReviewInvitaion;
 using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
@@ -13,10 +10,6 @@ using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
-using Requra.Infrastructure.ExternalServices.EmailSender;
-using System;
-using System.Collections.Generic;
-using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -469,6 +462,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             }
         }
 
+        //needs refactring later, Tokenservice,...etc
         public async Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(string projectId, CreateProjectReviewInvitationRequest request, string userId)
 
         {
@@ -583,6 +577,8 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             StakeholderId = Guid.NewGuid().ToString(),
                             Email = s.Email,
                             DisplayName = s.DisplayName,
+                            RoleTitle = s.RoleTitle,
+                            Company = s.Company,
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
                             Status = InvitationStatus.Pending,
@@ -605,13 +601,8 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     {
                         var subject = "You're invited to review a project";
                         var body = ProjectReviewInvitationTemplate.ProjectReviewInvitationEmail(
-    inv.DisplayName,
-    project.Name,
-    request.Permission.ToString(),
-    request.ExpiresAt,
-    inv.ReviewUrl,
-    UserInProject.User.FullName
-);
+                         inv.DisplayName,project.Name,request.Permission.ToString(), request.ExpiresAt,
+                         inv.ReviewUrl,UserInProject.User.FullName);
 
                         await emailSender.SendEmailAsync(inv.Email, subject, body);
                     }
@@ -629,6 +620,8 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     StakeholderId = inv.StakeholderId.ToString(),
                     Email = inv.Email,
                     DisplayName = inv.DisplayName,
+                    RoleTitle = inv.RoleTitle,
+                    Company = inv.Company,
                     Permission = inv.Permission,
                     Status = inv.Status,
                     ReviewUrl = inv.ReviewUrl,
@@ -757,6 +750,106 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 logger.LogError(ex, "An error occurred while retrieving project review invitations.");
                 return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>
                     .Failure("An error occurred while retrieving project review invitations.", 500, new List<string> { ex.Message });
+            }
+        }
+        public async Task<Response<ProjectReviewInvitationDto>> ResendInvitationAsync(string projectId,Guid invitationId, string ResendByUserId)
+        {
+
+            try
+            {
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+                if (project == null)
+                    return Response<ProjectReviewInvitationDto>.Failure("Project not found.", 404);
+                if (string.IsNullOrWhiteSpace(ResendByUserId))
+                    return Response<ProjectReviewInvitationDto>.Failure("Validation failed", 422, new List<string> { "Invalid userId" });
+
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == ResendByUserId);
+
+                if (UserInProject == null)
+                    return Response<ProjectReviewInvitationDto>.Failure("User is not a member of this project", 403);
+
+                var invitation = await _context.ProjectReviewInvitations
+                    .FirstOrDefaultAsync(i =>
+                        i.Id == invitationId &&
+                        i.ProjectId == projectId);
+
+                if (invitation == null)
+                    return Response<ProjectReviewInvitationDto>.Failure("Invitation not found.", 404);
+
+
+                if (invitation.Status == InvitationStatus.Pending && invitation.ExpiresAt <= DateTime.UtcNow)
+                {
+                    invitation.Status = InvitationStatus.Expired;
+                    _context.ProjectReviewInvitations.Update(invitation);
+                    await _context.SaveChangesAsync();
+
+                }
+
+                if (invitation.Status == InvitationStatus.Expired || invitation.Status == InvitationStatus.Revoked)
+                    return Response<ProjectReviewInvitationDto>.Failure("Only pending invitations can be resent.", 409);
+
+                if (invitation.Status == InvitationStatus.Accepted)
+                    return Response<ProjectReviewInvitationDto>.Failure("The invitation has already been accepted.", 409);
+
+
+                //will be refactored as service later
+                var newRawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+                using var sha = SHA256.Create();
+                var hashedToken = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(newRawToken)));
+                var newReviewUrl = $"https://app.requra.ai/project-review/{newRawToken}";
+
+                invitation.UpdateProjectReviewInvitation(
+                    hashedToken,
+                    newReviewUrl,
+                   DateTime.UtcNow.AddHours(24)
+                );
+                await _context.SaveChangesAsync();
+
+                //may be refactored as service later
+                try
+                {
+                    var subject = "You're invited to review a project";
+                    var body = ProjectReviewInvitationTemplate.ProjectReviewInvitationEmail(
+                     invitation.DisplayName, project.Name, invitation.Permission.ToString(), invitation.ExpiresAt,
+                     invitation.ReviewUrl, UserInProject.User.FullName);
+
+                    await emailSender.SendEmailAsync(invitation.Email, subject, body);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send email to {Email}", invitation.Email);
+                    return Response<ProjectReviewInvitationDto>.Failure($"Failed to send email to {invitation.Email}: {ex.Message}", 500);
+                }
+
+                var dto = new ProjectReviewInvitationDto
+                {
+                    Id = invitation.Id,
+                    ProjectId = invitation.ProjectId.ToString(),
+                    StakeholderId = invitation.StakeholderId?.ToString(),
+                    Email = invitation.Email,
+                    DisplayName = invitation.DisplayName,
+                    Company = invitation.Company,
+                    RoleTitle = invitation.RoleTitle,
+                    Permission = invitation.Permission,
+                    Status = invitation.Status,
+                    ReviewUrl = invitation.ReviewUrl,
+                    ExpiresAt = invitation.ExpiresAt,
+                    AcceptedAt = invitation.AcceptedAt,
+                    RevokedAt = invitation.RevokedAt,
+                    InvitedById = invitation.InvitedById,
+                    CreatedAt = invitation.CreatedAt,
+                    UpdatedAt = invitation.UpdatedAt
+                };
+
+                return Response<ProjectReviewInvitationDto>.Success(
+                    dto,
+                    "Project review invitation updated successfully.",
+                    200);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while resending project review invitation.");
+                return Response<ProjectReviewInvitationDto>.Failure("An error occurred while resending project review invitation.", 500, new List<string> { ex.Message });
             }
         }
     }
