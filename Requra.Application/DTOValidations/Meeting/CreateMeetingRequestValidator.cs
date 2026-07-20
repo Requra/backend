@@ -2,7 +2,7 @@
 using FluentValidation;
 using Requra.Application.DTOs.Meeting;
 
-namespace Requra.Application.DTOValidations
+namespace Requra.Application.DTOValidations.Meeting
 {
 
     public class CreateMeetingRequestValidator : AbstractValidator<CreateMeetingRequest>

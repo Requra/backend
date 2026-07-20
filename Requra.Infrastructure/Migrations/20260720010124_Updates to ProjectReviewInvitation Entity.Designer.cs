@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720010124_Updates to ProjectReviewInvitation Entity")]
+    partial class UpdatestoProjectReviewInvitationEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -984,8 +987,9 @@ namespace Requra.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Requra.Application.DTOValidations
+namespace Requra.Application.DTOValidations.Meeting
 {
     public class UpdateMeetingValidator : AbstractValidator<UpdateMeetingRequest>
     {

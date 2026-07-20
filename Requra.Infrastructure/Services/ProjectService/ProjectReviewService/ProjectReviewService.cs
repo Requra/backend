@@ -1,19 +1,29 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Requra.Application.DTOs;
+using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
+using Requra.Application.DTOs.ProjectReviewInvitaion;
 using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
+using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
+using Requra.Infrastructure.ExternalServices.EmailSender;
 using System;
 using System.Collections.Generic;
+using System.Security;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 {
-    public class ProjectReviewService(RequraDbContext _context): IProjectReviewService
+    public class ProjectReviewService(RequraDbContext _context, IEmailSender emailSender,
+    ILogger<ProjectReviewService> logger, IValidator<CreateProjectReviewInvitationRequest> validator) : IProjectReviewService
     {
         public async Task<Response<SubmitStakeholderFeedbackResponse>> SubmitStakeholderFeedbackAsync(SubmitStakeholderFeedbackRequest request, CancellationToken cancellationToken = default)
         {
@@ -32,12 +42,12 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             if (errors.Any())
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Validation failed.", StatusCodes.Status400BadRequest, errors);
             }
 
             if (string.IsNullOrWhiteSpace(request.CurrentUserId))
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Current user is not authenticated.",StatusCodes.Status401Unauthorized);
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Current user is not authenticated.", StatusCodes.Status401Unauthorized);
             }
 
             try
@@ -46,7 +56,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
                 if (author is null)
                 {
-                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Author not found.",StatusCodes.Status404NotFound);
+                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Author not found.", StatusCodes.Status404NotFound);
                 }
 
                 Guid projectId;
@@ -60,7 +70,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
                             if (userStory is null)
                             {
-                                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"User story not found.",StatusCodes.Status404NotFound);
+                                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "User story not found.", StatusCodes.Status404NotFound);
                             }
 
                             projectId = userStory.ProjectId;
@@ -74,10 +84,10 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
                             if (requirement is null)
                             {
-                                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Requirement not found.",StatusCodes.Status404NotFound);
+                                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Requirement not found.", StatusCodes.Status404NotFound);
                             }
 
-                            projectId = requirement.ProjectId?? Guid.Empty;
+                            projectId = requirement.ProjectId ?? Guid.Empty;
                             targetTitle = requirement.Title;
                             break;
                         }
@@ -95,7 +105,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                                     StatusCodes.Status404NotFound);
                             }
 
-                            projectId = summary.ProjectId?? Guid.Empty;
+                            projectId = summary.ProjectId ?? Guid.Empty;
                             targetTitle = "Summary";
                             break;
                         }
@@ -140,23 +150,23 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     UpdatedAt = feedback.UpdatedAt
                 };
 
-                return Response<SubmitStakeholderFeedbackResponse>.Success(response,"Feedback submitted successfully.",StatusCodes.Status201Created);
+                return Response<SubmitStakeholderFeedbackResponse>.Success(response, "Feedback submitted successfully.", StatusCodes.Status201Created);
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"A concurrency error occurred while submitting feedback.",StatusCodes.Status409Conflict,new List<string> { ex.Message });
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "A concurrency error occurred while submitting feedback.", StatusCodes.Status409Conflict, new List<string> { ex.Message });
             }
             catch (DbUpdateException ex)
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"A database error occurred while submitting feedback.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "A database error occurred while submitting feedback.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
             }
             catch (Exception ex)
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"An unexpected error occurred while submitting feedback.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "An unexpected error occurred while submitting feedback.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
             }
         }
 
-        public async Task<Response<ListStakeholderFeedbackResponse>> ListStakeholderFeedbackAsync(ListStakeholderFeedbackRequest request,CancellationToken cancellationToken = default)
+        public async Task<Response<ListStakeholderFeedbackResponse>> ListStakeholderFeedbackAsync(ListStakeholderFeedbackRequest request, CancellationToken cancellationToken = default)
         {
             var errors = new List<string>();
 
@@ -181,7 +191,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
                 if (projectId == Guid.Empty)
                 {
-                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"project context is missing.",StatusCodes.Status401Unauthorized);
+                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "project context is missing.", StatusCodes.Status401Unauthorized);
                 }
 
                 var baseQuery = _context.Comments
@@ -247,15 +257,15 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     UnreadCount = unreadCount
                 };
 
-                return Response<ListStakeholderFeedbackResponse>.Success(response,"Feedback retrieved successfully.",StatusCodes.Status200OK);
+                return Response<ListStakeholderFeedbackResponse>.Success(response, "Feedback retrieved successfully.", StatusCodes.Status200OK);
             }
             catch (Exception ex)
             {
-                return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"An unexpected error occurred while retrieving feedback.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "An unexpected error occurred while retrieving feedback.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
             }
         }
 
-        public async Task<Response<SubmitStakeholderFeedbackResponse>> UpdateStakeholderFeedbackStatusAsync(UpdateStakeholderFeedbackStatusRequest request,CancellationToken cancellationToken = default)
+        public async Task<Response<SubmitStakeholderFeedbackResponse>> UpdateStakeholderFeedbackStatusAsync(UpdateStakeholderFeedbackStatusRequest request, CancellationToken cancellationToken = default)
         {
             var errors = new List<string>();
 
@@ -273,23 +283,23 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             if (errors.Any())
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Validation failed.", StatusCodes.Status400BadRequest, errors);
             }
 
             if (string.IsNullOrWhiteSpace(request.UserId))
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Current user is not authenticated.",StatusCodes.Status401Unauthorized);
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Current user is not authenticated.", StatusCodes.Status401Unauthorized);
             }
 
             try
             {
                 var feedback = await _context.Comments
                     .Include(x => x.Author)
-                    .FirstOrDefaultAsync(x => x.Id == request.FeedbackId && x.ProjectId == request.ProjectId,cancellationToken);
+                    .FirstOrDefaultAsync(x => x.Id == request.FeedbackId && x.ProjectId == request.ProjectId, cancellationToken);
 
                 if (feedback is null)
                 {
-                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Feedback not found.",StatusCodes.Status404NotFound);
+                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Feedback not found.", StatusCodes.Status404NotFound);
                 }
 
                 if (request.IsRead.HasValue)
@@ -333,23 +343,23 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     UpdatedAt = feedback.UpdatedAt
                 };
 
-                return Response<SubmitStakeholderFeedbackResponse>.Success(response,"Feedback updated successfully.",StatusCodes.Status200OK);
+                return Response<SubmitStakeholderFeedbackResponse>.Success(response, "Feedback updated successfully.", StatusCodes.Status200OK);
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"A concurrency error occurred while updating feedback.",StatusCodes.Status409Conflict,new List<string> { ex.Message });
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "A concurrency error occurred while updating feedback.", StatusCodes.Status409Conflict, new List<string> { ex.Message });
             }
             catch (DbUpdateException ex)
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"A database error occurred while updating feedback.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "A database error occurred while updating feedback.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
             }
             catch (Exception ex)
             {
-                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"An unexpected error occurred while updating feedback.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "An unexpected error occurred while updating feedback.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
             }
         }
 
-        public async Task<Response<ListStakeholderFeedbackResponse>> ListProjectStakeholderFeedbackAsync(ListProjectStakeholderFeedbackRequest request,CancellationToken cancellationToken = default)
+        public async Task<Response<ListStakeholderFeedbackResponse>> ListProjectStakeholderFeedbackAsync(ListProjectStakeholderFeedbackRequest request, CancellationToken cancellationToken = default)
         {
             var errors = new List<string>();
 
@@ -364,7 +374,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             if (errors.Any())
             {
-                return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+                return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Validation failed.", StatusCodes.Status400BadRequest, errors);
             }
 
             try
@@ -375,7 +385,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
                 if (!projectExists)
                 {
-                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"Project not found.",StatusCodes.Status404NotFound);
+                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Project not found.", StatusCodes.Status404NotFound);
                 }
 
                 var query = _context.Comments
@@ -451,11 +461,302 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     UnreadCount = unreadCount
                 };
 
-                return Response<ListStakeholderFeedbackResponse>.Success(response,"Feedback retrieved successfully.",StatusCodes.Status200OK);
+                return Response<ListStakeholderFeedbackResponse>.Success(response, "Feedback retrieved successfully.", StatusCodes.Status200OK);
             }
             catch (Exception ex)
             {
-                return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"An unexpected error occurred while retrieving project feedback.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "An unexpected error occurred while retrieving project feedback.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(string projectId, CreateProjectReviewInvitationRequest request, string userId)
+
+        {
+            try
+            {
+                var validation = await validator.ValidateAsync(request);
+
+                if (!validation.IsValid)
+                {
+                    var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
+                    return Response<List<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, errors);
+                }
+                if (string.IsNullOrWhiteSpace(projectId))
+                    return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid projectId", 422);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+
+                if (project == null)
+                    return Response<List<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
+
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
+
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+
+                if (UserInProject == null)
+                    return Response<List<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
+
+
+
+                var invitations = new List<ProjectReviewInvitation>();
+
+                if (request.StakeholderIds?.Any() == true)
+                {
+                    var existing = await _context.Users
+                        .Where(s => request.StakeholderIds.Contains(s.Id))
+                        .ToListAsync();
+
+                    if (!existing.Any())
+                    {
+                        return Response<List<ProjectReviewInvitationDto>>.Failure("one or more stakeholder Ids doesn't belong to this project", 422);
+                    }
+
+                    foreach (var stakeholder in existing)
+                    {
+                        var existingPending = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(i =>
+                                  i.ProjectId == projectId &&
+                                  i.Email == stakeholder.Email &&
+                                  i.Status == InvitationStatus.Pending &&
+                                  i.ExpiresAt > DateTime.UtcNow);
+                        if (existingPending != null)
+                        {
+                            return Response<List<ProjectReviewInvitationDto>>.Failure(
+                                $"Invitation already pending for {stakeholder.Email}. You can resend it.",
+                                409
+                            );
+                        }
+                        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+                        using var sha = SHA256.Create();
+                        var hashedToken = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(rawToken)));
+                        invitations.Add(new ProjectReviewInvitation
+                        {
+                            Id = Guid.NewGuid(),
+                            ProjectId = projectId,
+                            StakeholderId = stakeholder.Id,
+                            Email = stakeholder.Email,
+                            DisplayName = stakeholder.FullName,
+                            Permission = request.Permission,
+                            ReviewToken = hashedToken,
+                            Status = InvitationStatus.Pending,
+                            ReviewUrl = $"https://app.requra.ai/project-review/{rawToken}",//Url will be edited later 
+                            ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
+                            InvitedById = userId,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        }
+                        );
+                    }
+                }
+
+                // New stakeholders
+                if (request.Stakeholders?.Any() == true)
+                {
+                    foreach (var s in request.Stakeholders)
+                    {
+                        //var stakeholder = new ApplicationUser(s.Email, s.Email, s.DisplayName)
+                        //{
+                        //    Role = UserRole.Stakeholder,
+                        //};
+                        //_context.Users.Add(stakeholder);
+                        var existingPending = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(i =>
+                                     i.ProjectId == projectId &&
+                                     i.Email == s.Email &&
+                                     i.Status == InvitationStatus.Pending &&
+                                     i.ExpiresAt > DateTime.UtcNow);
+                        if (existingPending != null)
+                        {
+                            return Response<List<ProjectReviewInvitationDto>>.Failure(
+                                $"Invitation already pending for {s.Email}. You can resend it.",
+                                409
+                            );
+                        }
+
+                        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+                        using var sha = SHA256.Create();
+                        var hashedToken = Convert.ToBase64String(
+                            sha.ComputeHash(Encoding.UTF8.GetBytes(rawToken))
+                        );
+                        invitations.Add(new ProjectReviewInvitation
+                        {
+                            Id = Guid.NewGuid(),
+                            ProjectId = projectId,
+                            StakeholderId = Guid.NewGuid().ToString(),
+                            Email = s.Email,
+                            DisplayName = s.DisplayName,
+                            Permission = request.Permission,
+                            ReviewToken = hashedToken,
+                            Status = InvitationStatus.Pending,
+                            ReviewUrl = $"https://app.requra.ai/project-review/{rawToken}",//Url will be edited later
+                            ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
+                            InvitedById = userId,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                await _context.ProjectReviewInvitations.AddRangeAsync(invitations);
+                await _context.SaveChangesAsync();
+
+                // Send Emails
+                foreach (var inv in invitations)
+                {
+                    try
+                    {
+                        var subject = "You're invited to review a project";
+                        var body = ProjectReviewInvitationTemplate.ProjectReviewInvitationEmail(
+    inv.DisplayName,
+    project.Name,
+    request.Permission.ToString(),
+    request.ExpiresAt,
+    inv.ReviewUrl,
+    UserInProject.User.FullName
+);
+
+                        await emailSender.SendEmailAsync(inv.Email, subject, body);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to send email to {Email}", inv.Email);
+                        return Response<List<ProjectReviewInvitationDto>>.Failure($"Failed to send email to {inv.Email}: {ex.Message}", 500);
+                    }
+                }
+
+                var result = invitations.Select(inv => new ProjectReviewInvitationDto
+                {
+                    Id = inv.Id,
+                    ProjectId = inv.ProjectId,
+                    StakeholderId = inv.StakeholderId.ToString(),
+                    Email = inv.Email,
+                    DisplayName = inv.DisplayName,
+                    Permission = inv.Permission,
+                    Status = inv.Status,
+                    ReviewUrl = inv.ReviewUrl,
+                    ExpiresAt = inv.ExpiresAt,
+                    CreatedAt = inv.CreatedAt,
+                    UpdatedAt = inv.UpdatedAt,
+                    InvitedById = inv.InvitedById
+                }).ToList();
+
+                return Response<List<ProjectReviewInvitationDto>>.Success(
+                    result,
+                    "Stakeholder review invitation created successfully.",
+                    201);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while creating project review invitations.");
+                return Response<List<ProjectReviewInvitationDto>>.Failure("An error occurred while creating project review invitations.", 500, new List<string> { ex.Message });
+            }
+
+
+        }
+        public async Task<Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>>
+         GetProjectReviewInvitationsAsync(string projectId, GetProjectReviewInvitationsQuery query, string userId)
+        {
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(projectId))
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Invalid projectId", 422);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+
+                if (project == null)
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
+
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
+
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+
+                if (UserInProject == null)
+                    return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
+                var baseQuery = _context.ProjectReviewInvitations
+                .Where(i => i.ProjectId == projectId);
+
+                if (!string.IsNullOrWhiteSpace(query.Search))
+                {
+                    var search = query.Search.ToLower();
+
+                    baseQuery = baseQuery.Where(i =>
+                        i.Email.ToLower().Contains(search) ||
+                        i.DisplayName.ToLower().Contains(search));
+                }
+
+                if (query.Status.HasValue)
+                {
+                    baseQuery = baseQuery.Where(i => i.Status == query.Status);
+                }
+
+                var pendingCount = await baseQuery.CountAsync(i => i.Status == InvitationStatus.Pending);
+                var acceptedCount = await baseQuery.CountAsync(i => i.Status == InvitationStatus.Accepted);
+                var revokedCount = await baseQuery.CountAsync(i => i.Status == InvitationStatus.Revoked);
+
+
+                baseQuery = baseQuery.Select(i => new ProjectReviewInvitation
+                {
+                    Id = i.Id,
+                    ProjectId = i.ProjectId,
+                    StakeholderId = i.StakeholderId,
+                    Email = i.Email,
+                    DisplayName = i.DisplayName,
+                    Permission = i.Permission,
+                    Status = (i.Status == InvitationStatus.Pending && i.ExpiresAt <= DateTime.UtcNow)
+                                ? InvitationStatus.Expired
+                                : i.Status,
+                    ReviewUrl = i.ReviewUrl,
+                    ExpiresAt = i.ExpiresAt,
+                    AcceptedAt = i.AcceptedAt,
+                    RevokedAt = i.RevokedAt,
+                    InvitedById = i.InvitedById,
+                    CreatedAt = i.CreatedAt,
+                    UpdatedAt = i.UpdatedAt
+                });
+
+                var totalCount = await baseQuery.CountAsync();
+
+                var items = await baseQuery
+                    .OrderByDescending(i => i.CreatedAt)
+                    .Skip((query.PageNumber - 1) * query.PageSize)
+                    .Take(query.PageSize)
+                    .Select(inv => new ProjectReviewInvitationDto
+                    {
+                        Id = inv.Id,
+                        ProjectId = inv.ProjectId.ToString(),
+                        StakeholderId = inv.StakeholderId.ToString(),
+                        Email = inv.Email,
+                        DisplayName = inv.DisplayName,
+                        Permission = inv.Permission,
+                        Status = inv.Status,
+                        ReviewUrl = inv.ReviewUrl,
+                        ExpiresAt = inv.ExpiresAt,
+                        AcceptedAt = inv.AcceptedAt,
+                        RevokedAt = inv.RevokedAt,
+                        InvitedById = inv.InvitedById,
+                        CreatedAt = inv.CreatedAt,
+                        UpdatedAt = inv.UpdatedAt
+                    })
+                    .ToListAsync();
+
+                var result = new ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize,
+                    PendingCount = pendingCount,
+                    AcceptedCount = acceptedCount,
+                    RevokedCount = revokedCount
+                };
+
+                return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>
+                    .Success(result, "Project review invitations retrieved successfully.", 200);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while retrieving project review invitations.");
+                return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>
+                    .Failure("An error occurred while retrieving project review invitations.", 500, new List<string> { ex.Message });
             }
         }
     }
