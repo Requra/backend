@@ -35,8 +35,8 @@ namespace Requra.Application.DTOs.ProjectReviewInvitaion
         public string StakeholderId { get; set; }
         public string Email { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
-        //public string? Company { get; set; }
-        //public string? RoleTitle { get; set; }
+        public string? Company { get; set; }
+        public string? RoleTitle { get; set; }
         public ProjectReviewPermission Permission { get; set; } 
         public InvitationStatus Status { get; set; } = InvitationStatus.Pending;
         public string ReviewUrl { get; set; } = null!;

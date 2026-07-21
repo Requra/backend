@@ -13,13 +13,19 @@ namespace Requra.Application.DTOValidations.ProjectReview
         public NewProjectReviewStakeholderValidator()
         {
             RuleFor(x => x.DisplayName)
-                .NotEmpty()
-                .MinimumLength(2)
-                .MaximumLength(120);
+                .NotEmpty().WithMessage("Display name is required.")
+                .MinimumLength(2).WithMessage("Display name must be at least 2 characters long.")
+                .MaximumLength(120).WithMessage("Display name cannot exceed 120 characters.");
 
             RuleFor(x => x.Email)
-                .NotEmpty()
-                .EmailAddress();
+                .NotEmpty().WithMessage("Email is required.")
+                .EmailAddress().WithMessage("Invalid email format.");
+
+            RuleFor(x => x.RoleTitle)
+                .MaximumLength(160).WithMessage("Role title cannot exceed 160 characters.");
+
+            RuleFor(x => x.Company)
+                .MaximumLength(160).WithMessage("Company name cannot exceed 160 characters.");
 
         }
     }
