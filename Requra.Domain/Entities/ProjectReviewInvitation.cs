@@ -41,6 +41,13 @@ namespace Requra.Domain.Entities
             this.ExpiresAt = ExpiresAt;
             this.UpdatedAt = DateTime.UtcNow;
         }
+        public void Revoke()
+        {
+            this.Status = InvitationStatus.Revoked;
+            this.RevokedAt = DateTime.UtcNow;
+            this.UpdatedAt = DateTime.UtcNow;
+            this.ReviewUrl = string.Empty;
+        }
 
     }
 }

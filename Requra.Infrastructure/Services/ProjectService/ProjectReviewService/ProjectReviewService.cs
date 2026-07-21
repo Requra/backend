@@ -852,5 +852,75 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 return Response<ProjectReviewInvitationDto>.Failure("An error occurred while resending project review invitation.", 500, new List<string> { ex.Message });
             }
         }
+
+        public async Task<Response<RevokeInvitationResponseDto>> RevokeInvitationAsync(string projectId,Guid invitationId,string userId)
+        {
+
+            try
+            {
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+                if (project == null)
+                    return Response<RevokeInvitationResponseDto>.Failure("Project not found.", 404);
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Response<RevokeInvitationResponseDto>.Failure("Validation failed", 422, new List<string> { "Invalid userId" });
+
+                //should apply later which role can revoke invitation PM,BA...etc
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+
+                if (UserInProject == null)
+                    return Response<RevokeInvitationResponseDto>.Failure("User is not a member of this project, Don't have permission to revoke invitation", 403);
+                var invitation = await _context.ProjectReviewInvitations
+                    .FirstOrDefaultAsync(i =>
+                        i.Id == invitationId &&
+                        i.ProjectId == projectId);
+
+                if (invitation == null)
+                    return Response<RevokeInvitationResponseDto>.Failure("Invitation not found.", 404);
+
+                var now = DateTime.UtcNow;
+
+                if (invitation.Status == InvitationStatus.Pending && invitation.ExpiresAt <= now)
+                {
+                    invitation.Status = InvitationStatus.Expired;
+                    await _context.SaveChangesAsync();
+                }
+
+                if (invitation.Status == InvitationStatus.Accepted)
+                {
+                    return Response<RevokeInvitationResponseDto>.Failure("Accepted invitations cannot be revoked.", 409);
+                }
+
+                // Idempotent behavior 
+                if (invitation.Status == InvitationStatus.Revoked)
+                {
+                    return Response<RevokeInvitationResponseDto>.Success(
+                        new RevokeInvitationResponseDto
+                        {
+                            Id = invitation.Id.ToString(),
+                            Status = invitation.Status
+                        },
+                        "Project review invitation revoked successfully.",
+                        200);
+                }
+
+                invitation.Revoke();
+                await _context.SaveChangesAsync();
+
+                var dto = new RevokeInvitationResponseDto
+                {
+                    Id = invitation.Id.ToString(),
+                    Status = invitation.Status
+                };
+
+                return Response<RevokeInvitationResponseDto>.Success(
+                    dto,
+                    "Project review invitation revoked successfully.",
+                    200);
+            }
+            catch(Exception ex) {
+                logger.LogError(ex, "An error occurred while revoking project review invitation.");
+                return Response<RevokeInvitationResponseDto>.Failure("An error occurred while revoking project review invitation.", 500, new List<string> { ex.Message });
+            }
+        }
     }
 }
