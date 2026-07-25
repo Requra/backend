@@ -3,12 +3,15 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Requra.Application.DTOs.Auth.Otp;
 using Requra.Application.DTOs.Profile;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
+using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
+using Requra.Infrastructure.Services.OtpService;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -182,6 +185,71 @@ namespace Requra.Infrastructure.Services.ProfileService
 
                 return Response<string>.Failure(string.Empty, "Error deleting account", 500);
             }
+        }
+
+        public async Task<Response<bool>> ChangePasswordAsync(ChangePasswordRequestDto request,CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (request == null)
+            {
+                return Response<bool>.Failure(false, "Request is required.", StatusCodes.Status400BadRequest);
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+                errors.Add("CurrentPassword is required.");
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword))
+                errors.Add("NewPassword is required.");
+            else if (request.NewPassword.Length < 8)
+                errors.Add("NewPassword must be at least 8 characters long.");
+
+            if (!string.IsNullOrWhiteSpace(request.CurrentPassword) &&
+                !string.IsNullOrWhiteSpace(request.NewPassword) &&
+                request.CurrentPassword == request.NewPassword)
+            {
+                errors.Add("NewPassword must be different from CurrentPassword.");
+            }
+
+            if (errors.Any())
+            {
+                return Response<bool>.Failure(false, "Validation failed.", StatusCodes.Status400BadRequest, errors);
+            }
+
+            var user = await _userManager.FindByIdAsync(request.CurrentUserId);
+            if (user == null)
+            {
+                return Response<bool>.Failure(false, "User not found.", StatusCodes.Status404NotFound);
+            }
+
+            var isCurrentPasswordValid = await _userManager.CheckPasswordAsync(user, request.CurrentPassword);
+            if (!isCurrentPasswordValid)
+            {
+                return Response<bool>.Failure(false, "Current password is incorrect.", StatusCodes.Status400BadRequest);
+            }
+
+            var changePasswordResult = await _userManager.ChangePasswordAsync(user,request.CurrentPassword,request.NewPassword);
+
+            if (!changePasswordResult.Succeeded)
+            {
+                return Response<bool>.Failure(false,"Failed to change password.",StatusCodes.Status400BadRequest,changePasswordResult.Errors.Select(e => e.Description).ToList());
+            }
+
+            if (user.RefreshTokens != null)
+            {
+                foreach (var token in user.RefreshTokens.Where(x => x.RevokedOn == null))
+                {
+                    token.RevokedOn = DateTime.UtcNow;
+                }
+            }
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                return Response<bool>.Failure(false,"Password changed, but failed to update user session state.",StatusCodes.Status500InternalServerError,updateResult.Errors.Select(e => e.Description).ToList());
+            }
+
+            return Response<bool>.Success(true, "Password changed successfully.", StatusCodes.Status200OK);
         }
     }
 }
