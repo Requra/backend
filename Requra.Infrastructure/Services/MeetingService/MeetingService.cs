@@ -924,5 +924,461 @@ namespace Requra.Infrastructure.Services.MeetingService
                     new List<string> { ex.Message });
             }
         }
+        public async Task<Response<PagedResult<MeetingInvitationItemResponse>>> GetMeetingInvitationsAsync(
+    Guid meetingId,
+    string currentUserId,
+    GetMeetingInvitationsQuery query,
+    CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<PagedResult<MeetingInvitationItemResponse>>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                // Anyone who is already a participant of this meeting can list its invitations.
+                var isParticipant = await _context.MeetingParticipants
+                    .AnyAsync(p => p.MeetingId == meetingId && p.UserId == currentUserId, cancellationToken);
+
+                if (!isParticipant)
+                    return Response<PagedResult<MeetingInvitationItemResponse>>.Failure("You are not allowed to access this meeting", StatusCodes.Status403Forbidden);
+
+                var baseQuery = _context.Invitations.Where(i => i.MeetingId == meetingId);
+
+                if (query.Status.HasValue)
+                    baseQuery = baseQuery.Where(i => i.Status == query.Status.Value);
+
+                var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+                var invitations = await baseQuery
+                    .OrderByDescending(i => i.CreatedAt)
+                    .Skip((query.PageNumber - 1) * query.PageSize)
+                    .Take(query.PageSize)
+                    .ToListAsync(cancellationToken);
+
+                var items = invitations.Select(MapToItemResponse).ToList();
+
+                var result = new PagedResult<MeetingInvitationItemResponse>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize
+                };
+
+                return Response<PagedResult<MeetingInvitationItemResponse>>.Success(
+                    result,
+                    totalCount > 0 ? "Invitations retrieved successfully" : "No invitations found",
+                    StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while retrieving meeting invitations");
+                return Response<PagedResult<MeetingInvitationItemResponse>>.Failure(
+                    "An error occurred while retrieving meeting invitations",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<MeetingInvitationPreviewResponse>> PreviewInvitationAsync(
+            string inviteToken,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(inviteToken))
+                return Response<MeetingInvitationPreviewResponse>.Failure("Invalid invite token", StatusCodes.Status422UnprocessableEntity, new List<string> { "inviteToken is required" });
+
+            try
+            {
+                var invitation = await _context.Invitations
+                    .Include(i => i.Meeting)
+                        .ThenInclude(m => m.Project)
+                    .FirstOrDefaultAsync(i => i.InviteToken == inviteToken, cancellationToken);
+
+                if (invitation == null)
+                    return Response<MeetingInvitationPreviewResponse>.Failure("Invitation not found", StatusCodes.Status404NotFound);
+
+                // Lazily flip a stale pending invite to Expired the moment it's looked up.
+                if (invitation.Status == InvitationStatus.Pending &&
+                    invitation.ExpiresAt.HasValue &&
+                    invitation.ExpiresAt.Value < DateTime.UtcNow)
+                {
+                    invitation.MarkExpired();
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
+                var dto = new MeetingInvitationPreviewResponse
+                {
+                    MeetingId = invitation.MeetingId ?? Guid.Empty,
+                    MeetingTitle = invitation.Meeting?.Title,
+                    ProjectName = invitation.Meeting?.Project?.Name,
+                    ScheduledAt = invitation.Meeting?.ScheduledAt,
+                    InviteeEmail = invitation.Email,
+                    InviteeDisplayName = invitation.DisplayName,
+                    InviteeType = ToInviteeType(invitation.InviteType),
+                    Role = invitation.Role?.ToString().ToUpper(),
+                    Status = invitation.Status.ToString().ToUpper(),
+                    ExpiresAt = invitation.ExpiresAt
+                };
+
+                return Response<MeetingInvitationPreviewResponse>.Success(
+                    dto,
+                    "Invitation preview retrieved successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while retrieving the invitation preview");
+                return Response<MeetingInvitationPreviewResponse>.Failure(
+                    "An error occurred while retrieving the invitation preview",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+        public async Task<Response<AcceptMeetingInvitationResponse>> AcceptInvitationAsync(
+          string inviteToken,
+          string currentUserId,
+          CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(inviteToken))
+                return Response<AcceptMeetingInvitationResponse>.Failure("Invalid invite token", StatusCodes.Status422UnprocessableEntity, new List<string> { "inviteToken is required" });
+
+            if (string.IsNullOrWhiteSpace(currentUserId))
+                return Response<AcceptMeetingInvitationResponse>.Failure("Unauthorized User", StatusCodes.Status401Unauthorized);
+
+            try
+            {
+                var invitation = await _context.Invitations
+                    .Include(i => i.Meeting)
+                    .FirstOrDefaultAsync(i => i.InviteToken == inviteToken, cancellationToken);
+
+                if (invitation == null)
+                    return Response<AcceptMeetingInvitationResponse>.Failure("Invitation not found", StatusCodes.Status404NotFound);
+
+                if (invitation.Meeting == null)
+                    return Response<AcceptMeetingInvitationResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                var currentUser = await _context.Users.FirstOrDefaultAsync(x => x.Id == currentUserId, cancellationToken);
+                if (currentUser == null)
+                    return Response<AcceptMeetingInvitationResponse>.Failure("Current user not found", StatusCodes.Status404NotFound);
+
+                // Lazily flip a stale pending invite to Expired the moment it's looked up.
+                if (invitation.Status == InvitationStatus.Pending &&
+                    invitation.ExpiresAt.HasValue &&
+                    invitation.ExpiresAt.Value < DateTime.UtcNow)
+                {
+                    invitation.MarkExpired();
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
+                switch (invitation.Status)
+                {
+                    case InvitationStatus.Accepted:
+                        return Response<AcceptMeetingInvitationResponse>.Failure("This invitation has already been accepted", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Declined:
+                        return Response<AcceptMeetingInvitationResponse>.Failure("This invitation has been declined", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Revoked:
+                        return Response<AcceptMeetingInvitationResponse>.Failure("This invitation has been revoked", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Expired:
+                        return Response<AcceptMeetingInvitationResponse>.Failure("This invitation has expired", StatusCodes.Status409Conflict);
+                }
+
+                // Only the invited identity may accept: project members are matched by id,
+                // guests/stakeholders are matched by the email the invite was sent to.
+                var isIntendedRecipient = (!string.IsNullOrWhiteSpace(invitation.ProjectMemberId) && invitation.ProjectMemberId == currentUserId)
+                    || (!string.IsNullOrWhiteSpace(currentUser.Email) && string.Equals(currentUser.Email.Trim(), invitation.Email?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (!isIntendedRecipient)
+                    return Response<AcceptMeetingInvitationResponse>.Failure("You are not allowed to accept this invitation", StatusCodes.Status403Forbidden);
+
+                invitation.MarkAccepted();
+
+                var existingParticipant = await _context.MeetingParticipants
+                    .FirstOrDefaultAsync(p => p.MeetingId == invitation.MeetingId && p.UserId == currentUserId, cancellationToken);
+
+                string? participantId = existingParticipant?.UserId;
+
+                if (existingParticipant == null)
+                {
+                    var participant = new MeetingParticipant(currentUserId, invitation.MeetingId!.Value, invitation.Role ?? MeetingRole.Participant);
+                    _context.MeetingParticipants.Add(participant);
+                    participantId = participant.UserId;
+                }
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var dto = new AcceptMeetingInvitationResponse
+                {
+                    InvitationId = invitation.Id,
+                    MeetingId = invitation.MeetingId ?? Guid.Empty,
+                    Status = invitation.Status.ToString().ToUpper(),
+                    ParticipantId = participantId
+                };
+
+                return Response<AcceptMeetingInvitationResponse>.Success(
+                    dto,
+                    "Invitation accepted successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<AcceptMeetingInvitationResponse>.Failure(
+                    "A concurrency error occurred while accepting the invitation",
+                    StatusCodes.Status409Conflict,
+                    new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<AcceptMeetingInvitationResponse>.Failure(
+                    "A database error occurred while accepting the invitation",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while accepting the invitation");
+                return Response<AcceptMeetingInvitationResponse>.Failure(
+                    "An error occurred while accepting the invitation",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync(
+            Guid meetingId,
+            Guid invitationId,
+            string currentUserId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(currentUserId))
+                return Response<MeetingInvitationDetailResponse>.Failure("Unauthorized User", StatusCodes.Status401Unauthorized);
+
+            if (meetingId == Guid.Empty || invitationId == Guid.Empty)
+                return Response<MeetingInvitationDetailResponse>.Failure("Validation failed", StatusCodes.Status422UnprocessableEntity, new List<string> { "Invalid meetingId or invitationId format" });
+
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .Include(m => m.Participants)
+                    .FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<MeetingInvitationDetailResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                var currentUserParticipant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUserId);
+
+                if (currentUserParticipant == null)
+                    return Response<MeetingInvitationDetailResponse>.Failure("You are not allowed to access this meeting", StatusCodes.Status403Forbidden);
+
+                if (currentUserParticipant.Role != MeetingRole.Host)
+                    return Response<MeetingInvitationDetailResponse>.Failure("Only the host can resend invitations", StatusCodes.Status403Forbidden);
+
+                var invitation = await _context.Invitations
+                    .FirstOrDefaultAsync(i => i.Id == invitationId && i.MeetingId == meetingId, cancellationToken);
+
+                if (invitation == null)
+                    return Response<MeetingInvitationDetailResponse>.Failure("Invitation not found", StatusCodes.Status404NotFound);
+
+                // Lazily flip a stale pending invite to Expired the moment it's looked up.
+                if (invitation.Status == InvitationStatus.Pending &&
+                    invitation.ExpiresAt.HasValue &&
+                    invitation.ExpiresAt.Value < DateTime.UtcNow)
+                {
+                    invitation.MarkExpired();
+                }
+
+                switch (invitation.Status)
+                {
+                    case InvitationStatus.Accepted:
+                        return Response<MeetingInvitationDetailResponse>.Failure("Cannot resend an invitation that has already been accepted", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Declined:
+                        return Response<MeetingInvitationDetailResponse>.Failure("Cannot resend an invitation that was declined", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Revoked:
+                        return Response<MeetingInvitationDetailResponse>.Failure("Cannot resend an invitation that has been revoked", StatusCodes.Status409Conflict);
+                }
+
+                // Pending or Expired invitations can be resent: refresh the expiry window.
+                invitation.Resend(DateTime.UtcNow.AddDays(3));
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                try
+                {
+                    var currentUser = await _context.Users.FirstOrDefaultAsync(x => x.Id == currentUserId, cancellationToken);
+
+                    var subject = $"Invitation to meeting: {meeting.Title ?? "Meeting"}";
+
+                    var body = MeetingInvitationTemplete.MeetingInvitationEmail(
+                        userName: invitation.DisplayName ?? "User",
+                        meetingTitle: meeting.Title ?? "Meeting",
+                        inviteType: invitation.InviteType.ToString().ToUpper(),
+                        meetingRole: invitation.Role.ToString().ToUpper(),
+                        scheduledAt: meeting.ScheduledAt,
+                        expiresAt: invitation.ExpiresAt,
+                        meetingUrl: meeting.PlatformUrl,
+                        invitedByName: currentUser?.FullName ?? currentUser?.UserName ?? "Requra Team",
+                        meetingDescription: meeting.Description,
+                        isGuest: invitation.InviteType == InviteType.Guest);
+
+                    await _emailSender.SendEmailAsync(invitation.Email, subject, body);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to resend invitation email to {Email}", invitation.Email);
+                }
+
+                return Response<MeetingInvitationDetailResponse>.Success(
+                    MapToDetailResponse(invitation),
+                    "Invitation resent successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<MeetingInvitationDetailResponse>.Failure(
+                    "A concurrency error occurred while resending the invitation",
+                    StatusCodes.Status409Conflict,
+                    new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<MeetingInvitationDetailResponse>.Failure(
+                    "A database error occurred while resending the invitation",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while resending the invitation");
+                return Response<MeetingInvitationDetailResponse>.Failure(
+                    "An error occurred while resending the invitation",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<MeetingInvitationDetailResponse>> RevokeInvitationAsync(
+            Guid meetingId,
+            Guid invitationId,
+            string currentUserId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(currentUserId))
+                return Response<MeetingInvitationDetailResponse>.Failure("Unauthorized User", StatusCodes.Status401Unauthorized);
+
+            if (meetingId == Guid.Empty || invitationId == Guid.Empty)
+                return Response<MeetingInvitationDetailResponse>.Failure("Validation failed", StatusCodes.Status422UnprocessableEntity, new List<string> { "Invalid meetingId or invitationId format" });
+
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .Include(m => m.Participants)
+                    .FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<MeetingInvitationDetailResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                var currentUserParticipant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUserId);
+
+                if (currentUserParticipant == null)
+                    return Response<MeetingInvitationDetailResponse>.Failure("You are not allowed to access this meeting", StatusCodes.Status403Forbidden);
+
+                if (currentUserParticipant.Role != MeetingRole.Host)
+                    return Response<MeetingInvitationDetailResponse>.Failure("Only the host can revoke invitations", StatusCodes.Status403Forbidden);
+
+                var invitation = await _context.Invitations
+                    .FirstOrDefaultAsync(i => i.Id == invitationId && i.MeetingId == meetingId, cancellationToken);
+
+                if (invitation == null)
+                    return Response<MeetingInvitationDetailResponse>.Failure("Invitation not found", StatusCodes.Status404NotFound);
+
+                switch (invitation.Status)
+                {
+                    case InvitationStatus.Revoked:
+                        return Response<MeetingInvitationDetailResponse>.Failure("This invitation has already been revoked", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Accepted:
+                        return Response<MeetingInvitationDetailResponse>.Failure("Cannot revoke an invitation that has already been accepted", StatusCodes.Status409Conflict);
+                    case InvitationStatus.Declined:
+                        return Response<MeetingInvitationDetailResponse>.Failure("Cannot revoke an invitation that was declined", StatusCodes.Status409Conflict);
+                }
+
+                invitation.MarkRevoked();
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Response<MeetingInvitationDetailResponse>.Success(
+                    MapToDetailResponse(invitation),
+                    "Invitation revoked successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<MeetingInvitationDetailResponse>.Failure(
+                    "A concurrency error occurred while revoking the invitation",
+                    StatusCodes.Status409Conflict,
+                    new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<MeetingInvitationDetailResponse>.Failure(
+                    "A database error occurred while revoking the invitation",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while revoking the invitation");
+                return Response<MeetingInvitationDetailResponse>.Failure(
+                    "An error occurred while revoking the invitation",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        private static MeetingInvitationDetailResponse MapToDetailResponse(Invitation invitation)
+        {
+            return new MeetingInvitationDetailResponse
+            {
+                Id = invitation.Id,
+                MeetingId = invitation.MeetingId ?? Guid.Empty,
+                InviteeType = ToInviteeType(invitation.InviteType),
+                Email = invitation.Email,
+                DisplayName = invitation.DisplayName,
+                ProjectMemberId = invitation.ProjectMemberId,
+                StakeholderId = invitation.StakeholderId,
+                Role = (invitation.Role ?? MeetingRole.Participant).ToString().ToUpper(),
+                Status = invitation.Status.ToString().ToUpper(),
+                InvitedById = invitation.InvitedById,
+                ExpiresAt = invitation.ExpiresAt,
+                CreatedAt = invitation.CreatedAt
+            };
+        }
+
+        // mapping between
+        // invitation entity and  representation.
+        private static MeetingInvitationItemResponse MapToItemResponse(Invitation invitation)
+        {
+            return new MeetingInvitationItemResponse
+            {
+                Id = invitation.Id,
+                MeetingId = invitation.MeetingId ?? Guid.Empty,
+                InviteType = invitation.InviteType ?? InviteType.Guest,
+                Email = invitation.Email,
+                DisplayName = invitation.DisplayName,
+                ProjectMemberId = invitation.ProjectMemberId,
+                StakeholderId = invitation.StakeholderId,
+                Role = invitation.Role ?? MeetingRole.Participant,
+                Status = invitation.Status,
+                InvitedById = invitation.InvitedById,
+                ExpiresAt = invitation.ExpiresAt,
+                CreatedAt = invitation.CreatedAt
+            };
+        }
+
+        private static string ToInviteeType(InviteType? inviteType)
+        {
+            return inviteType == InviteType.Participant ? "PARTICIPANT" : "GUEST";
+        }
     }
 }

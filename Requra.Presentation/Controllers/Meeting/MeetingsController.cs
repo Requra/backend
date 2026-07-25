@@ -172,7 +172,77 @@ namespace Requra.Presentation.Controllers.Meeting
                 500 => StatusCode(500, response),
                 _ => StatusCode(response.StatusCode, response)
             };
-        } 
+        }
+        [HttpGet("{meetingId:guid}/invitations")]
+        public async Task<IActionResult> GetInvitations([FromRoute] Guid meetingId, [FromQuery] GetMeetingInvitationsQuery query, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<PagedResult<MeetingInvitationItemResponse>>.Failure(null, "Unauthorized User", 401));
+
+            var response = await _meetingService.GetMeetingInvitationsAsync(meetingId, userId, query, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpPost("{meetingId:guid}/invitations/{invitationId:guid}/resend")]
+        public async Task<IActionResult> ResendInvitation([FromRoute] Guid meetingId, [FromRoute] Guid invitationId, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<MeetingInvitationDetailResponse>.Failure(null, "Unauthorized User", 401));
+
+            var response = await _meetingService.ResendInvitationAsync(meetingId, invitationId, userId, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpDelete("{meetingId:guid}/invitations/{invitationId:guid}")]
+        public async Task<IActionResult> RevokeInvitation([FromRoute] Guid meetingId, [FromRoute] Guid invitationId, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<MeetingInvitationDetailResponse>.Failure(null, "Unauthorized User", 401));
+
+            var response = await _meetingService.RevokeInvitationAsync(meetingId, invitationId, userId, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
 
     }
 }

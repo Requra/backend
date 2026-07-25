@@ -59,6 +59,10 @@ namespace Requra.Infrastructure.Configurations
                 .HasMaxLength(450)
                 .IsRequired();
 
+            builder.HasIndex(x => x.InviteToken)
+                .IsUnique()
+                .HasDatabaseName("ix_meeting_invitations_invite_token");
+
             builder.Property(x => x.ExpiresAt)
                 .HasColumnName("expires_at");
 

@@ -28,5 +28,12 @@ namespace Requra.Application.Interfaces.IMeetingService
         Task<Response<EndMeetingResponse>> EndMeetingAsync(Guid MeetingId, CancellationToken cancellationToken = default);
         Task<Response<InviteMeetingParticipantsResponse>> InviteParticipantsAsync(InviteMeetingParticipantsRequest request, CancellationToken cancellationToken = default);
         Task<Response<InviteGuestsResponse>> InviteGuestsAsync(InviteGuestsRequest request, CancellationToken cancellationToken = default);
+        //invitations
+        Task<Response<PagedResult<MeetingInvitationItemResponse>>> GetMeetingInvitationsAsync(Guid meetingId, string currentUserId, GetMeetingInvitationsQuery query, CancellationToken cancellationToken = default);
+        Task<Response<MeetingInvitationPreviewResponse>> PreviewInvitationAsync(string inviteToken, CancellationToken cancellationToken = default);
+        Task<Response<AcceptMeetingInvitationResponse>> AcceptInvitationAsync(string inviteToken, string currentUserId, CancellationToken cancellationToken = default);
+        Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default);
+        Task<Response<MeetingInvitationDetailResponse>> RevokeInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default);
+
     }
 }

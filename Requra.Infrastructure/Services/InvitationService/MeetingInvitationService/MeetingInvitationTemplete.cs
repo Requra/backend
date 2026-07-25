@@ -31,6 +31,7 @@ namespace Requra.Infrastructure.Services.InvitationService.MeetingInvitationServ
                     ? expiresAt.Value.ToString("dddd, dd MMMM yyyy 'at' hh:mm tt 'UTC'")
                     : "N/A";
 
+
                 var descriptionSection = string.IsNullOrWhiteSpace(safeMeetingDescription)
                     ? string.Empty
                     : $"""
