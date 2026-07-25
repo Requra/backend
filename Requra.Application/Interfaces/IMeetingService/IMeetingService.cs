@@ -1,6 +1,7 @@
 ﻿using Requra.Application.DTOs;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.Meeting;
+using Requra.Application.DTOs.Participant;
 using Requra.Application.Response;
 using System;
 using System.Collections.Generic;
@@ -34,6 +35,12 @@ namespace Requra.Application.Interfaces.IMeetingService
         Task<Response<AcceptMeetingInvitationResponse>> AcceptInvitationAsync(string inviteToken, string currentUserId, CancellationToken cancellationToken = default);
         Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default);
         Task<Response<MeetingInvitationDetailResponse>> RevokeInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default);
-
-    }
+        //participants
+        Task<Response<MeetingParticipantResponse>> JoinMeetingAsync(JoinMeetingRequest request, CancellationToken cancellationToken = default);
+        Task<Response<MeetingParticipantResponse>> LeaveMeetingAsync(LeaveMeetingRequest request, CancellationToken cancellationToken = default);
+        Task<Response<PagedResult<MeetingParticipantResponse>>> GetMeetingParticipantsAsync(Guid meetingId, string currentUserId, GetMeetingParticipantsQuery query, CancellationToken cancellationToken = default);
+        Task<Response<MeetingParticipantResponse>> RemoveParticipantAsync(RemoveParticipantRequest request, CancellationToken cancellationToken = default);
+        Task<Response<MeetingParticipantResponse>> SaveConsentAsync(SaveConsentRequest request, CancellationToken cancellationToken = default);
+    
+   }
 }

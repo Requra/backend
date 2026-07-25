@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.Meeting;
+using Requra.Application.DTOs.Participant;
 using Requra.Application.DTOs.Project.ProjectCreation;
 using Requra.Application.DTOs.ProjectMembers;
 using Requra.Application.DTOs.Recordings;
@@ -62,13 +63,21 @@ namespace Requra.Infrastructure.Services.MeetingService
 
                 var joinUrl = $"https://app.requra.ai/meetings/{meeting.Id}/join";
                 meeting.SetPlatform(joinUrl);
+                //updated here 
+                var hostUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
 
+                //var hostParticipant = new MeetingParticipant(
+                //    currentUserId,
+                //    meeting.Id,
+                //    MeetingRole.Host
+                //);
                 var hostParticipant = new MeetingParticipant(
-                    currentUserId,
-                    meeting.Id,
-                    MeetingRole.Host
-                );
-
+                   meeting.Id,
+                   currentUserId,
+                   hostUser?.FullName ?? hostUser?.UserName,
+                   hostUser?.Email,
+                   MeetingRole.Host
+               );
                 _context.MeetingSessions.Add(meeting);
                 _context.MeetingParticipants.Add(hostParticipant);
 
@@ -898,37 +907,33 @@ namespace Requra.Infrastructure.Services.MeetingService
                     },
                     "Guests invited successfully",
                     StatusCodes.Status201Created);
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    return Response<InviteGuestsResponse>.Failure(
+                        new InviteGuestsResponse(),
+                        "A concurrency error occurred while sending guest invitations.",
+                        StatusCodes.Status409Conflict,
+                        new List<string> { ex.Message });
+                }
+                catch (DbUpdateException ex)
+                {
+                    return Response<InviteGuestsResponse>.Failure(
+                        new InviteGuestsResponse(),
+                        "A database error occurred while sending guest invitations.",
+                        StatusCodes.Status500InternalServerError,
+                        new List<string> { ex.Message });
+                }
+                catch (Exception ex)
+                {
+                    return Response<InviteGuestsResponse>.Failure(
+                        new InviteGuestsResponse(),
+                        "An unexpected error occurred while sending guest invitations.",
+                        StatusCodes.Status500InternalServerError,
+                        new List<string> { ex.Message });
+                }
             }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                return Response<InviteGuestsResponse>.Failure(
-                    new InviteGuestsResponse(),
-                    "A concurrency error occurred while sending guest invitations.",
-                    StatusCodes.Status409Conflict,
-                    new List<string> { ex.Message });
-            }
-            catch (DbUpdateException ex)
-            {
-                return Response<InviteGuestsResponse>.Failure(
-                    new InviteGuestsResponse(),
-                    "A database error occurred while sending guest invitations.",
-                    StatusCodes.Status500InternalServerError,
-                    new List<string> { ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return Response<InviteGuestsResponse>.Failure(
-                    new InviteGuestsResponse(),
-                    "An unexpected error occurred while sending guest invitations.",
-                    StatusCodes.Status500InternalServerError,
-                    new List<string> { ex.Message });
-            }
-        }
-        public async Task<Response<PagedResult<MeetingInvitationItemResponse>>> GetMeetingInvitationsAsync(
-    Guid meetingId,
-    string currentUserId,
-    GetMeetingInvitationsQuery query,
-    CancellationToken cancellationToken = default)
+        public async Task<Response<PagedResult<MeetingInvitationItemResponse>>> GetMeetingInvitationsAsync( Guid meetingId, string currentUserId, GetMeetingInvitationsQuery query, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -983,9 +988,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingInvitationPreviewResponse>> PreviewInvitationAsync(
-            string inviteToken,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingInvitationPreviewResponse>> PreviewInvitationAsync(string inviteToken,CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(inviteToken))
                 return Response<MeetingInvitationPreviewResponse>.Failure("Invalid invite token", StatusCodes.Status422UnprocessableEntity, new List<string> { "inviteToken is required" });
@@ -1037,10 +1040,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     new List<string> { ex.Message });
             }
         }
-        public async Task<Response<AcceptMeetingInvitationResponse>> AcceptInvitationAsync(
-          string inviteToken,
-          string currentUserId,
-          CancellationToken cancellationToken = default)
+        public async Task<Response<AcceptMeetingInvitationResponse>> AcceptInvitationAsync(string inviteToken, string currentUserId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(inviteToken))
                 return Response<AcceptMeetingInvitationResponse>.Failure("Invalid invite token", StatusCodes.Status422UnprocessableEntity, new List<string> { "inviteToken is required" });
@@ -1098,13 +1098,19 @@ namespace Requra.Infrastructure.Services.MeetingService
                 var existingParticipant = await _context.MeetingParticipants
                     .FirstOrDefaultAsync(p => p.MeetingId == invitation.MeetingId && p.UserId == currentUserId, cancellationToken);
 
-                string? participantId = existingParticipant?.UserId;
+                string? participantId = existingParticipant?.Id.ToString();
 
                 if (existingParticipant == null)
                 {
-                    var participant = new MeetingParticipant(currentUserId, invitation.MeetingId!.Value, invitation.Role ?? MeetingRole.Participant);
+                    var participant = new MeetingParticipant(
+                        invitation.MeetingId!.Value,
+                        currentUserId,
+                        currentUser.FullName ?? currentUser.UserName,
+                        currentUser.Email,
+                        invitation.Role ?? MeetingRole.Participant);
+
                     _context.MeetingParticipants.Add(participant);
-                    participantId = participant.UserId;
+                    participantId = participant.Id.ToString();
                 }
 
                 await _context.SaveChangesAsync(cancellationToken);
@@ -1146,11 +1152,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync(
-            Guid meetingId,
-            Guid invitationId,
-            string currentUserId,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync( Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(currentUserId))
                 return Response<MeetingInvitationDetailResponse>.Failure("Unauthorized User", StatusCodes.Status401Unauthorized);
@@ -1258,11 +1260,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingInvitationDetailResponse>> RevokeInvitationAsync(
-            Guid meetingId,
-            Guid invitationId,
-            string currentUserId,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingInvitationDetailResponse>> RevokeInvitationAsync( Guid meetingId,   Guid invitationId,   string currentUserId,  CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(currentUserId))
                 return Response<MeetingInvitationDetailResponse>.Failure("Unauthorized User", StatusCodes.Status401Unauthorized);
@@ -1379,6 +1377,369 @@ namespace Requra.Infrastructure.Services.MeetingService
         private static string ToInviteeType(InviteType? inviteType)
         {
             return inviteType == InviteType.Participant ? "PARTICIPANT" : "GUEST";
+        }
+
+
+        // Participant
+        public async Task<Response<MeetingParticipantResponse>> JoinMeetingAsync(
+           JoinMeetingRequest request,
+           CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .Include(m => m.Participants)
+                    .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<MeetingParticipantResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                if (meeting.Status == MeetingStatus.Ended || meeting.Status == MeetingStatus.Cancelled)
+                    return Response<MeetingParticipantResponse>.Failure(
+                        $"Meeting cannot be joined because it is {meeting.Status}",
+                        StatusCodes.Status409Conflict);
+
+                var isGuestJoin = string.IsNullOrEmpty(request.CurrentUserId);
+
+                ApplicationUser? currentUser = null;
+
+                if (!isGuestJoin)
+                {
+                    // Authenticated join: caller must be a project member to join directly.
+                    var isMember = await _context.ProjectMembers
+                        .AnyAsync(pm => pm.ProjectId == meeting.ProjectId && pm.UserId == request.CurrentUserId, cancellationToken);
+
+                    if (!isMember)
+                        return Response<MeetingParticipantResponse>.Failure("You are not allowed to join this meeting", StatusCodes.Status403Forbidden);
+
+                    currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.CurrentUserId, cancellationToken);
+                }
+                else
+                {
+                    // Guest join: displayName/email are required since there's no account to resolve them from.
+                    if (string.IsNullOrWhiteSpace(request.DisplayName) || string.IsNullOrWhiteSpace(request.Email))
+                        return Response<MeetingParticipantResponse>.Failure(
+                            "Guest join requires displayName and email",
+                            StatusCodes.Status422UnprocessableEntity,
+                            new List<string> { "displayName and email are required for guest joins" });
+                }
+
+                MeetingParticipant participant;
+
+                if (!isGuestJoin)
+                {
+                    // Rejoin the same row if this user already has one (e.g. they left earlier),
+                    // instead of creating duplicate participant history for the same account.
+                    var existing = meeting.Participants.FirstOrDefault(p => p.UserId == request.CurrentUserId);
+
+                    if (existing != null)
+                    {
+                        if (existing.Status == ParticipantStatus.Removed)
+                            return Response<MeetingParticipantResponse>.Failure("You have been removed from this meeting", StatusCodes.Status403Forbidden);
+
+                        if (existing.Status != ParticipantStatus.Joined)
+                            existing.Rejoin();
+
+                        participant = existing;
+                    }
+                    else
+                    {
+                        var role = meeting.HostId == request.CurrentUserId ? MeetingRole.Host : MeetingRole.Participant;
+
+                        participant = new MeetingParticipant(
+                            meeting.Id,
+                            request.CurrentUserId,
+                            currentUser?.FullName ?? currentUser?.UserName,
+                            currentUser?.Email,
+                            role);
+
+                        _context.MeetingParticipants.Add(participant);
+                    }
+                }
+                else
+                {
+                    // Guests always get a fresh participant row — there's no stable identity
+                    // to dedupe/rejoin against.
+                    participant = new MeetingParticipant(
+                        meeting.Id,
+                        null,
+                        request.DisplayName,
+                        request.Email,
+                        MeetingRole.Participant);
+
+                    _context.MeetingParticipants.Add(participant);
+                }
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Response<MeetingParticipantResponse>.Success(
+                    MapToParticipantResponse(participant),
+                    "Joined meeting successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<MeetingParticipantResponse>.Failure("A database error occurred while joining the meeting.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while joining the meeting");
+                return Response<MeetingParticipantResponse>.Failure(
+                    "An error occurred while joining the meeting",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<MeetingParticipantResponse>> LeaveMeetingAsync(
+            LeaveMeetingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .Include(m => m.Participants)
+                    .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<MeetingParticipantResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                MeetingParticipant? participant = null;
+
+                if (request.ParticipantId.HasValue)
+                {
+                    participant = meeting.Participants.FirstOrDefault(p => p.Id == request.ParticipantId.Value);
+                }
+                else if (!string.IsNullOrEmpty(request.CurrentUserId))
+                {
+                    participant = meeting.Participants
+                        .Where(p => p.UserId == request.CurrentUserId)
+                        .OrderByDescending(p => p.JoinedAt)
+                        .FirstOrDefault();
+                }
+                else
+                {
+                    return Response<MeetingParticipantResponse>.Failure(
+                        "participantId is required to leave without an authenticated session",
+                        StatusCodes.Status422UnprocessableEntity,
+                        new List<string> { "participantId is required" });
+                }
+
+                if (participant == null)
+                    return Response<MeetingParticipantResponse>.Failure("Participant not found", StatusCodes.Status404NotFound);
+
+                // A caller can only leave on someone else's behalf if they're the host;
+                // otherwise you can only leave your own session.
+                if (request.ParticipantId.HasValue &&
+                    participant.UserId != request.CurrentUserId &&
+                    meeting.HostId != request.CurrentUserId)
+                {
+                    return Response<MeetingParticipantResponse>.Failure("You are not allowed to remove this participant", StatusCodes.Status403Forbidden);
+                }
+
+                if (participant.Status == ParticipantStatus.Left)
+                    return Response<MeetingParticipantResponse>.Failure("Participant has already left this meeting", StatusCodes.Status409Conflict);
+
+                if (participant.Status == ParticipantStatus.Removed)
+                    return Response<MeetingParticipantResponse>.Failure("Participant was already removed from this meeting", StatusCodes.Status409Conflict);
+
+                participant.MarkLeft();
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Response<MeetingParticipantResponse>.Success(
+                    MapToParticipantResponse(participant),
+                    "Left meeting successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<MeetingParticipantResponse>.Failure("A database error occurred while leaving the meeting.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while leaving the meeting");
+                return Response<MeetingParticipantResponse>.Failure(
+                    "An error occurred while leaving the meeting",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<PagedResult<MeetingParticipantResponse>>> GetMeetingParticipantsAsync(
+            Guid meetingId,
+            string currentUserId,
+            GetMeetingParticipantsQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<PagedResult<MeetingParticipantResponse>>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                var isParticipant = await _context.MeetingParticipants
+                    .AnyAsync(p => p.MeetingId == meetingId && p.UserId == currentUserId, cancellationToken);
+
+                if (!isParticipant)
+                    return Response<PagedResult<MeetingParticipantResponse>>.Failure("You are not allowed to access this meeting", StatusCodes.Status403Forbidden);
+
+                var baseQuery = _context.MeetingParticipants.Where(p => p.MeetingId == meetingId);
+
+                var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+                var participants = await baseQuery
+                    .OrderBy(p => p.JoinedAt)
+                    .Skip((query.PageNumber - 1) * query.PageSize)
+                    .Take(query.PageSize)
+                    .ToListAsync(cancellationToken);
+
+                var items = participants.Select(MapToParticipantResponse).ToList();
+
+                var result = new PagedResult<MeetingParticipantResponse>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize
+                };
+
+                return Response<PagedResult<MeetingParticipantResponse>>.Success(
+                    result,
+                    totalCount > 0 ? "Participants retrieved successfully" : "No participants found",
+                    StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while retrieving meeting participants");
+                return Response<PagedResult<MeetingParticipantResponse>>.Failure(
+                    "An error occurred while retrieving meeting participants",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<MeetingParticipantResponse>> RemoveParticipantAsync(
+            RemoveParticipantRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .Include(m => m.Participants)
+                    .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<MeetingParticipantResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                // Only the host can remove participants.
+                if (meeting.HostId != request.CurrentUserId)
+                    return Response<MeetingParticipantResponse>.Failure("Only the host can remove participants", StatusCodes.Status403Forbidden);
+
+                var participant = meeting.Participants.FirstOrDefault(p => p.Id == request.ParticipantId);
+
+                if (participant == null)
+                    return Response<MeetingParticipantResponse>.Failure("Participant not found", StatusCodes.Status404NotFound);
+
+                if (participant.Role == MeetingRole.Host)
+                    return Response<MeetingParticipantResponse>.Failure("The host cannot be removed from their own meeting", StatusCodes.Status400BadRequest);
+
+                if (participant.Status == ParticipantStatus.Removed)
+                    return Response<MeetingParticipantResponse>.Failure("Participant was already removed from this meeting", StatusCodes.Status409Conflict);
+
+                participant.MarkRemoved();
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Response<MeetingParticipantResponse>.Success(
+                    MapToParticipantResponse(participant),
+                    "Participant removed successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<MeetingParticipantResponse>.Failure("A database error occurred while removing the participant.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while removing the participant");
+                return Response<MeetingParticipantResponse>.Failure(
+                    "An error occurred while removing the participant",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        public async Task<Response<MeetingParticipantResponse>> SaveConsentAsync(
+            SaveConsentRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var meeting = await _context.MeetingSessions
+                    .Include(m => m.Participants)
+                    .FirstOrDefaultAsync(m => m.Id == request.MeetingId, cancellationToken);
+
+                if (meeting == null)
+                    return Response<MeetingParticipantResponse>.Failure("Meeting not found", StatusCodes.Status404NotFound);
+
+                var participant = meeting.Participants.FirstOrDefault(p => p.Id == request.ParticipantId);
+
+                if (participant == null)
+                    return Response<MeetingParticipantResponse>.Failure("Participant not found", StatusCodes.Status404NotFound);
+
+                // A participant can only set their own consent; the host can set it for
+                // anyone (e.g. recording a guest who confirmed verbally).
+                var isSelf = !string.IsNullOrEmpty(request.CurrentUserId) && participant.UserId == request.CurrentUserId;
+                var isHost = !string.IsNullOrEmpty(request.CurrentUserId) && meeting.HostId == request.CurrentUserId;
+
+                if (!isSelf && !isHost)
+                    return Response<MeetingParticipantResponse>.Failure("You are not allowed to set consent for this participant", StatusCodes.Status403Forbidden);
+
+                if (participant.Status == ParticipantStatus.Removed)
+                    return Response<MeetingParticipantResponse>.Failure("Cannot set consent for a removed participant", StatusCodes.Status409Conflict);
+
+                participant.SetConsent(request.RecordingConsent);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Response<MeetingParticipantResponse>.Success(
+                    MapToParticipantResponse(participant),
+                    "Recording consent saved successfully",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<MeetingParticipantResponse>.Failure("A database error occurred while saving consent.", StatusCodes.Status500InternalServerError, new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while saving recording consent");
+                return Response<MeetingParticipantResponse>.Failure(
+                    "An error occurred while saving recording consent",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+
+        private static MeetingParticipantResponse MapToParticipantResponse(MeetingParticipant participant)
+        {
+            return new MeetingParticipantResponse
+            {
+                Id = participant.Id,
+                MeetingId = participant.MeetingId,
+                UserId = participant.UserId,
+                DisplayName = participant.DisplayName,
+                Email = participant.Email,
+                Role = participant.Role.ToString(),
+                Status = participant.Status.ToString(),
+                Consent = new ParticipantConsentDto
+                {
+                    RecordingConsent = participant.RecordingConsent,
+                    ConsentedAt = participant.ConsentedAt
+                },
+                JoinedAt = participant.JoinedAt,
+                LeftAt = participant.LeftAt
+            };
         }
     }
 }
