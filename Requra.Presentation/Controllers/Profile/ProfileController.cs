@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Profile;
 using Requra.Application.Interfaces.IProfileService;
@@ -72,6 +73,26 @@ namespace Requra.Presentation.Controllers.Profile
             var result = await profileService.DeleteAccountAsync(userId, cancellationToken);
 
             return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordAPIRequestDto request,CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return StatusCode(401, Response<string>.Failure(string.Empty, "User not authenticated", 401));
+            }
+            var changePasswordRequest = new ChangePasswordRequestDto
+            {
+                CurrentUserId = userId,
+                CurrentPassword = request.CurrentPassword,
+                NewPassword = request.NewPassword
+            };
+            var response = await profileService.ChangePasswordAsync(changePasswordRequest, cancellationToken);
+
+            return StatusCode(response.StatusCode, response);
         }
 
     }

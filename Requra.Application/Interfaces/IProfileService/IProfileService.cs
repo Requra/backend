@@ -13,6 +13,7 @@ namespace Requra.Application.Interfaces.IProfileService
         Task<Response<ProfileDto>> GetProfileAsync(string userId);
         Task<Response<ProfileDto>> UpdateNameAsync(string userId, UpdateProfileDto updateProfile );
         Task<Response<string>> DeleteAccountAsync(string userId, CancellationToken cancellationToken = default);
+        Task<Response<bool>> ChangePasswordAsync(ChangePasswordRequestDto request, CancellationToken cancellationToken = default);
 
     }
 }
