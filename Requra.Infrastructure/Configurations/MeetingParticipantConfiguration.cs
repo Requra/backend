@@ -13,25 +13,60 @@ namespace Requra.Infrastructure.Configurations
         {
             builder.ToTable("meeting_participants");
 
-            builder.HasKey(mp => new { mp.UserId, mp.MeetingId });
+            builder.HasKey(mp => mp.Id);
 
-            builder.Property(mp => mp.UserId)
-                   .HasColumnName("user_id")
-                   .IsRequired();
+            builder.Property(mp => mp.Id)
+                   .HasColumnName("id");
 
             builder.Property(mp => mp.MeetingId)
                    .HasColumnName("meeting_id")
                    .IsRequired();
 
+            // Nullable: guests who join without an account have no UserId.
+            builder.Property(mp => mp.UserId)
+                   .HasColumnName("user_id");
+
+            builder.Property(mp => mp.DisplayName)
+                   .HasColumnName("display_name")
+                   .HasMaxLength(200);
+
+            builder.Property(mp => mp.Email)
+                   .HasColumnName("email")
+                   .HasMaxLength(256);
+
             builder.Property(mp => mp.Role)
                    .HasColumnName("role")
                    .HasConversion<string>()
+                   .HasMaxLength(30)
                    .IsRequired();
+
+            builder.Property(mp => mp.Status)
+                   .HasColumnName("status")
+                   .HasConversion<string>()
+                   .HasMaxLength(30)
+                   .IsRequired();
+
+            builder.Property(mp => mp.RecordingConsent)
+                   .HasColumnName("recording_consent")
+                   .HasDefaultValue(false)
+                   .IsRequired();
+
+            builder.Property(mp => mp.ConsentedAt)
+                   .HasColumnName("consented_at");
 
             builder.Property(mp => mp.JoinedAt)
                    .HasColumnName("joined_at")
                    .HasColumnType("timestamptz")
                    .HasDefaultValueSql("NOW()");
+
+            builder.Property(mp => mp.LeftAt)
+                   .HasColumnName("left_at");
+
+            builder.HasIndex(mp => mp.MeetingId)
+                   .HasDatabaseName("ix_meeting_participants_meeting_id");
+
+            builder.HasIndex(mp => new { mp.MeetingId, mp.UserId })
+                   .HasDatabaseName("ix_meeting_participants_meeting_user");
 
             // Relationships
             builder.HasOne(mp => mp.User)
