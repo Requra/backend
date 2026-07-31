@@ -1,7 +1,9 @@
-﻿using Requra.Application.DTOs.AI;
+﻿using Microsoft.AspNetCore.Http;
+using Requra.Application.DTOs.AI;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static Requra.Infrastructure.Services.AnalysisRunService.AnalysisRunService;
 
 namespace Requra.Application.Interfaces.IAIService
 {
@@ -19,6 +21,13 @@ namespace Requra.Application.Interfaces.IAIService
 
 
        Task<JobStatusResponseDto> GetStatusAsync(string jobId);
-        
+
+        Task<ProcessResponseDto> SubmitAsync(List<FileUploadDto> files, string projectId, string? jobId);
+        Task<JobResultResponseDto> GetResultAsync(string jobId);
+
+        Task<CancelJobResponseDto> CancelJobAsync(string jobId);
+
+        Task<RetryJobResponseDto> RetryJobAsync(string jobId);
+
     }
 }

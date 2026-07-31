@@ -1,46 +1,163 @@
 ﻿using AutoMapper;
+using DocumentFormat.OpenXml.Office2010.Excel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Requra.Application.DTOs.AI;
+using Requra.Application.DTOs.Project.ProjectUpdate;
+using Requra.Application.DTOs.ProjectReviewInvitaion;
 using Requra.Application.Interfaces.IAnalysisRunService;
+using Requra.Application.Response;
+using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace Requra.Presentation.Controllers.AIRuns
 {
     [ApiController]
     [Route("api/projects/{projectId}/ai")]
-    public class AiRunsController : ControllerBase //Temp context for testing only
+    public class AiRunsController : ControllerBase
     {
         private readonly IAnalysisRunService _service;
         private readonly RequraDbContext _dbContext;
-        public AiRunsController(IAnalysisRunService service, RequraDbContext dbContext)
+        public AiRunsController(IAnalysisRunService service)
         {
             _service = service;
-            _dbContext = dbContext;
-
         }
 
         [HttpPost("runs")]
-        public async Task<IActionResult> StartRun(Guid projectId, [FromBody] StartRunRequest request)
+        public async Task<IActionResult> StartRun(string projectId,StartRunRequest request)
         {
-            var response = await _service.StartRunAsync(projectId,request);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<AnalysisRunDto>.Failure(null, "Unauthorized User", 401));
+
+            if (!Guid.TryParse(projectId, out var projectGuid))
+            {
+                return BadRequest(Response<AnalysisRunDto>.Failure(null,
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            //var userId = "027b0157-7553-4fbd-a171-6e3e8777911c"; //testing only
+            var response = await _service.StartRunAsync(request, projectGuid, userId);
 
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpGet("runs/{runId}")]
-        public async Task<IActionResult> GetRun(Guid projectId, Guid runId)
+        public async Task<IActionResult> GetRun(string projectId, string runId)
         {
-            return Ok(await _service.GetRunAsync(projectId, runId));
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<AnalysisRunDto>.Failure(null, "Unauthorized User", 401));
+            if (!Guid.TryParse(projectId, out var projectGuid))
+            {
+                return BadRequest(Response<AnalysisRunDto>.Failure(null,
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            if (!Guid.TryParse(runId, out var runGuid))
+            {
+                return BadRequest(Response<AnalysisRunDto>.Failure(null,
+                    "Invalid run id format",
+                    400
+                ));
+            }
+            //var userId = "027b0157-7553-4fbd-a171-6e3e8777911c"; //testing only
+
+            return Ok(await _service.GetRunAsync(projectGuid, runGuid, userId));
         }
 
         [HttpGet("results-dashboard")]
-        public async Task<IActionResult> GetResults(Guid projectId, [FromQuery] Guid? runId)
+        public async Task<IActionResult> GetResults(string projectId, [FromQuery] string? runId)
         {
-            var response = await _service.GetResultAsync(projectId, runId);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<ExportsDto?>.Failure(null, "Unauthorized User", 401));
+            if (!Guid.TryParse(projectId, out var projectGuid))
+            {
+                return BadRequest(Response<ExportsDto>.Failure(null,
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            Guid? runGuid = null;
+
+            if (!string.IsNullOrEmpty(runId))
+               {  
+                if (!Guid.TryParse(runId, out var parsedRunGuid))
+                {
+                    return BadRequest(Response<ExportsDto>.Failure(null,
+                        "Invalid run id format",
+                        400
+                    ));
+                }
+                runGuid = parsedRunGuid;
+            }
+
+            //var userId = "027b0157-7553-4fbd-a171-6e3e8777911c"; //testing only
+
+            var response = await _service.GetResultAsync(projectGuid, runGuid, userId);
+
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPost("runs/{runId}/cancel")]
+        public async Task<IActionResult> CancelRun(string projectId, string runId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<CancelJobResponseDto?>.Failure(null, "Unauthorized User", 401));
+            if (!Guid.TryParse(projectId, out var projectGuid))
+            {
+                return BadRequest(Response<CancelJobResponseDto>.Failure(null,
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            if (!Guid.TryParse(runId, out var runGuid))
+            {
+                return BadRequest(Response<CancelJobResponseDto>.Failure(null,
+                    "Invalid run id format",
+                    400
+                ));
+            }
+
+            //var userId = "027b0157-7553-4fbd-a171-6e3e8777911c"; //testing only
+
+            var response = await _service.CancelRunAsync(projectGuid, runGuid, userId);
+
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPost("runs/{runId}/retry")]
+        public async Task<IActionResult> RetryRun(string projectId, string runId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<RetryJobResponseDto>.Failure(null, "Unauthorized User", 401));
+            if (!Guid.TryParse(projectId, out var projectGuid))
+            {
+                return BadRequest(Response<RetryJobResponseDto>.Failure(null,
+                    "Invalid project id format",
+                    400
+                ));
+            }
+            if (!Guid.TryParse(runId, out var runGuid))
+            {
+                return BadRequest(Response<RetryJobResponseDto>.Failure(null,
+                    "Invalid run id format",
+                    400
+                ));
+            }
+
+            //var userId = "027b0157-7553-4fbd-a171-6e3e8777911c"; //testing only
+
+            var response = await _service.RetryRunAsync(projectGuid, runGuid, userId);
 
             return StatusCode(response.StatusCode, response);
         }

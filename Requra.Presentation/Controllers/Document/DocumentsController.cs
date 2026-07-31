@@ -41,16 +41,16 @@ namespace Requra.Presentation.Controllers.Document
 
 
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                        ?? User.FindFirst("sub")?.Value
-                        ?? User.FindFirst("id")?.Value;
+            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            //            ?? User.FindFirst("sub")?.Value
+            //            ?? User.FindFirst("id")?.Value;
 
 
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<string>.Failure("Unauthorized", 401));
+            //if (string.IsNullOrEmpty(userId))
+            //    return Unauthorized(Response<string>.Failure("Unauthorized", 401));
 
 
-            //var userId = "b7e7f97f-8557-4d87-a486-0b9f33ab07fb"; //userId for testing
+            var userId = "b7e7f97f-8557-4d87-a486-0b9f33ab07fb"; //userId for testing
 
 
             var result = await _documentService.UploadDocumentAsync(model,userId,cancellationToken);

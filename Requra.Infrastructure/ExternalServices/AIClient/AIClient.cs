@@ -1,10 +1,11 @@
-﻿using Requra.Application.DTOs.AI;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Requra.Application.DTOs.AI;
 using Requra.Application.Interfaces.IAIService;
-using System;
-using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using static Requra.Infrastructure.Services.AnalysisRunService.AnalysisRunService;
 
 namespace Requra.Infrastructure.ExternalServices.AIClient
 {
@@ -12,22 +13,26 @@ namespace Requra.Infrastructure.ExternalServices.AIClient
     {
         private readonly HttpClient _httpClient;
 
-        public AIClient(HttpClient httpClient)
+        public AIClient(HttpClient httpClient,IConfiguration config)
         {
             _httpClient = httpClient;
+            var token = config["AI:ServiceToken"];
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+
         }
 
-        public async Task<JobStatusResponseDto> GetStatusAsync(string jobId)
-        {
-            var response = await _httpClient.GetAsync($"/status/{jobId}");
+        //public async Task<JobStatusResponseDto> GetStatusAsync(string jobId)
+        //{
+        //    var response = await _httpClient.GetAsync($"/status/{jobId}");
 
-            response.EnsureSuccessStatusCode();
+        //    response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<JobStatusResponseDto>();
+        //    var result = await response.Content.ReadFromJsonAsync<JobStatusResponseDto>();
 
-            return result!;
+        //    return result!;
         
-        }
+        //}
 
         //public async Task<ProcessJsonResponse> ProcessAsync(ProcessJsonRequest request)
         //{
@@ -88,5 +93,68 @@ namespace Requra.Infrastructure.ExternalServices.AIClient
     var result = await response.Content.ReadFromJsonAsync<ProcessJsonResponse>();
     return result?.JobId.ToString() ?? string.Empty;
 }
+
+        public async Task<ProcessResponseDto> SubmitAsync(List<FileUploadDto> files, string projectId, string? jobId)
+        {
+            var content = new MultipartFormDataContent();
+
+            //foreach (var file in files)
+            //{
+            //    content.Add(new StreamContent(file.OpenReadStream()), "files", file.FileName);
+            //}
+            foreach (var file in files)
+            {
+                var stream = new MemoryStream(file.Content);
+
+                var streamContent = new StreamContent(stream);
+                streamContent.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+
+                content.Add(streamContent, "files", file.FileName);
+            }
+
+            content.Add(new StringContent(projectId), "project_id");
+
+            if (!string.IsNullOrEmpty(jobId))
+                content.Add(new StringContent(jobId), "job_id");
+
+            var response = await _httpClient.PostAsync("internal/process", content);
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<ProcessResponseDto>();
+        }
+
+        public async Task<JobStatusResponseDto> GetStatusAsync(string jobId)
+        {
+            var response = await _httpClient.GetAsync($"internal/jobs/{jobId}");
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<JobStatusResponseDto>();
+        }
+
+        public async Task<JobResultResponseDto> GetResultAsync(string jobId)
+        {
+            var response = await _httpClient.GetAsync($"internal/jobs/{jobId}/result");
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<JobResultResponseDto>();
+        }
+
+        public async Task<CancelJobResponseDto> CancelJobAsync(string jobId)
+        {
+            var response = await _httpClient.PostAsync($"internal/jobs/{jobId}/cancel", null);
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<CancelJobResponseDto>();
+        }
+
+        public async Task<RetryJobResponseDto> RetryJobAsync(string jobId)
+        {
+            var response = await _httpClient.PostAsync($"internal/jobs/{jobId}/retry", null);
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<RetryJobResponseDto>();
+        }
     }
-}
+
+    }
