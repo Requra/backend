@@ -33,7 +33,7 @@ namespace Requra.Application.DTOs.AI
 
         // this comes as stringified JSON in your response
         [JsonPropertyName("source_refs")]
-        public string SourceRefs { get; set; } //Will be edited later it is only now for testing the working flow
+        public List<SourceRefDto> SourceRefs { get; set; } 
 
     }
 }

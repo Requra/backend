@@ -46,6 +46,7 @@ using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserSt
 using Requra.Infrastructure.Services.ProjectService.ProjectReviewService;
 using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.Services.StartupRecoveryService;
+using Requra.Infrastructure.Services.JobPollingService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
@@ -112,6 +113,7 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IProjectRepository, ProjectRepository>();
             services.AddScoped<IAnalysisRunService, AnalysisRunService>();
             services.AddScoped<IAnalysisRunWorker, AnalysisRunWorker>();
+            services.AddScoped<IJobPollingService, JobPollingService>();
             services.AddScoped<IMeetingService, MeetingService>();
             services.AddScoped<IRecordingService, RecordingService>();
             services.AddScoped<IRecordingBackgroundJobService, RecordingBackgroundJobService>();

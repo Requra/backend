@@ -9,6 +9,9 @@ namespace Requra.Domain.Enums
         QUEUED,
         PROCESSING,
         COMPLETED,
-        FAILED
+        FAILED,
+        PARTIAL,
+        REJECTED,
+        CANCELLED
     }
 }

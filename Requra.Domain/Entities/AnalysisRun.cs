@@ -19,7 +19,6 @@ namespace Requra.Domain.Entities
         public DateTime? CompletedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-
         public string? ErrorMessage { get; set; }
 
         public String? CurrentNode { get; set; } //Becomes an enum later

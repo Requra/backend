@@ -7,7 +7,8 @@ namespace Requra.Domain.Enums
     public enum DocumentType
     {
         pdf,
-        docx, 
+        docx,
+        txt,
         audio,
         live_session
 
