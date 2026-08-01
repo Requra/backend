@@ -47,7 +47,7 @@ namespace Requra.Application.DTOs.AI
         public List<string> QualityIssues { get; set; }
 
         [JsonPropertyName("warnings")]
-        public List<string> Warnings { get; set; }
+        public List<WarningDto> Warnings { get; set; }
 
         [JsonPropertyName("error")]
         public string? Error { get; set; }

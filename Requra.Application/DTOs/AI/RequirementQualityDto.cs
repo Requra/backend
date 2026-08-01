@@ -14,7 +14,7 @@ namespace Requra.Application.DTOs.AI
         public double Score { get; set; }
 
         [JsonPropertyName("warnings")]
-        public List<string> Warnings { get; set; }
+        public List<WarningDto> Warnings { get; set; }
 
         // Matches: [property: string]: any;
         [JsonExtensionData]
