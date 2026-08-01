@@ -65,7 +65,7 @@ namespace Requra.Application.DTOs.AI
         public List<UserStoryDto> UserStories { get; set; }
 
         [JsonPropertyName("warnings")]
-        public List<string> Warnings { get; set; }
+        public List<WarningDto> Warnings { get; set; }
 
         [JsonExtensionData]
         public Dictionary<string, object>? AdditionalProperties { get; set; }
