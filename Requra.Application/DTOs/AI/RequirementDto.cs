@@ -49,26 +49,11 @@ namespace Requra.Application.DTOs.AI
 
         //[JsonPropertyName("classification_confidence")]
         //public double ClassificationConfidence { get; set; }
-        [JsonPropertyName("id")]
-        public string Id { get; set; }
-
-        [JsonPropertyName("title")]
-        public string Title { get; set; }
-
-        [JsonPropertyName("description")]
-        public string Description { get; set; }
-
-        [JsonPropertyName("type")]
-        public string Type { get; set; }
+        [JsonPropertyName("actor")]
+        public string Actor { get; set; }
 
         [JsonPropertyName("category")]
         public string Category { get; set; }
-
-        [JsonPropertyName("priority")]
-        public string Priority { get; set; }
-
-        [JsonPropertyName("actor")]
-        public string Actor { get; set; }
 
         [JsonPropertyName("confidence_score")]
         public double ConfidenceScore { get; set; }
@@ -76,10 +61,28 @@ namespace Requra.Application.DTOs.AI
         [JsonPropertyName("deduplication_key")]
         public string DeduplicationKey { get; set; }
 
-        [JsonPropertyName("source_refs")]
-        public List<SourceRefDto> SourceRefs { get; set; }
+        [JsonPropertyName("description")]
+        public string Description { get; set; }
+
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("priority")]
+        public string Priority { get; set; }
 
         [JsonPropertyName("quality")]
-        public QualityDto Quality { get; set; }
+        public RequirementQualityDto Quality { get; set; }
+
+        [JsonPropertyName("source_refs")]
+        public List<RequirementSourceRefDto> SourceRefs { get; set; }
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; }
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, object>? AdditionalProperties { get; set; }
     }
 }

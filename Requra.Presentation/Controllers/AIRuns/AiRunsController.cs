@@ -77,10 +77,10 @@ namespace Requra.Presentation.Controllers.AIRuns
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<ExportsDto?>.Failure(null, "Unauthorized User", 401));
+                return Unauthorized(Response<JobResultResponseDto?>.Failure(null, "Unauthorized User", 401));
             if (!Guid.TryParse(projectId, out var projectGuid))
             {
-                return BadRequest(Response<ExportsDto>.Failure(null,
+                return BadRequest(Response<JobResultResponseDto>.Failure(null,
                     "Invalid project id format",
                     400
                 ));
@@ -91,7 +91,7 @@ namespace Requra.Presentation.Controllers.AIRuns
                {  
                 if (!Guid.TryParse(runId, out var parsedRunGuid))
                 {
-                    return BadRequest(Response<ExportsDto>.Failure(null,
+                    return BadRequest(Response<JobResultResponseDto>.Failure(null,
                         "Invalid run id format",
                         400
                     ));
