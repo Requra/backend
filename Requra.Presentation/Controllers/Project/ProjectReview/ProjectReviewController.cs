@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
+using Requra.Application.DTOs.ProjectReviewInvitaion;
 using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
 using Requra.Domain.Enums;
 using System.Security.Claims;
@@ -118,6 +120,81 @@ namespace Requra.Presentation.Controllers.Project.ProjectReview
             };
 
             var response = await _projectReviewService.ListProjectStakeholderFeedbackAsync(request, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+        [HttpGet("{token}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PreviewProjectReviewInvitation([FromRoute] string token,CancellationToken cancellationToken)
+        {
+            var request = new PreviewProjectReviewInvitationRequest
+            {
+                Token = token
+            };
+
+            var response = await _projectReviewService.PreviewProjectReviewInvitationAsync(request, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpPost("{token}/accept")]
+        [AllowAnonymous]
+        public async Task<IActionResult> AcceptProjectReviewInvitation([FromRoute] string token,[FromBody] AcceptProjectReviewInvitationAPIRequest request,CancellationToken cancellationToken)
+        {
+            var acceptRequest = new AcceptProjectReviewInvitationRequest
+            {
+                Token = token,
+                DisplayName = request.DisplayName
+            };
+
+            var response = await _projectReviewService.AcceptProjectReviewInvitationAsync(acceptRequest, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                201 => StatusCode(201, response),
+                204 => NoContent(),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [HttpGet("{token}/results-dashboard")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetProjectReviewDashboard([FromRoute] string token,CancellationToken cancellationToken)
+        {
+            var request = new GetProjectReviewDashboardRequest
+            {
+                Token = token
+            };
+
+            var response = await _projectReviewService.GetProjectReviewDashboardAsync(request, cancellationToken);
 
             return response.StatusCode switch
             {

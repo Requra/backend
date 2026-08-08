@@ -31,7 +31,7 @@ namespace Requra.Application.DTOs.ProjectReviewInvitaion
     public class ProjectReviewInvitationDto
     {
         public Guid Id { get; set; }
-        public string ProjectId { get; set; } = null!;
+        public Guid ProjectId { get; set; }
         public string StakeholderId { get; set; }
         public string Email { get; set; } = null!;
         public string DisplayName { get; set; } = null!;

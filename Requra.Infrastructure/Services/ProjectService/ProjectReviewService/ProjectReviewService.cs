@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Requra.Application.DTOs.AI;
 using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
 using Requra.Application.DTOs.ProjectReviewInvitaion;
 using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
@@ -12,6 +13,7 @@ using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 {
@@ -462,8 +464,11 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             }
         }
 
+
+
+
         //needs refactring later, Tokenservice,...etc
-        public async Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(string projectId, CreateProjectReviewInvitationRequest request, string userId)
+        public async Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(Guid projectId, CreateProjectReviewInvitationRequest request, string userId)
 
         {
             try
@@ -475,9 +480,9 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
                     return Response<List<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, errors);
                 }
-                if (string.IsNullOrWhiteSpace(projectId))
+                if (string.IsNullOrWhiteSpace(projectId.ToString()))
                     return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid projectId", 422);
-                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
 
                 if (project == null)
                     return Response<List<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
@@ -485,7 +490,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 if (string.IsNullOrWhiteSpace(userId))
                     return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
 
-                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId == projectId && pu.UserId == userId);
 
                 if (UserInProject == null)
                     return Response<List<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
@@ -645,14 +650,14 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
         }
         public async Task<Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>>
-         GetProjectReviewInvitationsAsync(string projectId, GetProjectReviewInvitationsQuery query, string userId)
+         GetProjectReviewInvitationsAsync(Guid projectId, GetProjectReviewInvitationsQuery query, string userId)
         {
 
             try
             {
-                if (string.IsNullOrWhiteSpace(projectId))
+                if (string.IsNullOrWhiteSpace(projectId.ToString()))
                     return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Invalid projectId", 422);
-                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
 
                 if (project == null)
                     return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
@@ -660,7 +665,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 if (string.IsNullOrWhiteSpace(userId))
                     return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
 
-                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId == projectId && pu.UserId == userId);
 
                 if (UserInProject == null)
                     return Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
@@ -715,7 +720,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     .Select(inv => new ProjectReviewInvitationDto
                     {
                         Id = inv.Id,
-                        ProjectId = inv.ProjectId.ToString(),
+                        ProjectId = inv.ProjectId,
                         StakeholderId = inv.StakeholderId.ToString(),
                         Email = inv.Email,
                         DisplayName = inv.DisplayName,
@@ -752,18 +757,18 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     .Failure("An error occurred while retrieving project review invitations.", 500, new List<string> { ex.Message });
             }
         }
-        public async Task<Response<ProjectReviewInvitationDto>> ResendInvitationAsync(string projectId,Guid invitationId, string ResendByUserId)
+        public async Task<Response<ProjectReviewInvitationDto>> ResendInvitationAsync(Guid projectId, Guid invitationId, string ResendByUserId)
         {
 
             try
             {
-                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
                 if (project == null)
                     return Response<ProjectReviewInvitationDto>.Failure("Project not found.", 404);
                 if (string.IsNullOrWhiteSpace(ResendByUserId))
                     return Response<ProjectReviewInvitationDto>.Failure("Validation failed", 422, new List<string> { "Invalid userId" });
 
-                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == ResendByUserId);
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId == projectId && pu.UserId == ResendByUserId);
 
                 if (UserInProject == null)
                     return Response<ProjectReviewInvitationDto>.Failure("User is not a member of this project", 403);
@@ -824,7 +829,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 var dto = new ProjectReviewInvitationDto
                 {
                     Id = invitation.Id,
-                    ProjectId = invitation.ProjectId.ToString(),
+                    ProjectId = invitation.ProjectId,
                     StakeholderId = invitation.StakeholderId?.ToString(),
                     Email = invitation.Email,
                     DisplayName = invitation.DisplayName,
@@ -853,19 +858,19 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             }
         }
 
-        public async Task<Response<RevokeInvitationResponseDto>> RevokeInvitationAsync(string projectId,Guid invitationId,string userId)
+        public async Task<Response<RevokeInvitationResponseDto>> RevokeInvitationAsync(Guid projectId, Guid invitationId, string userId)
         {
 
             try
             {
-                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id.ToString() == projectId);
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
                 if (project == null)
                     return Response<RevokeInvitationResponseDto>.Failure("Project not found.", 404);
                 if (string.IsNullOrWhiteSpace(userId))
                     return Response<RevokeInvitationResponseDto>.Failure("Validation failed", 422, new List<string> { "Invalid userId" });
 
                 //should apply later which role can revoke invitation PM,BA...etc
-                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId.ToString() == projectId && pu.UserId == userId);
+                var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId == projectId && pu.UserId == userId);
 
                 if (UserInProject == null)
                     return Response<RevokeInvitationResponseDto>.Failure("User is not a member of this project, Don't have permission to revoke invitation", 403);
@@ -920,6 +925,343 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             catch(Exception ex) {
                 logger.LogError(ex, "An error occurred while revoking project review invitation.");
                 return Response<RevokeInvitationResponseDto>.Failure("An error occurred while revoking project review invitation.", 500, new List<string> { ex.Message });
+            }
+        }
+
+
+
+
+        public async Task<Response<PreviewProjectReviewInvitationResponse>> PreviewProjectReviewInvitationAsync(PreviewProjectReviewInvitationRequest request,CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Token))
+                errors.Add("Token is required.");
+
+            if (errors.Any())
+            {
+                return Response<PreviewProjectReviewInvitationResponse>.Failure(new PreviewProjectReviewInvitationResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+            }
+
+            try
+            {
+                var invitation = await _context.ProjectReviewInvitations.AsNoTracking().FirstOrDefaultAsync(x => x.ReviewToken == request.Token, cancellationToken);
+
+                if (invitation == null)
+                {
+                    return Response<PreviewProjectReviewInvitationResponse>.Failure(new PreviewProjectReviewInvitationResponse(),"Invitation not found.",StatusCodes.Status404NotFound);
+                }
+
+                if (invitation.Status == InvitationStatus.Revoked || invitation.RevokedAt.HasValue)
+                {
+                    return Response<PreviewProjectReviewInvitationResponse>.Failure(
+                        new PreviewProjectReviewInvitationResponse
+                        {
+                            ProjectId = invitation.ProjectId,
+                            StakeholderEmail = invitation.Email,
+                            StakeholderDisplayName = invitation.DisplayName,
+                            Permission = invitation.Permission,
+                            Status = InvitationStatus.Revoked,
+                            ExpiresAt = invitation.ExpiresAt,
+                            AcceptedAt = invitation.AcceptedAt
+                        },
+                        "Invitation has been revoked.",
+                        StatusCodes.Status409Conflict);
+                }
+
+                if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < DateTime.UtcNow)
+                {
+                    return Response<PreviewProjectReviewInvitationResponse>.Failure(
+                        new PreviewProjectReviewInvitationResponse
+                        {
+                            ProjectId = invitation.ProjectId,
+                            StakeholderEmail = invitation.Email,
+                            StakeholderDisplayName = invitation.DisplayName,
+                            Permission = invitation.Permission,
+                            Status = InvitationStatus.Expired,
+                            ExpiresAt = invitation.ExpiresAt,
+                            AcceptedAt = invitation.AcceptedAt
+                        },
+                        "Invitation has expired.",
+                        StatusCodes.Status409Conflict);
+                }
+
+                var project = await _context.Projects
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == invitation.ProjectId, cancellationToken);
+
+                if (project == null)
+                {
+                    return Response<PreviewProjectReviewInvitationResponse>.Failure(new PreviewProjectReviewInvitationResponse(),"Project not found.",StatusCodes.Status404NotFound);
+                }
+
+                var response = new PreviewProjectReviewInvitationResponse
+                {
+                    ProjectId = invitation.ProjectId,
+                    ProjectName = project.Name,
+                    StakeholderEmail = invitation.Email,
+                    StakeholderDisplayName = invitation.DisplayName,
+                    Permission = invitation.Permission,
+                    Status = invitation.Status,
+                    ExpiresAt = invitation.ExpiresAt,
+                    AcceptedAt = invitation.AcceptedAt
+                };
+
+                return Response<PreviewProjectReviewInvitationResponse>.Success(response,"Invitation preview retrieved successfully.",StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                return Response<PreviewProjectReviewInvitationResponse>.Failure(
+                    new PreviewProjectReviewInvitationResponse(),
+                    "An unexpected error occurred while retrieving the invitation preview.",
+                    StatusCodes.Status500InternalServerError,
+                    new List<string> { ex.Message });
+            }
+        }
+        public async Task<Response<AcceptProjectReviewInvitationResponse>> AcceptProjectReviewInvitationAsync(AcceptProjectReviewInvitationRequest request,CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Token))
+                errors.Add("Token is required.");
+
+            if (!string.IsNullOrWhiteSpace(request.DisplayName))
+            {
+                if (request.DisplayName.Trim().Length < 2)
+                    errors.Add("DisplayName must be at least 2 characters.");
+
+                if (request.DisplayName.Trim().Length > 120)
+                    errors.Add("DisplayName must not exceed 120 characters.");
+            }
+
+            if (errors.Any())
+            {
+                return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+            }
+
+            try
+            {
+                var invitation = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(x => x.ReviewToken == request.Token, cancellationToken);
+
+                if (invitation == null)
+                {
+                    return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(),"Invitation not found.",StatusCodes.Status404NotFound);
+                }
+
+                if (invitation.Status == InvitationStatus.Revoked || invitation.RevokedAt.HasValue)
+                {
+                    return Response<AcceptProjectReviewInvitationResponse>.Failure(
+                        new AcceptProjectReviewInvitationResponse
+                        {
+                            ProjectId = invitation.ProjectId,
+                            AccessId = invitation.ReviewToken,
+                            Permission = invitation.Permission,
+                            Status = InvitationStatus.Revoked,
+                            AcceptedAt = invitation.AcceptedAt
+                        },
+                        "Invitation has been revoked.",
+                        StatusCodes.Status409Conflict);
+                }
+
+                if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < DateTime.UtcNow)
+                {
+                    invitation.Status = InvitationStatus.Expired;
+                    invitation.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    return Response<AcceptProjectReviewInvitationResponse>.Failure(
+                        new AcceptProjectReviewInvitationResponse
+                        {
+                            ProjectId = invitation.ProjectId,
+                            AccessId = invitation.ReviewToken,
+                            Permission = invitation.Permission,
+                            Status = InvitationStatus.Expired ,
+                            AcceptedAt = invitation.AcceptedAt
+                        },
+                        "Invitation has expired.",
+                        StatusCodes.Status409Conflict);
+                }
+
+                if (invitation.Status == InvitationStatus.Accepted)
+                {
+                    var alreadyAcceptedResponse = new AcceptProjectReviewInvitationResponse
+                    {
+                        ProjectId = invitation.ProjectId,
+                        AccessId = invitation.ReviewToken,
+                        Permission = invitation.Permission,
+                        Status = InvitationStatus.Accepted,
+                        AcceptedAt = invitation.AcceptedAt
+                    };
+
+                    return Response<AcceptProjectReviewInvitationResponse>.Success(alreadyAcceptedResponse,"Invitation already accepted.",StatusCodes.Status200OK);
+                }
+
+                invitation.Accept(request.DisplayName?.Trim());
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var response = new AcceptProjectReviewInvitationResponse
+                {
+                    ProjectId = invitation.ProjectId,
+                    AccessId = invitation.ReviewToken,
+                    Permission = invitation.Permission,
+                    Status = InvitationStatus.Accepted,
+                    AcceptedAt = invitation.AcceptedAt
+                };
+
+                return Response<AcceptProjectReviewInvitationResponse>.Success(response,"Invitation accepted successfully.",
+                    StatusCodes.Status200OK);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(),"A concurrency error occurred while accepting the invitation.",StatusCodes.Status409Conflict,new List<string> { ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(),"A database error occurred while accepting the invitation.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(),"An unexpected error occurred while accepting the invitation.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+            }
+        }
+        public async Task<Response<GetProjectReviewDashboardResponse>> GetProjectReviewDashboardAsync(GetProjectReviewDashboardRequest request,CancellationToken cancellationToken = default)
+        {
+            var errors = new List<string>();
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Token))
+                errors.Add("Token is required.");
+
+            if (errors.Any())
+            {
+                return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Validation failed.",StatusCodes.Status400BadRequest,errors);
+            }
+
+            try
+            {
+                var invitation = await _context.Set<ProjectReviewInvitation>()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ReviewToken == request.Token, cancellationToken);
+
+                if (invitation == null)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation not found.",StatusCodes.Status404NotFound);
+                }
+
+                if (invitation.Status == InvitationStatus.Revoked || invitation.RevokedAt.HasValue)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation has been revoked.",StatusCodes.Status409Conflict);
+                }
+
+                if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < DateTime.UtcNow)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation has expired.",StatusCodes.Status409Conflict);
+                }
+
+                var project = await _context.Projects
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == invitation.ProjectId, cancellationToken);
+
+                if (project == null)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Project not found.",StatusCodes.Status404NotFound);
+                }
+
+                var analysisRun = await _context.AnalysisRuns
+                    .AsNoTracking()
+                    .Where(x => x.ProjectId== invitation.ProjectId && (x.Status == AnalysisRunStatus.COMPLETED|| x.Status == AnalysisRunStatus.PARTIAL))
+                    .OrderByDescending(x => x.CompletedAt ?? x.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (analysisRun == null)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"No completed analysis run found for this project.",StatusCodes.Status404NotFound);
+                }
+
+                var analysisResult = await _context.AnalysisResults
+                    .AsNoTracking()
+                    .Where(x => x.AnalysisRunId == analysisRun.Id)
+                    .OrderByDescending(x => x.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (analysisResult == null || string.IsNullOrWhiteSpace(analysisResult.RawJson))
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Analysis result not found.",StatusCodes.Status404NotFound);
+                }
+
+                ProjectReviewDashboardRawResultDto? rawResult;
+
+                try
+                {
+                    rawResult = JsonSerializer.Deserialize<ProjectReviewDashboardRawResultDto>(
+                        analysisResult.RawJson,
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+                }
+                catch (Exception ex)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Failed to parse analysis result JSON.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
+                }
+
+                if (rawResult == null)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Analysis result payload is empty or invalid.",StatusCodes.Status500InternalServerError);
+                }
+
+                var response = new GetProjectReviewDashboardResponse
+                {
+                    ProjectId = invitation.ProjectId,
+                    ProjectName = project.Name,
+                    AnalysisRunId = analysisRun.Id,
+                    GeneratedAt = analysisResult.CreatedAt,
+                    Permission = invitation.Permission,
+                    Summary = new ProjectReviewDashboardSummaryDto
+                    {
+                        ExecutiveSummary = rawResult.Summary?.ExecutiveSummary,
+                        KeyDecisions = rawResult.Summary?.KeyDecisions ?? new List<string>(),
+                        OpenQuestions = rawResult.Summary?.OpenQuestions ?? new List<string>(),
+                        Risks = rawResult.Summary?.Risks ?? new List<string>(),
+                        Assumptions = rawResult.Summary?.Assumptions ?? new List<string>(),
+                        Scope = rawResult.Summary?.Scope ?? new List<string>(),
+                        OutOfScope = rawResult.Summary?.OutOfScope ?? new List<string>()
+                    },
+                    Requirements = rawResult.Requirements?
+                        .Select(x => new ProjectReviewDashboardRequirementDto
+                        {
+                            Id = x.Id,
+                            RequirementId = x.Id,
+                            Title = x.Title,
+                            Description = x.Description,
+                            Classification = x.Type,
+                            Priority = x.Priority,
+                            ConfidenceScore = x.ConfidenceScore
+                        })
+                        .ToList() ?? new List<ProjectReviewDashboardRequirementDto>(),
+                    UserStories = rawResult.UserStories?
+                        .Select(x => new ProjectReviewDashboardUserStoryDto
+                        {
+                            Id = x.Id,
+                            StoryId = x.Id,
+                            Title = x.Title,
+                            Description = x.Title,
+                            UserStory = x.UserStory,
+                            AcceptanceCriteria = x.AcceptanceCriteria?
+                                .Select(ac => ac.Text)
+                                .ToList() ?? new List<string>(),
+                            Priority = x.Priority,
+                            RequirementId = x.RequirementId,
+                            Classification = x.Type
+                        })
+                        .ToList() ?? new List<ProjectReviewDashboardUserStoryDto>()
+                };
+
+                return Response<GetProjectReviewDashboardResponse>.Success(response,"Project review dashboard retrieved successfully.",StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"An unexpected error occurred while retrieving the project review dashboard.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
             }
         }
     }
