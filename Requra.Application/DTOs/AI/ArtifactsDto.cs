@@ -9,5 +9,8 @@ namespace Requra.Application.DTOs.AI
     {
         [JsonPropertyName("excel_file")]
         public ExcelFileDto ExcelFile { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, object>? AdditionalProperties { get; set; }
     }
 }

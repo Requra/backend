@@ -14,10 +14,34 @@ namespace Requra.Application.DTOs.AI
     //}
     public class SummaryDto
     {
+        [JsonPropertyName("action_items")]
+        public List<string> ActionItems { get; set; }
+
+        [JsonPropertyName("assumptions")]
+        public List<string> Assumptions { get; set; }
+
         [JsonPropertyName("executive_summary")]
         public string ExecutiveSummary { get; set; }
 
+        [JsonPropertyName("key_decisions")]
+        public List<string> KeyDecisions { get; set; }
+
+        [JsonPropertyName("open_questions")]
+        public List<string> OpenQuestions { get; set; }
+
+        [JsonPropertyName("out_of_scope")]
+        public List<string> OutOfScope { get; set; }
+
+        [JsonPropertyName("risks")]
+        public List<string> Risks { get; set; }
+
         [JsonPropertyName("scope")]
         public List<string> Scope { get; set; }
+
+        [JsonPropertyName("stakeholders")]
+        public List<string> Stakeholders { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, object>? AdditionalProperties { get; set; }
     }
 }

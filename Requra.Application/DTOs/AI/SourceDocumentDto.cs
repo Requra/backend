@@ -33,19 +33,22 @@ namespace Requra.Application.DTOs.AI
         //[JsonPropertyName("mime_type")]
         //public string? MimeType { get; set; }
 
-        [JsonPropertyName("source_id")]
-        public string SourceId { get; set; }
-
-        [JsonPropertyName("source_type")]
-        public string SourceType { get; set; }
-
         [JsonPropertyName("file_name")]
-        public string FileName { get; set; }
-
-        [JsonPropertyName("mime_type")]
-        public string MimeType { get; set; }
+        public string? FileName { get; set; }
 
         [JsonPropertyName("language")]
-        public string Language { get; set; }
+        public string? Language { get; set; }
+
+        [JsonPropertyName("mime_type")]
+        public string? MimeType { get; set; }
+
+        [JsonPropertyName("source_id")]
+        public string? SourceId { get; set; }
+
+        [JsonPropertyName("source_type")]
+        public string? SourceType { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, object>? AdditionalProperties { get; set; }
     }
 }
