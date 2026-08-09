@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs.AI;
 using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
@@ -537,7 +538,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
                             Status = InvitationStatus.Pending,
-                            ReviewUrl = $"https://app.requra.ai/project-review/{rawToken}",//Url will be edited later 
+                            ReviewUrl = $"http://localhost:5173/project-review/{rawToken}",//Url will be edited later 
                             ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
                             InvitedById = userId,
                             CreatedAt = DateTime.UtcNow,

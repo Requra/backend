@@ -887,7 +887,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                             meetingRole: invitation.Role.ToString().ToUpper(),
                             scheduledAt: meeting.ScheduledAt,
                             expiresAt: invitation.ExpiresAt,
-                            meetingUrl: $"http://localhost:5173/project-review/{invitation.InviteToken}",
+                            meetingUrl: $"http://localhost:5173/invite/{invitation.InviteToken}",
                             invitedByName: currentUser.FullName ?? currentUser.UserName ?? "Requra Team",
                             meetingDescription: meeting.Description,
                             isGuest: true);
