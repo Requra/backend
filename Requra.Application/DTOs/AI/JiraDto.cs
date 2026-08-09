@@ -5,22 +5,19 @@ using System.Text.Json.Serialization;
 
 namespace Requra.Application.DTOs.AI
 {
-    public class ExcelFileDto
+    public class JiraDto
     {
         [JsonPropertyName("available")]
         public bool Available { get; set; }
 
-        [JsonPropertyName("file_name")]
-        public string FileName { get; set; }
+        [JsonPropertyName("issue_type")]
+        public string IssueType { get; set; }
 
-        [JsonPropertyName("file_url")]
-        public string FileUrl { get; set; }
-
-        [JsonPropertyName("mime_type")]
-        public string MimeType { get; set; }
+        [JsonPropertyName("rows")]
+        public List<JiraRowDto> Rows { get; set; }
 
         [JsonExtensionData]
         public Dictionary<string, object>? AdditionalProperties { get; set; }
-
     }
+
 }

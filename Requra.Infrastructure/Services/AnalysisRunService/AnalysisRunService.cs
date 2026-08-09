@@ -247,15 +247,15 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
         }
 
-        public async Task<Response<ExportsDto?>> GetResultAsync(Guid projectId, Guid? runId, string userId)
+        public async Task<Response<JobResultResponseDto?>> GetResultAsync(Guid projectId, Guid? runId, string userId)
         {
             var project = await dbContext.Projects.FindAsync(projectId);
             if (project == null)
-                return Response<ExportsDto?>.Failure(new(), "Project not found.", 404);
+                return Response<JobResultResponseDto?>.Failure(new(), "Project not found.", 404);
 
             var isMember = await dbContext.ProjectMembers.AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
             if (!isMember)
-                return Response<ExportsDto?>.Failure(null, "You are not allowed to access this project or Get its AI results.", 403);
+                return Response<JobResultResponseDto?>.Failure(null, "You are not allowed to access this project or Get its AI results.", 403);
 
             AnalysisRun? run;
 
@@ -274,15 +274,15 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             }
 
             if (run == null)
-                return Response<ExportsDto?>.Failure(new(), "Run not found.", 404);
+                return Response<JobResultResponseDto?>.Failure(new(), "Run not found.", 404);
 
             if (run.ProjectId != projectId)
-                return Response<ExportsDto?>.Failure(new(), "Run does not belong to the specified project.", 400);
+                return Response<JobResultResponseDto?>.Failure(new(), "Run does not belong to the specified project.", 400);
 
             if (run.Status == AnalysisRunStatus.QUEUED ||
                 run.Status == AnalysisRunStatus.PROCESSING)
             {
-                return Response<ExportsDto?>.Success(
+                return Response<JobResultResponseDto?>.Success(
                     new(),
                     "Result is not ready yet."
                 );
@@ -290,7 +290,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
             if (run.Status == AnalysisRunStatus.FAILED)
             {
-                return Response<ExportsDto?>.Failure(
+                return Response<JobResultResponseDto?>.Failure(
                     new(),
                     run.ErrorMessage ?? "Analysis failed.",
                     200
@@ -302,29 +302,29 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
             if (result == null)
             {
-                return Response<ExportsDto?>.Failure(
+                return Response<JobResultResponseDto?>.Failure(
                     new(),
                     "Run completed but result is missing.",
                     500
                 );
             }
 
-            ExportsDto aiData;
+            JobResultResponseDto aiData;
 
             try
             {
-                aiData = JsonSerializer.Deserialize<ExportsDto>(result.RawJson);
+                aiData = JsonSerializer.Deserialize<JobResultResponseDto>(result.RawJson);
             }
             catch
             {
-                return Response<ExportsDto?>.Failure(
+                return Response<JobResultResponseDto?>.Failure(
                     new(),
                     "Invalid AI JSON format",
                     500
                 );
             }
 
-            return Response<ExportsDto>.Success(
+            return Response<JobResultResponseDto?>.Success(
                 aiData,
                 "Results retrieved successfully"
             );

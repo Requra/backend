@@ -55,7 +55,7 @@ namespace Requra.Infrastructure.Services.JobPollingService
                         db.AnalysisResults.Add(new AnalysisResult
                         {
                             AnalysisRunId = runId,
-                            RawJson = JsonSerializer.Serialize(result.Exports),
+                            RawJson = JsonSerializer.Serialize(result),
                             CreatedAt = DateTime.UtcNow
                         });
                         run.UpdateAnalysis(

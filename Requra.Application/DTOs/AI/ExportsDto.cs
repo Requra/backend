@@ -7,12 +7,13 @@ namespace Requra.Application.DTOs.AI
 {
     public class ExportsDto
     {
-       
+       [JsonPropertyName("excel")]
+    public ExcelExportDto Excel { get; set; }
 
-        [JsonPropertyName("jira")]
-        public JiraExportDto Jira { get; set; }
+    [JsonPropertyName("jira")]
+    public JiraExportDto Jira { get; set; }
 
-        [JsonPropertyName("excel")]
-        public ExcelExportDto Excel { get; set; }
+    [JsonExtensionData]
+    public Dictionary<string, object>? AdditionalProperties { get; set; }
     }
 }
