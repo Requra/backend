@@ -9,7 +9,7 @@ namespace Requra.Domain.Entities
     {
         public Guid Id { get; set; }
 
-        public string ProjectId { get; set; }
+        public Guid ProjectId { get; set; }
         public string StakeholderId { get; set; }
 
         public string Email { get; set; }
@@ -34,6 +34,9 @@ namespace Requra.Domain.Entities
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 
+        public Project? Project  { get; private set; } = null!;
+        public ApplicationUser InvitedBy { get; private set; } = null!;
+
         public void UpdateProjectReviewInvitation(string ReviewToken, string ReviewUrl , DateTime ExpiresAt)
         {
             this.ReviewToken = ReviewToken;
@@ -47,6 +50,16 @@ namespace Requra.Domain.Entities
             this.RevokedAt = DateTime.UtcNow;
             this.UpdatedAt = DateTime.UtcNow;
             this.ReviewUrl = string.Empty;
+        }
+
+        public void Accept(string? displayName = null)
+        {
+            Status = InvitationStatus.Accepted;
+            AcceptedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(displayName))
+                DisplayName = displayName;
         }
 
     }

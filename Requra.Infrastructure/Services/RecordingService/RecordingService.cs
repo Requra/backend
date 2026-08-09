@@ -686,8 +686,8 @@ namespace Requra.Infrastructure.Services.RecordingService
                 errors.Add("CreatedById is required.");
 
 
-            if (request.UploadMode != RecordingUploadMode.Chunked )
-                errors.Add("ExpectedUploadMode is invalid.");
+            //if (request.UploadMode != RecordingUploadMode.Chunked )
+            //    errors.Add("ExpectedUploadMode is invalid.");
 
             return errors;
         }

@@ -14,13 +14,16 @@ namespace Requra.Application.Interfaces.IProjectService.IProjectReviewService
         Task<Response<ListStakeholderFeedbackResponse>> ListStakeholderFeedbackAsync(ListStakeholderFeedbackRequest request, CancellationToken cancellationToken = default);
         Task<Response<SubmitStakeholderFeedbackResponse>> UpdateStakeholderFeedbackStatusAsync(UpdateStakeholderFeedbackStatusRequest request, CancellationToken cancellationToken = default);
         Task<Response<ListStakeholderFeedbackResponse>> ListProjectStakeholderFeedbackAsync(ListProjectStakeholderFeedbackRequest request, CancellationToken cancellationToken = default);
-        Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(string projectId,CreateProjectReviewInvitationRequest request,string userId);
+        Task<Response<List<ProjectReviewInvitationDto>>> CreateInvitationAsync(Guid projectId,CreateProjectReviewInvitationRequest request,string userId);
         Task<Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>> GetProjectReviewInvitationsAsync(
-        string projectId,
+        Guid projectId,
         GetProjectReviewInvitationsQuery query,
         string userId);
 
-        Task<Response<ProjectReviewInvitationDto>> ResendInvitationAsync(string projectId, Guid invitationId, string ResendByUserId);
-        Task<Response<RevokeInvitationResponseDto>> RevokeInvitationAsync(string projectId, Guid invitationId, string userId);
+        Task<Response<ProjectReviewInvitationDto>> ResendInvitationAsync(Guid projectId, Guid invitationId, string ResendByUserId);
+        Task<Response<RevokeInvitationResponseDto>> RevokeInvitationAsync(Guid projectId, Guid invitationId, string userId);
+        Task<Response<PreviewProjectReviewInvitationResponse>> PreviewProjectReviewInvitationAsync(PreviewProjectReviewInvitationRequest request, CancellationToken cancellationToken = default);
+        Task<Response<AcceptProjectReviewInvitationResponse>> AcceptProjectReviewInvitationAsync(AcceptProjectReviewInvitationRequest request, CancellationToken cancellationToken = default);
+        Task<Response<GetProjectReviewDashboardResponse>> GetProjectReviewDashboardAsync(GetProjectReviewDashboardRequest request, CancellationToken cancellationToken = default);
     }
 }

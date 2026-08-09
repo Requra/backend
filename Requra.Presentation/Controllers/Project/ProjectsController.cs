@@ -183,7 +183,7 @@ namespace Requra.API.Controllers
         }
 
         [HttpPost("{projectId}/review-invitations")]
-        public async Task<IActionResult> Create(string projectId,[FromBody] CreateProjectReviewInvitationRequest request)
+        public async Task<IActionResult> Create(Guid projectId,[FromBody] CreateProjectReviewInvitationRequest request)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -191,11 +191,11 @@ namespace Requra.API.Controllers
 
             //var userId = "18a8c6c8-4a2e-4aa7-8e3b-0c67964cb02f"; // Hardcoded userId for testing purposes
 
-            if (!Guid.TryParse(projectId, out var Projectguid))
-            {
-                return StatusCode(422, Response<List<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+            //if (!Guid.TryParse(projectId, out var Projectguid))
+            //{
+            //    return StatusCode(422, Response<List<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
 
-            }
+            //}
 
             var response = await _projectReviewService.CreateInvitationAsync(projectId, request, userId);
 
@@ -203,7 +203,7 @@ namespace Requra.API.Controllers
         }
 
         [HttpGet("{projectId}/review-invitations")]
-        public async Task<IActionResult> GetProjectReviewInvitations(string projectId,[FromQuery] GetProjectReviewInvitationsQuery query)
+        public async Task<IActionResult> GetProjectReviewInvitations(Guid projectId,[FromQuery] GetProjectReviewInvitationsQuery query)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -211,17 +211,17 @@ namespace Requra.API.Controllers
                 return Unauthorized(Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure(null, "Unauthorized User", 401));
 
             //var userId = "18a8c6c8-4a2e-4aa7-8e3b-0c67964cb02f"; // Hardcoded userId for testing purposes
-            if (!Guid.TryParse(projectId, out var projectguid))
-            {
-                return StatusCode(422, Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
-            }
+            //if (!Guid.TryParse(projectId, out var projectguid))
+            //{
+            //    return StatusCode(422, Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+            //}
 
             var response = await _projectReviewService.GetProjectReviewInvitationsAsync(projectId, query, userId);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpPost("{projectId}/review-invitations/{invitationId}/resend")]
-        public async Task<IActionResult> ResendInvitation(string projectId,string invitationId)
+        public async Task<IActionResult> ResendInvitation(Guid projectId,string invitationId)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -234,17 +234,17 @@ namespace Requra.API.Controllers
                 return StatusCode(422, Response<ProjectReviewInvitationDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid invitationId format" }));
 
             }
-            if(!Guid.TryParse(projectId, out var projectguid))
-            {
-                return StatusCode(422, Response<ProjectReviewInvitationDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
-            }
+            //if(!Guid.TryParse(projectId, out var projectguid))
+            //{
+            //    return StatusCode(422, Response<ProjectReviewInvitationDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+            //}
 
             var response = await _projectReviewService.ResendInvitationAsync(projectId, invitationguid, userId);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpDelete("{projectId}/review-invitations/{invitationId}")]
-        public async Task<IActionResult> RevokeInvitation(string projectId,string invitationId)
+        public async Task<IActionResult> RevokeInvitation(Guid projectId,string invitationId)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -256,10 +256,10 @@ namespace Requra.API.Controllers
                 return StatusCode(422, Response<RevokeInvitationResponseDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid invitationId format" }));
 
             }
-            if (!Guid.TryParse(projectId, out var projectguid))
-            {
-                return StatusCode(422, Response<RevokeInvitationResponseDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
-            }
+            //if (!Guid.TryParse(projectId, out var projectguid))
+            //{
+            //    return StatusCode(422, Response<RevokeInvitationResponseDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid projectId format" }));
+            //}
             var response = await _projectReviewService.RevokeInvitationAsync(projectId, invitationguid, userId);
             return StatusCode(response.StatusCode, response);
         }
