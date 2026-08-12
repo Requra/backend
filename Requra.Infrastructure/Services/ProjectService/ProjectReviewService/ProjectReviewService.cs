@@ -122,24 +122,15 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             StatusCodes.Status400BadRequest);
                 }
 
-                var invitation = await _context.ProjectReviewInvitations
-            .FirstOrDefaultAsync(
-                x =>
-                    x.ProjectId == projectId &&
-                    x.StakeholderId == request.CurrentUserId &&
-                    x.Status == InvitationStatus.Accepted &&
-                    x.ExpiresAt > DateTime.UtcNow,
-                cancellationToken);
+                var invitation = await FindAuthorizedCommenterInvitationAsync(
+                    projectId,
+                    request.CurrentUserId,
+                    author.Email,
+                    cancellationToken);
 
                 if (invitation is null)
                 {
                     return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"You are not authorized to submit feedback for this project.",StatusCodes.Status403Forbidden);
-                }
-
-
-                if (invitation.Permission != ProjectReviewPermission.COMMENTER)
-                {
-                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"You do not have permission to submit feedback.",StatusCodes.Status403Forbidden);
                 }
 
                 var feedback = new Comment(
@@ -220,16 +211,25 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 {
                     return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "project context is missing.", StatusCodes.Status401Unauthorized);
                 }
-                var invitation = await _context.ProjectReviewInvitations
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                x =>
-                    x.ProjectId == projectId &&
-                    x.StakeholderId == request.AuthorId &&
-                    x.Status == InvitationStatus.Accepted &&
-                    x.Permission == ProjectReviewPermission.COMMENTER &&
-                    x.ExpiresAt > DateTime.UtcNow,
-                cancellationToken);
+                if (string.IsNullOrWhiteSpace(request.AuthorId))
+                {
+                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Current user is not authenticated.", StatusCodes.Status401Unauthorized);
+                }
+
+                var author = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.AuthorId, cancellationToken);
+
+                if (author is null)
+                {
+                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Author not found.", StatusCodes.Status404NotFound);
+                }
+
+                var invitation = await FindAuthorizedCommenterInvitationAsync(
+                    projectId,
+                    request.AuthorId,
+                    author.Email,
+                    cancellationToken);
 
                 if (invitation is null)
                 {
@@ -317,8 +317,12 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             if (request.FeedbackId == Guid.Empty)
                 errors.Add("FeedbackId is required.");
 
-            if (!Enum.IsDefined(typeof(StakeholderFeedbackStatus), request.Status))
+            if (request.Status.HasValue &&
+                !Enum.IsDefined(typeof(StakeholderFeedbackStatus), request.Status.Value))
                 errors.Add("Status is invalid.");
+
+            if (!request.Status.HasValue && !request.IsRead.HasValue)
+                errors.Add("Status or IsRead is required.");
 
             if (!string.IsNullOrWhiteSpace(request.ResolutionNote) && request.ResolutionNote.Length > 2000)
                 errors.Add("ResolutionNote must not exceed 2000 characters.");
@@ -335,6 +339,18 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             try
             {
+                var isAuthorized = await IsProjectFeedbackManagerAsync(
+                    request.ProjectId,
+                    request.UserId,
+                    cancellationToken);
+
+                if (!isAuthorized)
+                {
+                    return Response<SubmitStakeholderFeedbackResponse>.Failure(
+                        new SubmitStakeholderFeedbackResponse(),
+                        "You are not authorized to update feedback for this project.",
+                        StatusCodes.Status403Forbidden);
+                }
 
                 var feedback = await _context.Comments
                     .Include(x => x.Author)
@@ -420,6 +436,14 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Validation failed.", StatusCodes.Status400BadRequest, errors);
             }
 
+            if (string.IsNullOrWhiteSpace(request.UserId))
+            {
+                return Response<ListStakeholderFeedbackResponse>.Failure(
+                    new ListStakeholderFeedbackResponse(),
+                    "Current user is not authenticated.",
+                    StatusCodes.Status401Unauthorized);
+            }
+
             try
             {
                 var projectExists = await _context.Projects
@@ -431,22 +455,18 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Project not found.", StatusCodes.Status404NotFound);
                 }
 
-                //var isAuthorized = await _context.ProjectMembers
-                //    .AsNoTracking()
-                //    .AnyAsync(
-                //        x =>
-                //        x.ProjectId == request.ProjectId &&
-                //        x.UserId == request.userid &&
-                //        (
-                //            x.Role == ProjectRole.Owner ||
-                //            x.Role == ProjectRole.Contributor
-                //        ),
-                //cancellationToken);
+                var isAuthorized = await IsProjectFeedbackManagerAsync(
+                    request.ProjectId,
+                    request.UserId,
+                    cancellationToken);
 
-                //if (!isAuthorized)
-                //{
-                //    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"You are not authorized to access feedback for this project.",StatusCodes.Status403Forbidden);
-                //}
+                if (!isAuthorized)
+                {
+                    return Response<ListStakeholderFeedbackResponse>.Failure(
+                        new ListStakeholderFeedbackResponse(),
+                        "You are not authorized to access feedback for this project.",
+                        StatusCodes.Status403Forbidden);
+                }
 
                 var query = _context.Comments
                     .AsNoTracking()
@@ -638,7 +658,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         {
                             Id = Guid.NewGuid(),
                             ProjectId = projectId,
-                            StakeholderId = Guid.NewGuid().ToString(),
+                            StakeholderId = null,
                             Email = s.Email,
                             DisplayName = s.DisplayName,
                             RoleTitle = s.RoleTitle,
@@ -681,7 +701,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 {
                     Id = inv.Id,
                     ProjectId = inv.ProjectId,
-                    StakeholderId = inv.StakeholderId.ToString(),
+                    StakeholderId = inv.StakeholderId,
                     Email = inv.Email,
                     DisplayName = inv.DisplayName,
                     RoleTitle = inv.RoleTitle,
@@ -779,7 +799,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     {
                         Id = inv.Id,
                         ProjectId = inv.ProjectId,
-                        StakeholderId = inv.StakeholderId.ToString(),
+                        StakeholderId = inv.StakeholderId,
                         Email = inv.Email,
                         DisplayName = inv.DisplayName,
                         Permission = inv.Permission,
@@ -1103,7 +1123,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             {
                 var hashedToken = HashToken(request.Token);
 
-                var invitation = await _context.ProjectReviewInvitations.AsNoTracking().FirstOrDefaultAsync(x => x.ReviewToken == hashedToken,cancellationToken);
+                var invitation = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(x => x.ReviewToken == hashedToken,cancellationToken);
 
                 if (invitation == null)
                 {
@@ -1215,9 +1235,15 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                     return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation has been revoked.",StatusCodes.Status409Conflict);
                 }
 
-                if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < DateTime.UtcNow)
+                if (invitation.Status == InvitationStatus.Expired ||
+                    (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < DateTime.UtcNow))
                 {
                     return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation has expired.",StatusCodes.Status409Conflict);
+                }
+
+                if (invitation.Status != InvitationStatus.Accepted)
+                {
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation must be accepted before accessing the dashboard.",StatusCodes.Status403Forbidden);
                 }
 
                 var project = await _context.Projects
@@ -1347,6 +1373,78 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             return WebEncoders.Base64UrlEncode(
                 SHA256.HashData(tokenBytes)
             );
+        }
+
+        private async Task<ProjectReviewInvitation?> FindAuthorizedCommenterInvitationAsync(
+            Guid projectId,
+            string currentUserId,
+            string? currentUserEmail,
+            CancellationToken cancellationToken)
+        {
+            var now = DateTime.UtcNow;
+            var candidates = await _context.ProjectReviewInvitations
+                .Where(x =>
+                    x.ProjectId == projectId &&
+                    x.Status == InvitationStatus.Accepted &&
+                    x.Permission == ProjectReviewPermission.COMMENTER &&
+                    (!x.ExpiresAt.HasValue || x.ExpiresAt.Value > now))
+                .OrderByDescending(x => x.AcceptedAt ?? x.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            var invitation = candidates.FirstOrDefault(x => x.StakeholderId == currentUserId);
+            if (invitation is not null)
+            {
+                return invitation;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentUserEmail))
+            {
+                return null;
+            }
+
+            invitation = candidates.FirstOrDefault(x =>
+                string.Equals(
+                    x.Email.Trim(),
+                    currentUserEmail.Trim(),
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (invitation is null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(invitation.StakeholderId))
+            {
+                var belongsToExistingUser = await _context.Users
+                    .AsNoTracking()
+                    .AnyAsync(x => x.Id == invitation.StakeholderId, cancellationToken);
+
+                if (belongsToExistingUser)
+                {
+                    return null;
+                }
+            }
+
+            invitation.StakeholderId = currentUserId;
+            invitation.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return invitation;
+        }
+
+        private Task<bool> IsProjectFeedbackManagerAsync(
+            Guid projectId,
+            string userId,
+            CancellationToken cancellationToken)
+        {
+            return _context.ProjectMembers
+                .AsNoTracking()
+                .AnyAsync(
+                    x =>
+                        x.ProjectId == projectId &&
+                        x.UserId == userId &&
+                        (x.Role == ProjectRole.Owner || x.Role == ProjectRole.Contributor),
+                    cancellationToken);
         }
 
 
