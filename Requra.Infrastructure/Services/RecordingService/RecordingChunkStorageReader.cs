@@ -21,7 +21,7 @@ namespace Requra.Infrastructure.Services.RecordingService
             {
                 return await _cloudinaryService.DownloadFileAsync(
                     publicId,
-                    resourceType: "video",
+                    resourceType: "raw",
                     cancellationToken: cancellationToken);
             }
 

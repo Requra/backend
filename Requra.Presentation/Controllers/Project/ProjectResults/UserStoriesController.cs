@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Response;
@@ -7,6 +8,7 @@ namespace Requra.Presentation.Controllers.Project.ProjectResults
 {
     [Route("api/projects/{projectId}/results/user-stories")]
     [ApiController]
+    [Authorize]
     public class UserStoriesController : ControllerBase
     {
         private readonly IUserStoryService _userStoryService;

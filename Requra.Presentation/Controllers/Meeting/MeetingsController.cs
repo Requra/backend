@@ -16,6 +16,7 @@ namespace Requra.Presentation.Controllers.Meeting
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class MeetingsController(IMeetingService _meetingService) : ControllerBase
     {
         [HttpGet("{meetingId}")]
@@ -24,13 +25,13 @@ namespace Requra.Presentation.Controllers.Meeting
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<MeetingDetailsDto>.Failure(null, "Unauthorized User", 401));
+                return Unauthorized(Response<MeetingDetailsDto>.Failure(new MeetingDetailsDto(), "Unauthorized User", 401));
 
             //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
 
             if (!Guid.TryParse(meetingId, out var meetingguid))
             {
-                return StatusCode(422, Response<MeetingDetailsDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid meetingId format" }));
+                return StatusCode(422, Response<MeetingDetailsDto>.Failure(new MeetingDetailsDto(), "Validation failed", 422, new List<string> { "Invalid meetingId format" }));
 
             }
             var result = await _meetingService
@@ -45,13 +46,13 @@ namespace Requra.Presentation.Controllers.Meeting
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<MeetingDto>.Failure(null, "Unauthorized User", 401));
+                return Unauthorized(Response<MeetingDto>.Failure(new MeetingDto(), "Unauthorized User", 401));
 
             //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
 
             if (!Guid.TryParse(meetingId, out var meetingguid))
             {
-                return StatusCode(422, Response<MeetingDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid meetingId format" }));
+                return StatusCode(422, Response<MeetingDto>.Failure(new MeetingDto(), "Validation failed", 422, new List<string> { "Invalid meetingId format" }));
 
             }
 
@@ -67,11 +68,11 @@ namespace Requra.Presentation.Controllers.Meeting
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<MeetingDto>.Failure(null, "Unauthorized User", 401));
+                return Unauthorized(Response<MeetingDto>.Failure(new MeetingDto(), "Unauthorized User", 401));
             //var userId = "01f535f1-9870-4141-9b29-21df2d9cd6ec"; // Hardcoded userId for testing purposes
             if (!Guid.TryParse(meetingId, out var meetingguid))
             {
-                return StatusCode(422, Response<MeetingDto>.Failure(null, "Validation failed", 422, new List<string> { "Invalid meetingId format" }));
+                return StatusCode(422, Response<MeetingDto>.Failure(new MeetingDto(), "Validation failed", 422, new List<string> { "Invalid meetingId format" }));
 
             }
             var result = await _meetingService
@@ -79,9 +80,6 @@ namespace Requra.Presentation.Controllers.Meeting
 
             return StatusCode(result.StatusCode, result);
         }
-
-
-
 
         [HttpPost("{meetingId:guid}/start")]
         public async Task<IActionResult> StartMeeting([FromRoute] Guid meetingId,CancellationToken cancellationToken)
@@ -102,9 +100,7 @@ namespace Requra.Presentation.Controllers.Meeting
         }
 
         [HttpPost("{meetingId:guid}/end")]
-        public async Task<IActionResult> EndMeeting(
-        [FromRoute] Guid meetingId,
-        CancellationToken cancellationToken)
+        public async Task<IActionResult> EndMeeting([FromRoute] Guid meetingId,CancellationToken cancellationToken)
         {
             var response = await _meetingService.EndMeetingAsync(meetingId, cancellationToken);
 
@@ -121,6 +117,8 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
 
+       
+        
         [HttpPost("{meetingId:guid}/invitations/participants")]
         public async Task<IActionResult> InviteParticipants([FromRoute] Guid meetingId,[FromBody] InviteMeetingParticipantsApiRequest request,CancellationToken cancellationToken)
         {
@@ -174,6 +172,10 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(response.StatusCode, response)
             };
         }
+       
+        
+        
+        
         [HttpGet("{meetingId:guid}/invitations")]
         public async Task<IActionResult> GetInvitations([FromRoute] Guid meetingId, [FromQuery] GetMeetingInvitationsQuery query, CancellationToken cancellationToken)
         {

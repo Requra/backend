@@ -99,6 +99,10 @@ namespace Requra.Domain.Entities
                 sb.Append(alphabet[b % alphabet.Length]);
 
             return $"inv_tok_{sb}";
+
+        //    return WebEncoders.Base64UrlEncode(
+        //    RandomNumberGenerator.GetBytes(32)
+        //);
         }
         //reactivates Pending/Expired invitation
         //or new invitation 
@@ -107,6 +111,7 @@ namespace Requra.Domain.Entities
             Status = InvitationStatus.Pending;
             ExpiresAt = newExpiresAt;
             UpdatedAt = DateTime.UtcNow;
+            InviteToken = GenerateInviteToken();
         }
     }
 }

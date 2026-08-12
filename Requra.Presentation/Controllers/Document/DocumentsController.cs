@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Document;
 using Requra.Application.Interfaces.IDocumentService;
 using Requra.Application.Response;
@@ -9,6 +10,7 @@ namespace Requra.Presentation.Controllers.Document
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class DocumentsController(IDocumentService _documentService) : ControllerBase
     {
         [HttpGet]
@@ -34,23 +36,17 @@ namespace Requra.Presentation.Controllers.Document
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadDocument([FromForm] UploadDocumentDto model,CancellationToken cancellationToken)
         {
-            
 
-            if (model.File == null || model.File.Length == 0)
-                return BadRequest(Response<string>.Failure("File is required", 400));
+            //if (model.File == null || model.File.Length == 0)
+            //    return BadRequest(Response<string>.Failure("File is required", 400));
 
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-
-            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            //            ?? User.FindFirst("sub")?.Value
-            //            ?? User.FindFirst("id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<string>.Failure("Unauthorized", 401));
 
 
-            //if (string.IsNullOrEmpty(userId))
-            //    return Unauthorized(Response<string>.Failure("Unauthorized", 401));
-
-
-            var userId = "b7e7f97f-8557-4d87-a486-0b9f33ab07fb"; //userId for testing
+            //var userId = "b7e7f97f-8557-4d87-a486-0b9f33ab07fb"; //userId for testing
 
 
             var result = await _documentService.UploadDocumentAsync(model,userId,cancellationToken);

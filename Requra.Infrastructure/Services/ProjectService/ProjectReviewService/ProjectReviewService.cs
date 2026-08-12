@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
@@ -18,8 +19,7 @@ using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 {
-    public class ProjectReviewService(RequraDbContext _context, IEmailSender emailSender,
-    ILogger<ProjectReviewService> logger, IValidator<CreateProjectReviewInvitationRequest> validator) : IProjectReviewService
+    public class ProjectReviewService(RequraDbContext _context, IEmailSender emailSender,ILogger<ProjectReviewService> logger, IValidator<CreateProjectReviewInvitationRequest> validator) : IProjectReviewService
     {
         public async Task<Response<SubmitStakeholderFeedbackResponse>> SubmitStakeholderFeedbackAsync(SubmitStakeholderFeedbackRequest request, CancellationToken cancellationToken = default)
         {
@@ -82,27 +82,36 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             {
                                 return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(), "Requirement not found.", StatusCodes.Status404NotFound);
                             }
+                            if (!requirement.ProjectId.HasValue)
+                            {
+                                return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"Requirement is not associated with a project.",StatusCodes.Status400BadRequest);
+                            }
 
-                            projectId = requirement.ProjectId ?? Guid.Empty;
+                            projectId = requirement.ProjectId.Value;
                             targetTitle = requirement.Title;
+
                             break;
                         }
 
                     case FeedbackTargetType.SUMMARY:
                         {
-                            var summary = await _context.Summaries
-                                .FirstOrDefaultAsync(x => x.Id == request.TargetId, cancellationToken);
+                            projectId = request.TargetId;
 
-                            if (summary is null)
+                            var projectExists = await _context.Projects
+                                .AnyAsync(
+                                    x => x.Id == projectId,
+                                    cancellationToken);
+
+                            if (!projectExists)
                             {
                                 return Response<SubmitStakeholderFeedbackResponse>.Failure(
                                     new SubmitStakeholderFeedbackResponse(),
-                                    "Summary not found.",
+                                    "Project not found.",
                                     StatusCodes.Status404NotFound);
                             }
 
-                            projectId = summary.ProjectId ?? Guid.Empty;
-                            targetTitle = "Summary";
+                            targetTitle = "Project Overview";
+
                             break;
                         }
 
@@ -111,6 +120,26 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             new SubmitStakeholderFeedbackResponse(),
                             "Unsupported target type.",
                             StatusCodes.Status400BadRequest);
+                }
+
+                var invitation = await _context.ProjectReviewInvitations
+            .FirstOrDefaultAsync(
+                x =>
+                    x.ProjectId == projectId &&
+                    x.StakeholderId == request.CurrentUserId &&
+                    x.Status == InvitationStatus.Accepted &&
+                    x.ExpiresAt > DateTime.UtcNow,
+                cancellationToken);
+
+                if (invitation is null)
+                {
+                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"You are not authorized to submit feedback for this project.",StatusCodes.Status403Forbidden);
+                }
+
+
+                if (invitation.Permission != ProjectReviewPermission.COMMENTER)
+                {
+                    return Response<SubmitStakeholderFeedbackResponse>.Failure(new SubmitStakeholderFeedbackResponse(),"You do not have permission to submit feedback.",StatusCodes.Status403Forbidden);
                 }
 
                 var feedback = new Comment(
@@ -171,6 +200,8 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             if (request.PageSize < 1 || request.PageSize > 100)
                 errors.Add("PageSize must be between 1 and 100.");
+            if (request.ProjectId == Guid.Empty)
+                errors.Add("ProjectId is required.");
 
             if (errors.Any())
             {
@@ -189,6 +220,21 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 {
                     return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "project context is missing.", StatusCodes.Status401Unauthorized);
                 }
+                var invitation = await _context.ProjectReviewInvitations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x =>
+                    x.ProjectId == projectId &&
+                    x.StakeholderId == request.AuthorId &&
+                    x.Status == InvitationStatus.Accepted &&
+                    x.Permission == ProjectReviewPermission.COMMENTER &&
+                    x.ExpiresAt > DateTime.UtcNow,
+                cancellationToken);
+
+                if (invitation is null)
+                {
+                    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"You are not authorized to access feedback for this project.",StatusCodes.Status403Forbidden);
+                }
 
                 var baseQuery = _context.Comments
                     .AsNoTracking()
@@ -204,7 +250,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
                 var allProjectCommentsQuery = _context.Comments
                     .AsNoTracking()
-                    .Where(x => x.ProjectId == projectId);
+                    .Where(x => x.ProjectId == projectId &&x.AuthorId == request.AuthorId);
 
                 var openCount = await allProjectCommentsQuery
                     .CountAsync(x => x.Status == StakeholderFeedbackStatus.OPEN, cancellationToken);
@@ -289,6 +335,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             try
             {
+
                 var feedback = await _context.Comments
                     .Include(x => x.Author)
                     .FirstOrDefaultAsync(x => x.Id == request.FeedbackId && x.ProjectId == request.ProjectId, cancellationToken);
@@ -383,6 +430,23 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 {
                     return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(), "Project not found.", StatusCodes.Status404NotFound);
                 }
+
+                //var isAuthorized = await _context.ProjectMembers
+                //    .AsNoTracking()
+                //    .AnyAsync(
+                //        x =>
+                //        x.ProjectId == request.ProjectId &&
+                //        x.UserId == request.userid &&
+                //        (
+                //            x.Role == ProjectRole.Owner ||
+                //            x.Role == ProjectRole.Contributor
+                //        ),
+                //cancellationToken);
+
+                //if (!isAuthorized)
+                //{
+                //    return Response<ListStakeholderFeedbackResponse>.Failure(new ListStakeholderFeedbackResponse(),"You are not authorized to access feedback for this project.",StatusCodes.Status403Forbidden);
+                //}
 
                 var query = _context.Comments
                     .AsNoTracking()
@@ -479,22 +543,22 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 if (!validation.IsValid)
                 {
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                    return Response<List<ProjectReviewInvitationDto>>.Failure(null, "Validation failed", 422, errors);
+                    return Response<List<ProjectReviewInvitationDto>>.Failure(new List<ProjectReviewInvitationDto>(), "Validation failed", 422, errors);
                 }
                 if (string.IsNullOrWhiteSpace(projectId.ToString()))
-                    return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid projectId", 422);
+                    return Response<List<ProjectReviewInvitationDto>>.Failure(new List<ProjectReviewInvitationDto>(), "Invalid projectId", 422);
                 var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
 
                 if (project == null)
-                    return Response<List<ProjectReviewInvitationDto>>.Failure("Project not found", 404);
+                    return Response<List<ProjectReviewInvitationDto>>.Failure(new List<ProjectReviewInvitationDto>(), "Project not found", 404);
 
                 if (string.IsNullOrWhiteSpace(userId))
-                    return Response<List<ProjectReviewInvitationDto>>.Failure("Invalid userId", 422);
+                    return Response<List<ProjectReviewInvitationDto>>.Failure(new List<ProjectReviewInvitationDto>(), "Invalid userId", 422);
 
                 var UserInProject = await _context.ProjectMembers.Include(p => p.User).FirstOrDefaultAsync(pu => pu.ProjectId == projectId && pu.UserId == userId);
 
                 if (UserInProject == null)
-                    return Response<List<ProjectReviewInvitationDto>>.Failure("User is not a member of this project", 403);
+                    return Response<List<ProjectReviewInvitationDto>>.Failure(new List<ProjectReviewInvitationDto>(), "User is not a member of this project", 403);
 
 
 
@@ -525,9 +589,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                                 409
                             );
                         }
-                        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-                        using var sha = SHA256.Create();
-                        var hashedToken = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(rawToken)));
+                        var (rawToken, hashedToken) = GenerateToken();
                         invitations.Add(new ProjectReviewInvitation
                         {
                             Id = Guid.NewGuid(),
@@ -571,11 +633,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             );
                         }
 
-                        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-                        using var sha = SHA256.Create();
-                        var hashedToken = Convert.ToBase64String(
-                            sha.ComputeHash(Encoding.UTF8.GetBytes(rawToken))
-                        );
+                        var (rawToken, hashedToken) = GenerateToken();
                         invitations.Add(new ProjectReviewInvitation
                         {
                             Id = Guid.NewGuid(),
@@ -588,7 +646,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
                             Status = InvitationStatus.Pending,
-                            ReviewUrl = $"https://app.requra.ai/project-review/{rawToken}",//Url will be edited later
+                            ReviewUrl = $"http://localhost:5173/project-review/{rawToken}",//Url will be edited later
                             ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
                             InvitedById = userId,
                             CreatedAt = DateTime.UtcNow,
@@ -650,8 +708,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
 
         }
-        public async Task<Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>>
-         GetProjectReviewInvitationsAsync(Guid projectId, GetProjectReviewInvitationsQuery query, string userId)
+        public async Task<Response<ProjectReviewInvitationsPagedResult<ProjectReviewInvitationDto>>>GetProjectReviewInvitationsAsync(Guid projectId, GetProjectReviewInvitationsQuery query, string userId)
         {
 
             try
@@ -799,10 +856,9 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
 
                 //will be refactored as service later
-                var newRawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-                using var sha = SHA256.Create();
-                var hashedToken = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(newRawToken)));
-                var newReviewUrl = $"https://app.requra.ai/project-review/{newRawToken}";
+                var (rawToken, hashedToken) = GenerateToken();
+
+                var newReviewUrl = $"http://localhost:5173/project-review/{rawToken}";
 
                 invitation.UpdateProjectReviewInvitation(
                     hashedToken,
@@ -946,7 +1002,10 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             try
             {
-                var invitation = await _context.ProjectReviewInvitations.AsNoTracking().FirstOrDefaultAsync(x => x.ReviewToken == request.Token, cancellationToken);
+
+                var hashedToken = HashToken(request.Token);
+
+                var invitation = await _context.ProjectReviewInvitations.AsNoTracking().FirstOrDefaultAsync( x => x.ReviewToken == hashedToken, cancellationToken);
 
                 if (invitation == null)
                 {
@@ -1042,11 +1101,13 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             try
             {
-                var invitation = await _context.ProjectReviewInvitations.FirstOrDefaultAsync(x => x.ReviewToken == request.Token, cancellationToken);
+                var hashedToken = HashToken(request.Token);
+
+                var invitation = await _context.ProjectReviewInvitations.AsNoTracking().FirstOrDefaultAsync(x => x.ReviewToken == hashedToken,cancellationToken);
 
                 if (invitation == null)
                 {
-                    return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(),"Invitation not found.",StatusCodes.Status404NotFound);
+                    return Response<AcceptProjectReviewInvitationResponse>.Failure(new AcceptProjectReviewInvitationResponse(), $"Invitation not found.", StatusCodes.Status404NotFound);
                 }
 
                 if (invitation.Status == InvitationStatus.Revoked || invitation.RevokedAt.HasValue)
@@ -1140,13 +1201,13 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 
             try
             {
-                var invitation = await _context.Set<ProjectReviewInvitation>()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.ReviewToken == request.Token, cancellationToken);
+                var hashedToken = HashToken(request.Token);
+
+                var invitation = await _context.ProjectReviewInvitations.AsNoTracking().FirstOrDefaultAsync(x => x.ReviewToken == hashedToken,cancellationToken);
 
                 if (invitation == null)
                 {
-                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Invitation not found.",StatusCodes.Status404NotFound);
+                    return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),$"Invitation not found.",StatusCodes.Status404NotFound);
                 }
 
                 if (invitation.Status == InvitationStatus.Revoked || invitation.RevokedAt.HasValue)
@@ -1265,5 +1326,30 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"An unexpected error occurred while retrieving the project review dashboard.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
             }
         }
+
+        private static (string RawToken, string HashedToken) GenerateToken()
+        {
+            var tokenBytes = RandomNumberGenerator.GetBytes(32);
+
+            var rawToken = WebEncoders.Base64UrlEncode(tokenBytes);
+
+            var hashedToken = WebEncoders.Base64UrlEncode(
+                SHA256.HashData(tokenBytes)
+            );
+
+            return (rawToken, hashedToken);
+        }
+
+        private static string HashToken(string rawToken)
+        {
+            var tokenBytes = WebEncoders.Base64UrlDecode(rawToken);
+
+            return WebEncoders.Base64UrlEncode(
+                SHA256.HashData(tokenBytes)
+            );
+        }
+
+
+       
     }
 }

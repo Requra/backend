@@ -27,10 +27,7 @@ namespace Requra.Infrastructure.Services.MeetingService
     public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender) : IMeetingService
     {
 
-        public async Task<Response<MeetingDto>> CreateMeetingAsync(
-            Guid projectId,
-            CreateMeetingRequest request,
-            string currentUserId)
+        public async Task<Response<MeetingDto>> CreateMeetingAsync(Guid projectId,CreateMeetingRequest request,string currentUserId)
         {
             try
             {
@@ -115,9 +112,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     new List<string>() { ex.Message });
             }
         }
-        public async Task<Response<PagedResult<ProjectMeetingsDto>>> GetMeetingsAsync(
-    Guid projectId, string currentUserId,
-    GetMeetingsQuery query)
+        public async Task<Response<PagedResult<ProjectMeetingsDto>>> GetMeetingsAsync(Guid projectId, string currentUserId,GetMeetingsQuery query)
         {
             try
             {
@@ -204,9 +199,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     new List<string>() { ex.Message });
             }
         }
-        public async Task<Response<MeetingDetailsDto>> GetMeetingByIdAsync(
-    Guid meetingId,
-    string currentUserId)
+        public async Task<Response<MeetingDetailsDto>> GetMeetingByIdAsync(Guid meetingId,string currentUserId)
         {
             try
             {
@@ -305,9 +298,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingDto>> CancelMeetingAsync(
-    Guid meetingId,
-    string currentUserId)
+        public async Task<Response<MeetingDto>> CancelMeetingAsync(Guid meetingId,string currentUserId)
         {
             try
             {
@@ -374,10 +365,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingDto>> UpdateMeetingAsync(
-    Guid meetingId,
-    UpdateMeetingRequest request,
-    string currentUserId)
+        public async Task<Response<MeetingDto>> UpdateMeetingAsync(Guid meetingId,UpdateMeetingRequest request,string currentUserId)
         {
             var meeting = await _context.MeetingSessions
                 .Include(m => m.Participants)
