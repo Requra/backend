@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Requra.Application.DTOs.Recordings;
 using Requra.Application.Interfaces.IRecordingService;
@@ -63,8 +64,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                         Math.Round((recording.CompletedAt.Value - recording.StartedAt).TotalSeconds));
                 }
                 else if (recording.Status == RecordingStatus.ACTIVE ||
-                         recording.Status == RecordingStatus.READY ||
-                         recording.Status == RecordingStatus.FINALIZING)
+                         recording.Status == RecordingStatus.READY )
                 {
                     durationSeconds = (int)Math.Max(0,Math.Round((DateTime.UtcNow - recording.StartedAt).TotalSeconds));
                 }
@@ -123,7 +123,10 @@ namespace Requra.Infrastructure.Services.RecordingService
                     return Response<StartRecordingResponse>.Failure(new StartRecordingResponse(), "An active recording already exists for this meeting.", 409);
                 }
 
-
+                var normalizedMimeType = request.MimeType
+                            .Split(';', 2)[0]
+                            .Trim()
+                            .ToLowerInvariant();
                 string extension = GetExtensionFromContentType(request.MimeType);
 
                 var recording = new Recording(request.MeetingId, request.CreatedById, request.UploadMode, request.MimeType, extension,0);
@@ -184,7 +187,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                     return Response<UploadChunkResponse>.Failure(new UploadChunkResponse(),"Recording not found.",404);
                 }
 
-                var requestContentType = string.IsNullOrWhiteSpace(request.AudioChunk.ContentType)? "application/octet-stream": request.AudioChunk.ContentType;
+                var requestContentType = string.IsNullOrWhiteSpace(request.AudioChunk.ContentType)? "application/octet-stream": request.AudioChunk.ContentType.Split(';', 2)[0].Trim().ToLowerInvariant(); ;
 
                 var stateErrors = ValidateRecordingCanAcceptChunk(recording, requestContentType);
                 if (stateErrors.Any())
@@ -196,11 +199,19 @@ namespace Requra.Infrastructure.Services.RecordingService
                 {
                     return Response<UploadChunkResponse>.Failure(new UploadChunkResponse(),"This recording does not accept chunk uploads.",400);
                 }
+                if (!request.ChunkIndex.HasValue ||
+                    request.ChunkIndex.Value < 0)
+                {
+                    return Response<UploadChunkResponse>.Failure(
+                        new UploadChunkResponse(),
+                        "ChunkIndex must be greater than or equal to zero.",
+                        StatusCodes.Status400BadRequest);
+                }
 
                 var existingChunk = await _context.RecordingChunks
                     .AsNoTracking()
                     .FirstOrDefaultAsync(
-                        c => c.RecordingId == request.RecordingId && c.ChunkNumber == request.ChunkIndex,
+                        c => c.RecordingId == request.RecordingId && c.ChunkNumber == request.ChunkIndex.Value,
                         cancellationToken);
 
                 if (existingChunk is not null)
@@ -467,7 +478,14 @@ namespace Requra.Infrastructure.Services.RecordingService
                 //    return Response<UploadRecordingFileResponse>.Failure(new UploadRecordingFileResponse(), $"Uploaded file content type does not match recording content type. Expected '{recording.ContentType}', got '{request.File.ContentType}'.", 400);
                 //}
                 var extension = Path.GetExtension(request.File.FileName)?.ToLowerInvariant();
-                var contentType = GetContentTypeFromFileName(request.File.FileName) ?? request.File.ContentType;
+                //var contentType = GetContentTypeFromFileName(request.File.FileName) ?? request.File.ContentType;
+                var contentType =
+           !string.IsNullOrWhiteSpace(request.File.ContentType)
+               ? request.File.ContentType
+                   .Split(';', 2)[0]
+                   .Trim()
+                   .ToLowerInvariant()
+               : GetContentTypeFromFileName(request.File.FileName);
 
                 if (!string.IsNullOrWhiteSpace(extension))
                 {
@@ -564,36 +582,37 @@ namespace Requra.Infrastructure.Services.RecordingService
                     return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"Recording is expired.",409);
                 }
 
-                if (recording.Status == RecordingStatus.ACTIVE)
-                {
-                    var alreadyFinalizingResponse = new StopRecordingResponse
-                    {
-                        Id = recording.Id,
-                        MeetingId = recording.MeetingId,
-                        Status = recording.Status,
-                        MimeType = recording.ContentType,
-                        UploadMode = recording.UploadMode,
-                        chunksCount = recording.UploadedChunks,
-                        MissingChunkIndexes = new List<int>(),
-                        CompletedAt = DateTime.UtcNow,
-                        CreatedAt = recording.CreatedAt,
-                        FileUrl = recording.StorageUrl,
-                        DurationSeconds=request.DurationSeconds,
-                    };
-                    recording.MarkFinalizing();
+                //if (recording.Status == RecordingStatus.ACTIVE)
+                //{
+                //    var alreadyFinalizingResponse = new StopRecordingResponse
+                //    {
+                //        Id = recording.Id,
+                //        MeetingId = recording.MeetingId,
+                //        Status = recording.Status,
+                //        MimeType = recording.ContentType,
+                //        UploadMode = recording.UploadMode,
+                //        chunksCount = recording.UploadedChunks,
+                //        MissingChunkIndexes = new List<int>(),
+                //        CompletedAt = DateTime.UtcNow,
+                //        CreatedAt = recording.CreatedAt,
+                //        FileUrl = recording.StorageUrl,
+                //        DurationSeconds=request.DurationSeconds,
+                //    };
+                //    recording.MarkFinalizing();
 
-                    return Response<StopRecordingResponse>.Success(alreadyFinalizingResponse,"Recording is already finalizing.",200);
-                }
+                //    return Response<StopRecordingResponse>.Success(alreadyFinalizingResponse,"Recording is already finalizing.",200);
+                //}
 
                 if (request.lastChunkIndex.HasValue)
                 {
-                    //if (recording.ExpectedChunks.HasValue &&
-                    //    recording.ExpectedChunks.Value != request.ExpectedChunks.Value)
-                    //{
-                    //    return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"ExpectedChunks does not match the previously registered value.",400);
-                    //}
+                    var expectedChunks = request.lastChunkIndex.Value + 1;
+                    if (recording.ExpectedChunks.HasValue &&
+                  recording.ExpectedChunks.Value != expectedChunks)
+                    {
+                        return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"ExpectedChunks does not match the previously registered value.",StatusCodes.Status400BadRequest);
+                    }
 
-                    recording.SetExpectedChunks(request.lastChunkIndex.Value);
+                    recording.SetExpectedChunks(expectedChunks);
                 }
 
                 if (!recording.ExpectedChunks.HasValue)
@@ -667,7 +686,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                     DurationSeconds = request.DurationSeconds,
                 };
 
-                return Response<StopRecordingResponse>.Success(response,"Recording stopped successfully.",200);
+                return Response<StopRecordingResponse>.Success(response, "Recording finalization started successfully.", 200);
             }
             catch (Exception ex)
             {
@@ -684,7 +703,23 @@ namespace Requra.Infrastructure.Services.RecordingService
 
             if (string.IsNullOrWhiteSpace(request.CreatedById))
                 errors.Add("CreatedById is required.");
+            if (string.IsNullOrWhiteSpace(request.MimeType))
+            {
+                errors.Add("MimeType is required.");
+            }
+            else
+            {
+                var mimeType = request.MimeType
+                    .Split(';', 2)[0]
+                    .Trim()
+                    .ToLowerInvariant();
 
+                if (mimeType != "audio/webm")
+                {
+                    errors.Add(
+                        "MimeType must be audio/webm.");
+                }
+            }
 
             //if (request.UploadMode != RecordingUploadMode.Chunked )
             //    errors.Add("ExpectedUploadMode is invalid.");
@@ -753,7 +788,7 @@ namespace Requra.Infrastructure.Services.RecordingService
             if (request.DurationSeconds <= 0)
                 errors.Add("DurationSeconds must be greater than zero.");
 
-            if (request.lastChunkIndex.HasValue && request.lastChunkIndex <= 0)
+            if (request.lastChunkIndex.HasValue && request.lastChunkIndex < 0)
                 errors.Add("LastChunkIndex must be greater than zero when provided.");
 
             return errors;
@@ -860,7 +895,12 @@ namespace Requra.Infrastructure.Services.RecordingService
         }
         private static string? GetExtensionFromContentType(string? contentType)
         {
-            return contentType?.ToLowerInvariant() switch
+            var mimeType = contentType
+                    .Split(';', 2)[0]
+                    .Trim()
+                    .ToLowerInvariant();
+
+            return mimeType switch
             {
                 "audio/webm" => ".webm",
                 "audio/wav" => ".wav",

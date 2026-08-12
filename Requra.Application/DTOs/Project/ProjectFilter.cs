@@ -8,7 +8,14 @@ namespace Requra.Application.DTOs.Project
     public class ProjectFilter
     {
         public string UserId { get; set; }
-        public ProjectStatus? Status { get; set; } = ProjectStatus.InProgress;
+        public ProjectStatus? Status { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+    }
+    public class ProjectFilterAPI
+    {
+        //public string UserId { get; set; }
+        public ProjectStatus? Status { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

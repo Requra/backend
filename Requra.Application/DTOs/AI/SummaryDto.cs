@@ -32,20 +32,20 @@ namespace Requra.Application.DTOs.AI
         [JsonPropertyName("risks")]
         public List<string> Risks { get; set; } = new();
 
-        [JsonPropertyName("assumptions")]
-        public List<string> Assumptions { get; set; } = new();
+        //[JsonPropertyName("assumptions")]
+        //public List<string> Assumptions { get; set; } = new();
 
-        [JsonPropertyName("key_decisions")]
-        public List<string> KeyDecisions { get; set; }
+        //[JsonPropertyName("key_decisions")]
+        //public List<string> KeyDecisions { get; set; }
 
-        [JsonPropertyName("open_questions")]
-        public List<string> OpenQuestions { get; set; }
+        //[JsonPropertyName("open_questions")]
+        //public List<string> OpenQuestions { get; set; }
 
         [JsonPropertyName("out_of_scope")]
         public List<string> OutOfScope { get; set; }
 
-        [JsonPropertyName("risks")]
-        public List<string> Risks { get; set; }
+        //[JsonPropertyName("risks")]
+        //public List<string> Risks { get; set; }
 
         [JsonPropertyName("scope")]
         public List<string> Scope { get; set; }

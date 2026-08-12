@@ -16,7 +16,7 @@ namespace Requra.Domain.Specifications.ProjectsSpecification
         {
            
             Criteria = p =>
-                p.Members.FirstOrDefault(p=>p.UserId==userId).UserId == userId &&
+                p.Members.Any(m => m.UserId == userId) &&
                 (!status.HasValue || p.Status == status);
 
             ApplyOrderByDesc(p => p.CreatedAt);

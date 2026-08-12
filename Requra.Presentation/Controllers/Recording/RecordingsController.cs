@@ -82,10 +82,7 @@ namespace Requra.Presentation.Controllers.Recording
         [HttpPost("recordings/{recordingId:guid}/chunks")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(100_000_000)]
-        public async Task<IActionResult> UploadChunk(
-           Guid recordingId,
-           [FromForm] UploadChunkRequest request,
-           CancellationToken cancellationToken)
+        public async Task<IActionResult> UploadChunk(Guid recordingId,[FromForm] UploadChunkRequest request,CancellationToken cancellationToken)
         {
             request.RecordingId = recordingId;
 

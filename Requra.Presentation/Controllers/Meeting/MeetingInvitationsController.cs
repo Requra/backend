@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.Interfaces.IMeetingService;
 using Requra.Application.Response;
@@ -11,6 +12,7 @@ namespace Requra.Presentation.Controllers.Meeting
     // necessarily authenticated project members (e.g. guests following an email link).
     [ApiController]
     [Route("api/meeting-invitations")]
+    [Authorize]
     public class MeetingInvitationsController(IMeetingService _meetingService) : ControllerBase
     {
         [HttpGet("{inviteToken}")]

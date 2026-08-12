@@ -1,4 +1,5 @@
 ﻿using DocumentFormat.OpenXml.Office2010.Excel;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
@@ -16,28 +17,48 @@ using Requra.Application.Response;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using static Google.Apis.Requests.BatchRequest;
 
 namespace Requra.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ProjectsController(IProjectService _projectService, ILogger<ProjectsController> _logger, IMeetingService _meetingService,IProjectReviewService _projectReviewService) : ControllerBase
     {
       
 
         [HttpGet]
-        public async Task<IActionResult> GetProjects([FromQuery] ProjectFilter filter)
+        public async Task<IActionResult> GetProjects([FromQuery] ProjectFilterAPI filter)
         {
             if (filter == null)
             {
                 return BadRequest(Response<PagedResult<ProjectDTO>>.Failure("Filter is required", 400));
             }
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var requestdto = new ProjectFilter
+            {
+                UserId = userId,
+                Status = filter.Status,
+                PageNumber = filter.PageNumber,
+                PageSize = filter.PageSize
+            };
 
-            var result = await _projectService.GetUserProjectsAsync(filter);
+            var result = await _projectService.GetUserProjectsAsync(requestdto);
 
             if (result.IsSuccess)
             {
-                return Ok(result);
+                return result.StatusCode switch
+                {
+                    200 => Ok(result),
+                    201 => StatusCode(201, result),
+                    204 => NoContent(),
+                    400 => BadRequest(result),
+                    404 => NotFound(result),
+                    409 => Conflict(result),
+                    500 => StatusCode(500, result),
+                    _ => StatusCode(result.StatusCode, result)
+                };
             }
             else
             {

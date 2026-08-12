@@ -11,6 +11,7 @@ namespace Requra.Presentation.Controllers.Project.ProjectReview
 {
     [ApiController]
     [Route("api/project-review")]
+    [Authorize]
     public class ProjectReviewController : ControllerBase
     {
         private readonly IProjectReviewService _projectReviewService;
@@ -106,8 +107,7 @@ namespace Requra.Presentation.Controllers.Project.ProjectReview
         }
 
         [HttpGet("{projectId:guid}/feedback")]
-        public async Task<IActionResult> ListProjectStakeholderFeedback([FromRoute] Guid projectId,[FromQuery] StakeholderFeedbackStatus? status,[FromQuery] FeedbackTargetType? targetType,[FromQuery] bool? isRead,[FromQuery] int pageNumber = 1,[FromQuery] int pageSize = 20,
-        CancellationToken cancellationToken = default)
+        public async Task<IActionResult> ListProjectStakeholderFeedback([FromRoute] Guid projectId,[FromQuery] StakeholderFeedbackStatus? status,[FromQuery] FeedbackTargetType? targetType,[FromQuery] bool? isRead,[FromQuery] int pageNumber = 1,[FromQuery] int pageSize = 20,CancellationToken cancellationToken = default)
         {
             var request = new ListProjectStakeholderFeedbackRequest
             {
