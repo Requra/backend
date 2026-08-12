@@ -13,6 +13,8 @@ namespace Requra.Infrastructure.ExternalInterfaces.ICloudinaryService
 
         Task<UploadResultDto> UploadFileAsync(IFormFile file,string folderName = "general",CancellationToken cancellationToken = default,string? publicId = null,bool overwrite = false);
 
+        Task<UploadResultDto> UploadRecordingChunkAsync(IFormFile file,string folderName,CancellationToken cancellationToken = default,string? publicId = null,bool overwrite = false);
+
         Task<UploadResultDto> UploadStreamAsync(Stream stream,string fileName,string folderName = "general",string? contentType = null,CancellationToken cancellationToken = default,string? publicId = null,bool overwrite = false);
 
         Task<List<UploadResultDto>> UploadFilesAsync(List<IFormFile> files,string folderName = "general",CancellationToken cancellationToken = default);
