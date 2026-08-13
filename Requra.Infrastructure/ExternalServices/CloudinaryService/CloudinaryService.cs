@@ -170,13 +170,76 @@ namespace Requra.Infrastructure.ExternalServices.CloudinaryService
 
             return new UploadResultDto
             {
+                IsSuccess = true,
                 PublicId = uploadResult.PublicId,
-                Url = uploadResult.SecureUrl.ToString(),
+                Url = uploadResult.SecureUrl?.ToString(),
                 ResourceType = isImage ? "image"
                      : isVideo ? "video"
                      : isAudio ? "video"
                      : "raw",
                 Size = file.Length
+            };
+        }
+
+        public async Task<UploadResultDto> UploadRecordingChunkAsync(
+            IFormFile file,
+            string folderName,
+            CancellationToken cancellationToken = default,
+            string? publicId = null,
+            bool overwrite = false)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("File is empty", nameof(file));
+
+            const long maxChunkSize = 100_000_000;
+            if (file.Length > maxChunkSize)
+                throw new ArgumentException("Recording chunk exceeds the 100 MB size limit.", nameof(file));
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var originalFileName = Path.GetFileName(file.FileName);
+            var fileName = string.IsNullOrWhiteSpace(originalFileName)
+                ? $"chunk-{Guid.NewGuid():N}.webm"
+                : originalFileName;
+
+            await using var stream = file.OpenReadStream();
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = folderName,
+                PublicId = publicId,
+                Overwrite = overwrite,
+                UseFilename = publicId == null,
+                UniqueFilename = publicId == null
+            };
+
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (uploadResult.Error != null)
+            {
+                _logger.LogError(
+                    "Cloudinary raw chunk upload error for {FileName}: {Error}",
+                    fileName,
+                    uploadResult.Error.Message);
+
+                return new UploadResultDto
+                {
+                    IsSuccess = false,
+                    OriginalFileName = fileName,
+                    ErrorMessage = uploadResult.Error.Message
+                };
+            }
+
+            return new UploadResultDto
+            {
+                IsSuccess = true,
+                PublicId = uploadResult.PublicId,
+                Url = uploadResult.SecureUrl?.ToString(),
+                ResourceType = "raw",
+                Size = file.Length,
+                Format = uploadResult.Format,
+                OriginalFileName = fileName
             };
         }
         public async Task<List<UploadResultDto>> UploadFilesAsync(List<IFormFile> files, string folderName = "general", CancellationToken cancellationToken = default)

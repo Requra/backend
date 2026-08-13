@@ -112,6 +112,7 @@ namespace Requra.Presentation.Controllers.Project.ProjectReview
             var request = new ListProjectStakeholderFeedbackRequest
             {
                 ProjectId = projectId,
+                UserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                 Status = status,
                 TargetType = targetType,
                 IsRead = isRead,

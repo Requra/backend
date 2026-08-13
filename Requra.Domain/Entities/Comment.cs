@@ -73,6 +73,7 @@ namespace Requra.Domain.Entities
         public void Resolve(string resolvedById, string? resolutionNote)
         {
             Status = StakeholderFeedbackStatus.RESOLVED;
+            IsRead = true;
             ResolutionNote = resolutionNote;
             ResolvedById = resolvedById;
             ResolvedAt = DateTime.UtcNow;
