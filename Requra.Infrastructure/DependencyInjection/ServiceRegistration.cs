@@ -50,6 +50,7 @@ using Requra.Infrastructure.Services.JobPollingService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
+using Requra.Infrastructure.Options;
 
 namespace Requra.Infrastructure.DependencyInjection
 {
@@ -140,6 +141,9 @@ namespace Requra.Infrastructure.DependencyInjection
 
             // Auto Mapper
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
+
+            services.Configure<LiveKitOptions>(configuration.GetSection(LiveKitOptions.SectionName));
+            services.Configure<MeetingOptions>(configuration.GetSection(MeetingOptions.SectionName));
 
 
             return services;
