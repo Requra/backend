@@ -84,7 +84,7 @@ namespace Requra.Infrastructure.Services.ProfileService
             {
                 var user = await _userManager.FindByIdAsync(userId);
 
-                if (user == null || !user.IsActive)
+                if (user == null)
                     return Response<ProfileDto>.Failure(new ProfileDto(), "User not found", 404);
 
 

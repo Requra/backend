@@ -49,7 +49,8 @@ namespace Requra.Infrastructure.Configurations
                    .HasConversion<string>()
                    .IsRequired();
 
-
+            // Global query filter to exclude inactive/soft-deleted users
+            builder.HasQueryFilter(u => u.IsActive);
 
             builder.HasMany(u => u.ProjectMemberships)
                    .WithOne(pm => pm.User)

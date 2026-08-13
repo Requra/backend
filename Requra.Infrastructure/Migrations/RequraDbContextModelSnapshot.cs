@@ -331,6 +331,12 @@ namespace Requra.Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("last_login_at");
@@ -923,7 +929,10 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("description");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Language")
                         .IsRequired()
