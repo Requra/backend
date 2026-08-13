@@ -10,13 +10,13 @@ namespace Requra.Application.DTOs.Project.ProjectResults.Feedbacks
         public Guid ProjectId { get; set; }
         public Guid FeedbackId { get; set; }
         public string UserId { get; set; } 
-        public StakeholderFeedbackStatus Status { get; set; }
+        public StakeholderFeedbackStatus? Status { get; set; }
         public string? ResolutionNote { get; set; }
         public bool? IsRead { get; set; }
     }
     public class UpdateStakeholderFeedbackStatusAPIRequest
     {
-        public StakeholderFeedbackStatus Status { get; set; }
+        public StakeholderFeedbackStatus? Status { get; set; }
         public string? ResolutionNote { get; set; }
         public bool? IsRead { get; set; }
     }

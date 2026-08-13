@@ -1045,7 +1045,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("StakeholderId")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("Status")

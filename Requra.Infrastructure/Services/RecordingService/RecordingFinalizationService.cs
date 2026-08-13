@@ -83,6 +83,8 @@ namespace Requra.Infrastructure.Services.RecordingService
                 if (finalStream.CanSeek)
                     finalStream.Position = 0;
 
+                var finalFileSize = finalStream.Length;
+
                 var uploadResult = await _cloudinaryService.UploadStreamAsync(
                     finalStream,
                     fileName: recording.FileName,
@@ -106,7 +108,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                     uploadResult.Url,
                     uploadResult.PublicId,
                     uploadResult.PublicId,
-                    finalStream.Length);
+                    finalFileSize);
                 //recording.SetStorage(
                 //    uploadResult.Url!,
                 //    uploadResult.PublicId!,

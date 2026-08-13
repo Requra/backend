@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using CloudinaryDotNet.Actions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Requra.Application.DTOs.Recordings;
@@ -129,7 +130,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                             .ToLowerInvariant();
                 string extension = GetExtensionFromContentType(request.MimeType);
 
-                var recording = new Recording(request.MeetingId, request.CreatedById, request.UploadMode, request.MimeType, extension,0);
+                var recording = new Recording(request.MeetingId, request.CreatedById, request.UploadMode, request.MimeType, extension);
 
                 var finalPublicId = $"recording-final";
                 var folder = $"recordings/{recording.MeetingId}/{recording.Id}";
@@ -187,7 +188,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                     return Response<UploadChunkResponse>.Failure(new UploadChunkResponse(),"Recording not found.",404);
                 }
 
-                var requestContentType = string.IsNullOrWhiteSpace(request.AudioChunk.ContentType)? "application/octet-stream": request.AudioChunk.ContentType.Split(';', 2)[0].Trim().ToLowerInvariant(); ;
+                var requestContentType = NormalizeMime(request.AudioChunk.ContentType);
 
                 var stateErrors = ValidateRecordingCanAcceptChunk(recording, requestContentType);
                 if (stateErrors.Any())
@@ -219,7 +220,7 @@ namespace Requra.Infrastructure.Services.RecordingService
                     return BuildDuplicateChunkResponse(recording, existingChunk, request);
                 }
 
-                var uploadResult = await _cloudinaryService.UploadFileAsync(
+                var uploadResult = await _cloudinaryService.UploadRecordingChunkAsync(
                     request.AudioChunk,
                     folderName: $"recordings/{recording.MeetingId}/{recording.Id}/chunks",
                     cancellationToken: cancellationToken,
@@ -607,7 +608,8 @@ namespace Requra.Infrastructure.Services.RecordingService
                 {
                     var expectedChunks = request.lastChunkIndex.Value + 1;
                     if (recording.ExpectedChunks.HasValue &&
-                  recording.ExpectedChunks.Value != expectedChunks)
+                        recording.ExpectedChunks.Value > 0 &&
+                        recording.ExpectedChunks.Value != expectedChunks)
                     {
                         return Response<StopRecordingResponse>.Failure(new StopRecordingResponse(),"ExpectedChunks does not match the previously registered value.",StatusCodes.Status400BadRequest);
                     }
@@ -810,14 +812,20 @@ namespace Requra.Infrastructure.Services.RecordingService
             if (recording.Status == RecordingStatus.FINALIZING)
                 errors.Add("Recording is finalizing and cannot accept more chunks.");
 
-            if (!string.IsNullOrWhiteSpace(recording.ContentType) &&
-                !string.Equals(recording.ContentType, requestContentType, StringComparison.OrdinalIgnoreCase))
+            var recordingContentType = NormalizeMime(recording.ContentType);
+            var normalizedRequestContentType = NormalizeMime(requestContentType);
+
+            if (!string.IsNullOrWhiteSpace(recordingContentType) &&
+                !string.Equals(recordingContentType, normalizedRequestContentType, StringComparison.Ordinal))
             {
                 errors.Add("Chunk content type does not match recording content type.");
             }
 
             return errors;
         }
+
+        private static string NormalizeMime(string? value) =>
+            value?.Split(';', 2)[0].Trim().ToLowerInvariant() ?? string.Empty;
 
         private static Response<UploadChunkResponse> BuildDuplicateChunkResponse(Recording recording,RecordingChunk existingChunk,UploadChunkRequest request)
         {
@@ -917,7 +925,7 @@ namespace Requra.Infrastructure.Services.RecordingService
 
             try
             {
-                await _cloudinaryService.DeleteFileAsync(publicId, cancellationToken);
+                await _cloudinaryService.DeleteFileAsync(publicId, cancellationToken, ResourceType.Raw);
             }
             catch
             {

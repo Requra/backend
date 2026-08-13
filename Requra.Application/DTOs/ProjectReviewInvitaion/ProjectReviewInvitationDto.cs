@@ -32,7 +32,7 @@ namespace Requra.Application.DTOs.ProjectReviewInvitaion
     {
         public Guid Id { get; set; }
         public Guid ProjectId { get; set; }
-        public string StakeholderId { get; set; }
+        public string? StakeholderId { get; set; }
         public string Email { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
         public string? Company { get; set; }
