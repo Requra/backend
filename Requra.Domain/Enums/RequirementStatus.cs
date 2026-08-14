@@ -6,8 +6,13 @@ namespace Requra.Domain.Enums
 {
     public enum RequirementStatus
     {
-        Drafted, 
+        
+        Generated,
+        NeedsReview,
         Approved,
-        Rejected
+        Rejected,
+        Edited,
+        Drafted,
+
     }
 }

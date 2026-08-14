@@ -1,6 +1,8 @@
+using DocumentFormat.OpenXml.InkML;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Requra.Application.DTOs.AI;
 using Requra.Application.Interfaces.IAIService;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
@@ -12,7 +14,7 @@ using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.JobPollingService
 {
-    public class JobPollingService(IServiceScopeFactory _scopeFactory, ILogger<JobPollingService> _logger) : IJobPollingService
+    public class JobPollingService(IServiceScopeFactory _scopeFactory, ILogger<JobPollingService> _logger,RequraDbContext _context) : IJobPollingService
     {
         public async Task PollUntilFinishedAsync(Guid runId, string jobId, int maxAttempts = 1000)
         {
@@ -52,12 +54,18 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     if (statusResponse.Status == "COMPLETED" || statusResponse.Status == "PARTIAL")
                     {
                         var result = await aiClient.GetResultAsync(jobId);
+
+                        var rawJson = JsonSerializer.Serialize(result);
                         db.AnalysisResults.Add(new AnalysisResult
                         {
                             AnalysisRunId = runId,
                             RawJson = JsonSerializer.Serialize(result),
                             CreatedAt = DateTime.UtcNow
                         });
+                        await MapRequirementsFromAiResultAsync(
+                                rawJson,
+                                run.ProjectId
+                                );
                         run.UpdateAnalysis(
                             MapStatus(statusResponse.Status),
                             statusResponse.ProgressPct,
@@ -146,5 +154,97 @@ namespace Requra.Infrastructure.Services.JobPollingService
                 _ => AnalysisRunStatus.QUEUED
             };
         }
+
+        private async Task MapRequirementsFromAiResultAsync(string rawJson,Guid projectId,CancellationToken cancellationToken=default)
+        {
+            var aiResult = JsonSerializer.Deserialize<ResultDto>(
+                rawJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            if (aiResult?.Requirements == null ||
+                aiResult.Requirements.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var aiRequirement in aiResult.Requirements)
+            {
+                if (string.IsNullOrWhiteSpace(aiRequirement.Id))
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(aiRequirement.Title))
+                    continue;
+
+                var requirementType =
+                    MapRequirementType(aiRequirement.Type);
+
+                var qualityIssues =
+                    SerializeList(aiRequirement.Quality?.Issues);
+
+                var qualityWarnings =
+                    SerializeList(aiRequirement.Quality?.Warnings);
+
+                var requirement = new Requirement(
+                    sourceRequirementId: aiRequirement.Id,
+                    title: aiRequirement.Title,
+                    description: aiRequirement.Description,
+                    type: requirementType,
+                    projectId: projectId,
+                    confidenceScore: aiRequirement.ConfidenceScore,
+                    qualityScore: aiRequirement.Quality?.Score,
+                    qualityIssues: qualityIssues,
+                    qualityWarnings: qualityWarnings,
+                    deduplicationKey: aiRequirement.DeduplicationKey,
+                    actor: aiRequirement.Actor,
+                    category: aiRequirement.Category,
+                    priority: aiRequirement.Priority
+                );
+
+                foreach (var sourceReference in aiRequirement.SourceRefs)
+                {
+                    var reference = new RequirementSourceReference(
+                        page: sourceReference.Page,
+                        quote: sourceReference.Quote,
+                        chunkId: sourceReference.ChunkId,
+                        sourceId: sourceReference.SourceId,
+                        sourceType: sourceReference.SourceType,
+                        documentName: sourceReference.DocumentName,
+                        confidenceScore: sourceReference.ConfidenceScore
+                    );
+
+                    requirement.AddSourceReference(reference);
+                }
+
+                _context.Requirements.Add(requirement);
+            }
+        }
+        private static string? SerializeList(List<string>? values)
+        {
+            if (values == null || values.Count == 0)
+                return null;
+
+            return JsonSerializer.Serialize(values);
+        }
+        private static RequirementType MapRequirementType(string? type)
+        {
+            return type?.Trim().ToLowerInvariant() switch
+            {
+                "functional" =>
+                    RequirementType.Functional,
+
+                "non-functional" =>
+                    RequirementType.Non_Functional,
+
+                "business" =>
+                    RequirementType.Business_Rule,
+
+                _ => throw new ArgumentException(
+                    $"Unknown requirement type: {type}")
+            };
+        }
     }
+    
 }

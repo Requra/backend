@@ -66,11 +66,7 @@ namespace Requra.Infrastructure.ExternalServices.AIClient
 
             return result?.JobId.ToString() ?? string.Empty;
         }
-        public async Task<string> ProcessSingleFileAsync(
-    byte[] bytes,
-    string fileName,
-    string contentType,
-    string metadataJson)
+        public async Task<string> ProcessSingleFileAsync(byte[] bytes,string fileName,string contentType,string metadataJson)
 {
     using var form = new MultipartFormDataContent();
 

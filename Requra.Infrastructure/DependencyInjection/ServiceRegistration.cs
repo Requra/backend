@@ -50,6 +50,9 @@ using Requra.Infrastructure.Services.JobPollingService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
+using Microsoft.AspNetCore.Mvc.ViewComponents;
+using Requra.Application.Interfaces.IProjectService.IRequirementService;
+using Requra.Infrastructure.Services.ProjectService.RequirementService;
 
 namespace Requra.Infrastructure.DependencyInjection
 {
@@ -120,7 +123,7 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IRecordingFinalizationService, RecordingFinalizationService>();
             services.AddScoped<IRecordingChunkStorageReader, RecordingChunkStorageReader>();
             services.AddScoped<IProjectReviewService, ProjectReviewService>();
-
+            services.AddScoped<IRequirementService, RequirementService>();
 
 
 

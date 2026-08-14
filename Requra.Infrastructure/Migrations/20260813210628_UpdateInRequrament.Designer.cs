@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813210628_UpdateInRequrament")]
+    partial class UpdateInRequrament
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1321,8 +1324,8 @@ namespace Requra.Infrastructure.Migrations
                     b.Property<string>("QualityIssues")
                         .HasColumnType("text");
 
-                    b.Property<double?>("QualityScore")
-                        .HasColumnType("double precision");
+                    b.Property<int?>("QualityScore")
+                        .HasColumnType("integer");
 
                     b.Property<string>("QualityWarnings")
                         .HasColumnType("text");
@@ -1367,10 +1370,9 @@ namespace Requra.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ReviewdById");
+                    b.HasIndex("ProjectId");
 
-                    b.HasIndex("ProjectId", "SourceRequirementId")
-                        .IsUnique();
+                    b.HasIndex("ReviewdById");
 
                     b.ToTable("requirements", (string)null);
                 });

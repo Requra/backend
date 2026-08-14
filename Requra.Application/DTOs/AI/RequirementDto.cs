@@ -84,5 +84,8 @@ namespace Requra.Application.DTOs.AI
 
         [JsonExtensionData]
         public Dictionary<string, object>? AdditionalProperties { get; set; }
+
+
+      
     }
 }
