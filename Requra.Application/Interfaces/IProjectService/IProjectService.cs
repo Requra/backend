@@ -25,5 +25,13 @@ namespace Requra.Application.Interfaces.IProjectService
 
         Task<Response<PagedResult<ProjectMemberDto>>> GetProjectMembersAsync(string projectId, GetProjectMembersQuery query, string userId);
 
+        // ClickUp Integration Methods
+        Task ConnectClickUpAsync(Guid projectId, string accessToken, string teamId, string? spaceId = null, string? listId = null, int expiresInSeconds = 3600);
+
+        Task DisconnectClickUpAsync(Guid projectId);
+
+        Task<bool> UserHasAccessToProjectAsync(Guid projectId, string userId);
+
+        Task<object> GetClickUpConnectionStatusAsync(Guid projectId);
     }
 }
