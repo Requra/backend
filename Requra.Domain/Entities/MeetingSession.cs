@@ -23,6 +23,7 @@ namespace Requra.Domain.Entities
         public TranscriptStatus TranscriptStatus { get; private set; }
         public string? TranscriptDocumentUrl { get; private set; }
         public string? RecordingUrl { get; private set; }
+        public DateTime? MeetingEndsAt { get; private set; }
 
         // Navigation
         public ApplicationUser Host { get; private set; } = null!;
@@ -68,10 +69,17 @@ namespace Requra.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
-        public void Start()
+        //public void Start()
+        //{
+        //    Status = MeetingStatus.Live;
+        //    StartedAt = DateTime.UtcNow;
+        //    UpdatedAt = DateTime.UtcNow;
+        //}
+        public void Start(int mvpMaxLiveDurationMinutes=60)
         {
             Status = MeetingStatus.Live;
             StartedAt = DateTime.UtcNow;
+            MeetingEndsAt = StartedAt.Value.AddMinutes(mvpMaxLiveDurationMinutes);
             UpdatedAt = DateTime.UtcNow;
         }
 
