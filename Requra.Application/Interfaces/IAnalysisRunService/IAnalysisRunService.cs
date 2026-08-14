@@ -16,5 +16,6 @@ namespace Requra.Application.Interfaces.IAnalysisRunService
         Task<Response<JobResultResponseDto>> GetResultAsync(Guid projectId, Guid? runId, string userId);
         Task<Response<CancelJobResponseDto>> CancelRunAsync(Guid projectId, Guid runId, string userId);
         Task<Response<RetryJobResponseDto>> RetryRunAsync(Guid projectId, Guid runId, string userId);
+        Task<Response<ExportResultsDto>> ExportResultsDashboardAsync(Guid projectId, Guid runId, string format, string userId);
     }
 }

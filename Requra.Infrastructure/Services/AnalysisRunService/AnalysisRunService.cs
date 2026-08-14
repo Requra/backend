@@ -28,10 +28,10 @@ using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.AnalysisRunService
 {
-    public class AnalysisRunService(ILogger<AnalysisRunService> _logger, IAnalysisRunWorker _worker, IServiceScopeFactory _scopeFactory, RequraDbContext dbContext, IAIClient aiClient, IDocumentService documentService, IFileDownloader fileDownloader, IJobPollingService jobPollingService) : IAnalysisRunService
+    public class AnalysisRunService(ILogger<AnalysisRunService> _logger, IAnalysisRunWorker _worker, IServiceScopeFactory _scopeFactory, RequraDbContext dbContext, IAIClient aiClient, IDocumentService documentService, IFileDownloader fileDownloader, IJobPollingService jobPollingService, IExcelExportService excelExportService) : IAnalysisRunService
     {
 
-     
+
 
         public async Task<Response<AnalysisRunDto>> StartRunAsync(StartRunRequest request, Guid projectId, string userId)
         {
@@ -444,6 +444,107 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             {
                 _logger.LogError(ex, $"Error retrying job {runId}");
                 return Response<RetryJobResponseDto>.Failure(null, "Failed to retry job", 500);
+            }
+        }
+
+        public async Task<Response<ExportResultsDto>> ExportResultsDashboardAsync(Guid projectId, Guid runId, string format, string userId)
+        {
+            // Verify project exists and user is member
+            var project = await dbContext.Projects.FindAsync(projectId);
+            if (project == null)
+                return Response<ExportResultsDto>.Failure(null, "Project not found", 404);
+
+            var isMember = await dbContext.ProjectMembers.AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+            if (!isMember)
+                return Response<ExportResultsDto>.Failure(null, "You are not allowed to access this project", 403);
+
+            // Verify run exists and belongs to project
+            var run = await dbContext.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId && r.ProjectId == projectId);
+            if (run == null)
+                return Response<ExportResultsDto>.Failure(null, "Run not found", 404);
+
+            try
+            {
+                // Validate format
+                if (!format.Equals("xlsx", StringComparison.OrdinalIgnoreCase) && !format.Equals("csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Response<ExportResultsDto>.Failure(null, "Invalid format. Allowed formats: xlsx, csv", 400);
+                }
+
+                // Get APPROVED requirements and user stories from DATABASE (not from AI result)
+                var approvedRequirements = await dbContext.Requirements
+                    .Where(r => r.ProjectId == projectId && r.Status == RequirementStatus.Approved)
+                    .ToListAsync();
+
+                var approvedUserStories = await dbContext.UserStories
+                    .Where(us => us.ProjectId == projectId && us.Status == UserStoryStatus.Approved)
+                    .ToListAsync();
+
+                // Map database entities to DTOs for export
+                var requirementDtos = approvedRequirements.Select(r => new RequirementDto
+                {
+                    Id = r.Id.ToString(),
+                    Title = r.Title,
+                    Description = r.Description,
+                    Category = r.Type.ToString(),
+                    Type = r.Type.ToString()
+                }).ToList();
+
+                var userStoryDtos = approvedUserStories.Select(us => new UserStoryDto
+                {
+                    Id = us.Id.ToString(),
+                    Title = us.Title,
+                    UserStory = us.Description,
+                    RequirementId = us.RequirementId.ToString()
+                }).ToList();
+
+                // Generate export file
+                ExportResultsDto exportResult;
+                if (format.Equals("xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    exportResult = await excelExportService.GenerateExcelExportAsync(
+                        requirementDtos,
+                        userStoryDtos,
+                        projectId,
+                        "xlsx"
+                    );
+                }
+                else
+                {
+                    exportResult = await excelExportService.GenerateCsvExportAsync(
+                        requirementDtos,
+                        userStoryDtos,
+                        projectId
+                    );
+                }
+
+                // Record export event (audit trail)
+                _logger.LogInformation("Export generated for project {ProjectId}, run {RunId}, format {Format} by user {UserId}", 
+                    projectId, runId, format, userId);
+
+                return Response<ExportResultsDto>.Success(
+                    exportResult,
+                    "Filtered dashboard export generated successfully",
+                    200
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating export for project {ProjectId}, run {RunId}", projectId, runId);
+
+                // On error, call AI Cancel endpoint to ensure cancellation from AI side
+                try
+                {
+                    var jobId = runId.ToString();
+                    await aiClient.CancelJobAsync(jobId);
+                    _logger.LogInformation("AI job {JobId} cancelled due to export error", jobId);
+                }
+                catch (Exception cancelEx)
+                {
+                    _logger.LogError(cancelEx, "Failed to cancel AI job {JobId} after export error", runId);
+                }
+
+                return Response<ExportResultsDto>.Failure(null, "Failed to generate export", 500);
             }
         }
     }
