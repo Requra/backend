@@ -54,8 +54,34 @@ namespace Requra.Infrastructure.Configurations
                    .HasConversion<string>()
                    .IsRequired();
 
+            builder.Property(p => p.IsDeleted)
+                   .HasColumnName("is_deleted")
+                   .HasDefaultValue(false);
 
+            // ClickUp Integration Configuration
+            builder.Property(p => p.IsClickUpConnected)
+                   .HasColumnName("is_click_up_connected")
+                   .HasDefaultValue(false);
 
+            builder.Property(p => p.ClickUpAccessToken)
+                   .HasColumnName("click_up_access_token")
+                   .HasColumnType("text");
+
+            builder.Property(p => p.ClickUpTeamId)
+                   .HasColumnName("click_up_team_id")
+                   .HasMaxLength(50);
+
+            builder.Property(p => p.ClickUpSpaceId)
+                   .HasColumnName("click_up_space_id")
+                   .HasMaxLength(50);
+
+            builder.Property(p => p.ClickUpListId)
+                   .HasColumnName("click_up_list_id")
+                   .HasMaxLength(50);
+
+            builder.Property(p => p.ClickUpTokenExpiresAt)
+                   .HasColumnName("click_up_token_expires_at")
+                   .HasColumnType("timestamptz");
 
             builder.HasMany(p => p.Documents)
                    .WithOne(d => d.Project)

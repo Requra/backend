@@ -48,6 +48,9 @@ using Requra.Infrastructure.Services.ProjectService.ProjectReviewService;
 using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.Services.JobPollingService;
+using Requra.Infrastructure.ExternalInterfaces.IClickUpService;
+using Requra.Infrastructure.ExternalServices.ClickUpService;
+using Requra.Infrastructure.Services.ClickUpService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
@@ -99,7 +102,16 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<ICloudinaryService, CloudinaryService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 
-            services.AddDistributedMemoryCache(); 
+            // ClickUp Service Registration
+            services.AddHttpClient<IClickUpService, ClickUpService>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.clickup.com/api/v3");
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+            services.AddScoped<IClickUpSyncService, ClickUpSyncService>();
+            services.AddScoped<IClickUpPushService, ClickUpPushService>();
+
+            services.AddDistributedMemoryCache();
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.AddScoped<IEmailSender, EmailSender>();
             services.AddScoped<IOtpService, OtpService>();
