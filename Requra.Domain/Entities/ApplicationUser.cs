@@ -78,7 +78,7 @@ namespace Requra.Domain.Entities
         }
     }
 
-   
+
 }
 
 
