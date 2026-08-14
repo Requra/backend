@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
+using Requra.Application.DTOs.LiveKit;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Participant;
 using Requra.Application.DTOs.Project.ProjectDetails;
@@ -11,6 +12,7 @@ using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Services.MeetingService;
 using System.Security.Claims;
+using static Google.Apis.Requests.BatchRequest;
 
 namespace Requra.Presentation.Controllers.Meeting
 {
@@ -384,6 +386,31 @@ namespace Requra.Presentation.Controllers.Meeting
                 500 => StatusCode(500, response),
                 _ => StatusCode(response.StatusCode, response)
             };
+        }
+
+
+
+        [HttpPost("{meetingId:guid}/livekit-token")]
+        public async Task<IActionResult> IssueLiveKitToken([FromRoute] Guid meetingId,[FromBody] LiveKitTokenRequestDto request,CancellationToken cancellationToken)
+        {
+            // Never trust a user ID from the request body — always from the JWT.
+            var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var result = await _meetingService.IssueTokenAsync(meetingId,callerUserId!,request?.ParticipantId,cancellationToken);
+
+            return result.StatusCode switch
+            {
+                200 => Ok(result),
+                400 => BadRequest(result),
+                401 => Unauthorized(result),
+                403 => StatusCode(403, result),
+                404 => NotFound(result),
+                422 => UnprocessableEntity(result),
+                500 => StatusCode(500, result),
+                _ => StatusCode(result.StatusCode, result)
+            };
+
+           
         }
 
     }

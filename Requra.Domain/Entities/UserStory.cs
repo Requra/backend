@@ -49,7 +49,7 @@ namespace Requra.Domain.Entities
             RequirementId = requirementId;
             Priority = priority;
 
-            Status = UserStoryStatus.Draft;
+            Status = UserStoryStatus.NeedReview;
             CreatedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }

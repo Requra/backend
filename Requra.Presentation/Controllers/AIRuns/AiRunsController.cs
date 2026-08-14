@@ -161,5 +161,49 @@ namespace Requra.Presentation.Controllers.AIRuns
 
             return StatusCode(response.StatusCode, response);
         }
+
+        //[HttpGet("results-dashboard/export")]
+        //public async Task<IActionResult> ExportResultsDashboard(string projectId, [FromQuery] string? runId, [FromQuery] string? format)
+        //{
+        //    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //    if (string.IsNullOrEmpty(userId))
+        //        return Unauthorized(Response<ExportResultsDto>.Failure(null, "Unauthorized User", 401));
+
+        //    if (!Guid.TryParse(projectId, out var projectGuid))
+        //    {
+        //        return BadRequest(Response<ExportResultsDto>.Failure(null,
+        //            "Invalid project id format",
+        //            400
+        //        ));
+        //    }
+
+        //    if (string.IsNullOrEmpty(runId))
+        //    {
+        //        return BadRequest(Response<ExportResultsDto>.Failure(null,
+        //            "Run ID is required",
+        //            400
+        //        ));
+        //    }
+
+        //    if (!Guid.TryParse(runId, out var runGuid))
+        //    {
+        //        return BadRequest(Response<ExportResultsDto>.Failure(null,
+        //            "Invalid run id format",
+        //            400
+        //        ));
+        //    }
+
+        //    if (string.IsNullOrEmpty(format))
+        //    {
+        //        return BadRequest(Response<ExportResultsDto>.Failure(null,
+        //            "Format is required (xlsx or csv)",
+        //            400
+        //        ));
+        //    }
+
+        //    var response = await _service.ExportResultsDashboardAsync(projectGuid, runGuid, format.ToLower(), userId);
+
+        //    return StatusCode(response.StatusCode, response);
+        //}
     }
 }

@@ -10,7 +10,6 @@
     <Folder Include="ExternalServices\JwtService\" />
     <Folder Include="Hubs\" />
     <Folder Include="MiddleWares\" />
-    <Folder Include="Options\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,6 +18,7 @@
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageReference Include="Hangfire.Core" Version="1.8.23" />
+    <PackageReference Include="Livekit.Server.Sdk.Dotnet" Version="1.2.2" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />

@@ -54,8 +54,12 @@ namespace Requra.Infrastructure.Configurations
                    .HasConversion<string>()
                    .IsRequired();
 
+            builder.Property(p => p.IsDeleted)
+                   .HasColumnName("IsDeleted")
+                   .HasDefaultValue(false);
 
-
+            // Global query filter to exclude soft-deleted projects
+            builder.HasQueryFilter(p => !p.IsDeleted);
 
             builder.HasMany(p => p.Documents)
                    .WithOne(d => d.Project)

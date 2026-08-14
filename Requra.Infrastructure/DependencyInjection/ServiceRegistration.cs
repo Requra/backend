@@ -37,6 +37,7 @@ using Requra.Infrastructure.Repositories.Project;
 using Requra.Infrastructure.Services.AnalysisRunService;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.DocumentService;
+using Requra.Infrastructure.Services.ExportService;
 using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.MeetingService;
 using Requra.Infrastructure.Services.OtpService;
@@ -53,6 +54,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
 using Requra.Application.Interfaces.IProjectService.IRequirementService;
 using Requra.Infrastructure.Services.ProjectService.RequirementService;
+using Requra.Infrastructure.Options;
 
 namespace Requra.Infrastructure.DependencyInjection
 {
@@ -124,6 +126,8 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IRecordingChunkStorageReader, RecordingChunkStorageReader>();
             services.AddScoped<IProjectReviewService, ProjectReviewService>();
             services.AddScoped<IRequirementService, RequirementService>();
+            services.AddScoped<IExcelExportService, ExcelExportService>();
+
 
 
 
@@ -143,6 +147,9 @@ namespace Requra.Infrastructure.DependencyInjection
 
             // Auto Mapper
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
+
+            services.Configure<LiveKitOptions>(configuration.GetSection(LiveKitOptions.SectionName));
+            services.Configure<MeetingOptions>(configuration.GetSection(MeetingOptions.SectionName));
 
 
             return services;

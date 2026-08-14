@@ -2,11 +2,14 @@
 using AutoMapper.QueryableExtensions;
 using DocumentFormat.OpenXml.Spreadsheet;
 using FluentValidation;
+using Livekit.Server.Sdk.Dotnet;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
+using Requra.Application.DTOs.LiveKit;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Participant;
 using Requra.Application.DTOs.Project.ProjectCreation;
@@ -19,12 +22,13 @@ using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
 using Requra.Infrastructure.ExternalServices.EmailSender;
+using Requra.Infrastructure.Options;
 using Requra.Infrastructure.Services.InvitationService.MeetingInvitationService;
 using System.Security.Claims;
 
 namespace Requra.Infrastructure.Services.MeetingService
 {
-    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender) : IMeetingService
+    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender, IOptions<LiveKitOptions> _liveKitOptions,IOptions<MeetingOptions> _meetingOptions) : IMeetingService
     {
 
         public async Task<Response<MeetingDto>> CreateMeetingAsync(Guid projectId,CreateMeetingRequest request,string currentUserId)
@@ -1322,51 +1326,6 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        private static MeetingInvitationDetailResponse MapToDetailResponse(Invitation invitation)
-        {
-            return new MeetingInvitationDetailResponse
-            {
-                Id = invitation.Id,
-                MeetingId = invitation.MeetingId ?? Guid.Empty,
-                InviteeType = ToInviteeType(invitation.InviteType),
-                Email = invitation.Email,
-                DisplayName = invitation.DisplayName,
-                ProjectMemberId = invitation.ProjectMemberId,
-                StakeholderId = invitation.StakeholderId,
-                Role = (invitation.Role ?? MeetingRole.Participant).ToString().ToUpper(),
-                Status = invitation.Status.ToString().ToUpper(),
-                InvitedById = invitation.InvitedById,
-                ExpiresAt = invitation.ExpiresAt,
-                CreatedAt = invitation.CreatedAt
-            };
-        }
-
-        // mapping between
-        // invitation entity and  representation.
-        private static MeetingInvitationItemResponse MapToItemResponse(Invitation invitation)
-        {
-            return new MeetingInvitationItemResponse
-            {
-                Id = invitation.Id,
-                MeetingId = invitation.MeetingId ?? Guid.Empty,
-                InviteType = invitation.InviteType ?? InviteType.Guest,
-                Email = invitation.Email,
-                DisplayName = invitation.DisplayName,
-                ProjectMemberId = invitation.ProjectMemberId,
-                StakeholderId = invitation.StakeholderId,
-                Role = invitation.Role ?? MeetingRole.Participant,
-                Status = invitation.Status,
-                InvitedById = invitation.InvitedById,
-                ExpiresAt = invitation.ExpiresAt,
-                CreatedAt = invitation.CreatedAt
-            };
-        }
-
-        private static string ToInviteeType(InviteType? inviteType)
-        {
-            return inviteType == InviteType.Participant ? "PARTICIPANT" : "GUEST";
-        }
-
 
         // Participant
         public async Task<Response<MeetingParticipantResponse>> JoinMeetingAsync(
@@ -1479,9 +1438,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingParticipantResponse>> LeaveMeetingAsync(
-            LeaveMeetingRequest request,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingParticipantResponse>> LeaveMeetingAsync(LeaveMeetingRequest request,CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1553,11 +1510,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<PagedResult<MeetingParticipantResponse>>> GetMeetingParticipantsAsync(
-            Guid meetingId,
-            string currentUserId,
-            GetMeetingParticipantsQuery query,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<PagedResult<MeetingParticipantResponse>>> GetMeetingParticipantsAsync(Guid meetingId,string currentUserId,GetMeetingParticipantsQuery query,CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1608,9 +1561,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingParticipantResponse>> RemoveParticipantAsync(
-            RemoveParticipantRequest request,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingParticipantResponse>> RemoveParticipantAsync(RemoveParticipantRequest request,CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1658,9 +1609,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingParticipantResponse>> SaveConsentAsync(
-            SaveConsentRequest request,
-            CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingParticipantResponse>> SaveConsentAsync(SaveConsentRequest request,CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1709,6 +1658,129 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
+
+        //LiveKit
+        public async Task<Response<LiveKitTokenResponseDto>> IssueTokenAsync(Guid meetingId,string callerUserId,Guid? participantId,CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(callerUserId))
+            {
+                return Response<LiveKitTokenResponseDto>.Failure("Caller identity could not be resolved from the token.",StatusCodes.Status401Unauthorized);
+            }
+
+            var meeting = await _context.MeetingSessions
+                .Include(m => m.Participants)
+                .FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+
+            if (meeting is null)
+            {
+                return Response<LiveKitTokenResponseDto>.Failure("Meeting not found.",StatusCodes.Status404NotFound);
+            }
+
+            if (meeting.Status != MeetingStatus.Live)
+            {
+                return Response<LiveKitTokenResponseDto>.Failure("Meeting is not currently live.",StatusCodes.Status409Conflict
+                );
+            }
+
+            if (meeting.MeetingEndsAt.HasValue && DateTime.UtcNow >= meeting.MeetingEndsAt.Value)
+            {
+                return Response<LiveKitTokenResponseDto>.Failure("The meeting's live window has ended.",StatusCodes.Status409Conflict);
+            }
+
+            // 2. Resolve participant row: explicit participantId, or unambiguous derivation.
+            MeetingParticipant? participant;
+
+            if (participantId.HasValue)
+            {
+                participant = meeting.Participants
+                    .FirstOrDefault(p => p.Id == participantId.Value);
+
+                if (participant is null)
+                {
+                    return Response<LiveKitTokenResponseDto>.Failure("Participant not found for this meeting.", StatusCodes.Status403Forbidden);
+                }
+
+                if (participant.UserId != callerUserId)
+                {
+                    return Response<LiveKitTokenResponseDto>.Failure("Caller does not own this participant record.", StatusCodes.Status403Forbidden);
+                }
+            }
+            else
+            {
+                // Only safe when caller has exactly one joined participant row in this meeting.
+                var candidates = meeting.Participants
+                    .Where(p => p.UserId == callerUserId && p.Status == ParticipantStatus.Joined)
+                    .ToList();
+
+                if (candidates.Count != 1)
+                {
+                    return Response<LiveKitTokenResponseDto>.Failure("Could not unambiguously resolve the caller's participant record; pass participantId explicitly.",StatusCodes.Status403Forbidden);
+                }
+
+                participant = candidates[0];
+            }
+
+            if (participant.Status != ParticipantStatus.Joined)
+            {
+                return Response<LiveKitTokenResponseDto>.Failure("Participant has not joined the meeting.", StatusCodes.Status403Forbidden);
+            }
+
+            // NOTE: intentionally no recordingConsent check here — enforced only at recording start.
+
+            DateTime expiresAt;
+            try
+            {
+                var roomName = $"requra-meeting-{meeting.Id}";
+                var identity = $"requra-participant-{participant.Id}";
+
+                var maxByConfig = DateTime.UtcNow.AddMinutes(_meetingOptions.Value.MvpMaxLiveDurationMinutes);
+                expiresAt = meeting.MeetingEndsAt.HasValue && meeting.MeetingEndsAt.Value < maxByConfig
+                    ? meeting.MeetingEndsAt.Value
+                    : maxByConfig;
+
+                var ttl = expiresAt - DateTime.UtcNow;
+                if (ttl <= TimeSpan.Zero)
+                {
+                    return Response<LiveKitTokenResponseDto>.Failure("The meeting's live window has ended.",StatusCodes.Status409Conflict);
+                }
+
+                var accessToken = new AccessToken(_liveKitOptions.Value.ApiKey, _liveKitOptions.Value.ApiSecret)
+                    .WithIdentity(identity)
+                    .WithTtl(ttl)
+                    .WithGrants(new VideoGrants
+                    {
+                        RoomJoin = true,
+                        Room = roomName,
+                        CanPublish = true,
+                        CanSubscribe = true
+                    })
+                    // Non-sensitive IDs/role only — no PII, no secrets.
+                    .WithMetadata($"{{\"meetingId\":\"{meeting.Id}\",\"participantId\":\"{participant.Id}\",\"role\":\"{participant.Role}\"}}");
+
+                var token = accessToken.ToJwt();
+
+                var response = new LiveKitTokenResponseDto
+                {
+                    ServerUrl = _liveKitOptions.Value.Url,
+                    Token = token,
+                    RoomName = roomName,
+                    Identity = identity,
+                    ExpiresAt = expiresAt,
+                    MeetingEndsAt = meeting.MeetingEndsAt ?? expiresAt
+                };
+
+                return Response<LiveKitTokenResponseDto>.Success(response, "Live meeting credentials issued");
+            }
+            catch (Exception ex)
+            {
+                // Never leak provider config details to the client.
+                return Response<LiveKitTokenResponseDto>.Failure("Unable to issue live meeting credentials at this time.",StatusCodes.Status500InternalServerError);
+                // Log ex with your logger here.
+            }
+        }
+
+
+
         private static MeetingParticipantResponse MapToParticipantResponse(MeetingParticipant participant)
         {
             return new MeetingParticipantResponse
@@ -1728,6 +1800,50 @@ namespace Requra.Infrastructure.Services.MeetingService
                 JoinedAt = participant.JoinedAt,
                 LeftAt = participant.LeftAt
             };
+        }
+        private static MeetingInvitationDetailResponse MapToDetailResponse(Invitation invitation)
+        {
+            return new MeetingInvitationDetailResponse
+            {
+                Id = invitation.Id,
+                MeetingId = invitation.MeetingId ?? Guid.Empty,
+                InviteeType = ToInviteeType(invitation.InviteType),
+                Email = invitation.Email,
+                DisplayName = invitation.DisplayName,
+                ProjectMemberId = invitation.ProjectMemberId,
+                StakeholderId = invitation.StakeholderId,
+                Role = (invitation.Role ?? MeetingRole.Participant).ToString().ToUpper(),
+                Status = invitation.Status.ToString().ToUpper(),
+                InvitedById = invitation.InvitedById,
+                ExpiresAt = invitation.ExpiresAt,
+                CreatedAt = invitation.CreatedAt
+            };
+        }
+
+        // mapping between
+        // invitation entity and  representation.
+        private static MeetingInvitationItemResponse MapToItemResponse(Invitation invitation)
+        {
+            return new MeetingInvitationItemResponse
+            {
+                Id = invitation.Id,
+                MeetingId = invitation.MeetingId ?? Guid.Empty,
+                InviteType = invitation.InviteType ?? InviteType.Guest,
+                Email = invitation.Email,
+                DisplayName = invitation.DisplayName,
+                ProjectMemberId = invitation.ProjectMemberId,
+                StakeholderId = invitation.StakeholderId,
+                Role = invitation.Role ?? MeetingRole.Participant,
+                Status = invitation.Status,
+                InvitedById = invitation.InvitedById,
+                ExpiresAt = invitation.ExpiresAt,
+                CreatedAt = invitation.CreatedAt
+            };
+        }
+
+        private static string ToInviteeType(InviteType? inviteType)
+        {
+            return inviteType == InviteType.Participant ? "PARTICIPANT" : "GUEST";
         }
     }
 }
