@@ -6,9 +6,9 @@ namespace Requra.Domain.Enums
 {
     public enum UserStoryStatus
     {
-        Draft,
+        NeedReview,
         Approved,
-        InProgress,
+        //InProgress,
         Rejected
     }
 }

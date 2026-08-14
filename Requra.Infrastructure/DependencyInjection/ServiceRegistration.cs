@@ -37,6 +37,7 @@ using Requra.Infrastructure.Repositories.Project;
 using Requra.Infrastructure.Services.AnalysisRunService;
 using Requra.Infrastructure.Services.AuthService;
 using Requra.Infrastructure.Services.DocumentService;
+using Requra.Infrastructure.Services.ExportService;
 using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.MeetingService;
 using Requra.Infrastructure.Services.OtpService;
@@ -121,6 +122,7 @@ namespace Requra.Infrastructure.DependencyInjection
             services.AddScoped<IRecordingFinalizationService, RecordingFinalizationService>();
             services.AddScoped<IRecordingChunkStorageReader, RecordingChunkStorageReader>();
             services.AddScoped<IProjectReviewService, ProjectReviewService>();
+            services.AddScoped<IExcelExportService, ExcelExportService>();
 
 
 
