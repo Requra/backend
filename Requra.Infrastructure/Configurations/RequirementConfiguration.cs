@@ -62,6 +62,11 @@ namespace Requra.Infrastructure.Configurations
                 })
                     .IsUnique();
 
+                builder.Property(x => x.Version)
+                       .HasColumnName("version")
+                       .IsConcurrencyToken()
+                       .IsRequired();
+
                 builder.HasMany(r => r.DocumentRequirements)
                        .WithOne(dr => dr.Requirement)
                        .HasForeignKey(dr => dr.RequirementId)

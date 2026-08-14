@@ -31,7 +31,7 @@ namespace Requra.Application.DTOs.Project.Requirements
     public class RequirementSourceRefDto
     {
         public string? SourceDocumentId { get; set; }
-        public Guid? BackendDocumentId { get; set; }
+        public string Document_Name { get; set; }
         public int? Page { get; set; }
         public string? ChunkId { get; set; }
         public string? Quote { get; set; }

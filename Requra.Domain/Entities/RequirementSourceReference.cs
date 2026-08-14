@@ -41,8 +41,8 @@ namespace Requra.Domain.Entities
             string? sourceId,
             string? sourceType,
             string? documentName,
-            double? confidenceScore,
-            Guid? documentId)
+            double? confidenceScore
+            )
         {
             Id = Guid.NewGuid();
 
@@ -53,7 +53,7 @@ namespace Requra.Domain.Entities
             SourceType = sourceType;
             DocumentName = documentName;
             ConfidenceScore = confidenceScore;
-            DocumentId = documentId;
+            //DocumentId = documentId;
         }
     }
 }

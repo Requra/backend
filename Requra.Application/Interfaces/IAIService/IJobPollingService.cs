@@ -8,6 +8,7 @@ namespace Requra.Application.Interfaces.IAIService
     {
         Task PollUntilFinishedAsync(Guid runId, string jobId, int maxAttempts = 1000);
 
-        
+
+
     }
 }

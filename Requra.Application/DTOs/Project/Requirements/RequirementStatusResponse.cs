@@ -14,5 +14,6 @@ namespace Requra.Application.DTOs.Project.Requirements
         public string? ReviewedBy { get; set; }
         public DateTime? ReviewedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public int? Version { get; set; }
     }
 }

@@ -8,6 +8,7 @@ using Requra.Infrastructure.Data;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.ProjectService.RequirementService
 {
@@ -68,12 +69,17 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                     return Response<UpdateRequirementStatusResponse>.Failure(new UpdateRequirementStatusResponse(), "Reviewer not found.", StatusCodes.Status404NotFound);
                 }
 
-               
-                if (!string.IsNullOrWhiteSpace(request.IfMatch))
+
+                if (string.IsNullOrWhiteSpace(request.IfMatch))
                 {
-                    //future validation:
-                    // compare request.IfMatch with generated ETag from requirement.UpdatedAt or RowVersion
+                    return Response<UpdateRequirementStatusResponse>.Failure(new UpdateRequirementStatusResponse(),"If-Match header is required.",StatusCodes.Status428PreconditionRequired);
                 }
+
+                if (!MatchesIfMatch(request.IfMatch, requirement.Version))
+                {
+                    return Response<UpdateRequirementStatusResponse>.Failure(new UpdateRequirementStatusResponse(),"The requirement has been modified by another user. Please refresh and try again.",StatusCodes.Status412PreconditionFailed);
+                }
+
 
                 switch (request.WorkflowStatus)
                 {
@@ -100,7 +106,8 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                     ReviewFeedback = requirement.ReviewFeedback,
                     ReviewedBy = requirement.ReviewedById,
                     ReviewedAt = requirement.ReviewedAt,
-                    UpdatedAt = requirement.UpdatedAt
+                    UpdatedAt = requirement.UpdatedAt,
+                    Version = requirement.Version
                 };
 
                 return Response<UpdateRequirementStatusResponse>.Success(response, "Requirement status updated successfully.", StatusCodes.Status200OK);
@@ -184,10 +191,14 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                         StatusCodes.Status404NotFound);
                 }
 
-                // Placeholder for future ETag/If-Match concurrency validation
-                if (!string.IsNullOrWhiteSpace(request.IfMatch))
+                if (string.IsNullOrWhiteSpace(request.IfMatch))
                 {
-                    // Later compare request.IfMatch to generated ETag from Version or RowVersion
+                    return Response<EditRequirementContentResponse>.Failure(new EditRequirementContentResponse(),"If-Match header is required.",StatusCodes.Status428PreconditionRequired);
+                }
+
+                if (!MatchesIfMatch(request.IfMatch, requirement.Version))
+                {
+                    return Response<EditRequirementContentResponse>.Failure(new EditRequirementContentResponse(),"The requirement has been modified by another user. Please refresh and try again.",StatusCodes.Status412PreconditionFailed);
                 }
 
                 requirement.EditContent(
@@ -217,27 +228,41 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                         .Select(x => new RequirementSourceRefDto
                         {
                             SourceDocumentId = x.SourceId,
-                            BackendDocumentId = x.DocumentId,
+                            Document_Name = x.DocumentName,
                             Page = x.Page,
                             ChunkId = x.ChunkId,
                             Quote = x.Quote
                         })
                         .ToList(),
+                    //Quality = new RequirementQualityDto
+                    //{
+                    //    Score = requirement.QualityScore,
+                    //    Issues = string.IsNullOrWhiteSpace(requirement.QualityIssues)
+                    //        ? new List<string>()
+                    //        : requirement.QualityIssues
+                    //            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    //            .Select(x => x.Trim())
+                    //            .ToList(),
+                    //    Warnings = string.IsNullOrWhiteSpace(requirement.QualityWarnings)
+                    //        ? new List<string>()
+                    //        : requirement.QualityWarnings
+                    //            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    //            .Select(x => x.Trim())
+                    //            .ToList()
+                    //},
                     Quality = new RequirementQualityDto
                     {
                         Score = requirement.QualityScore,
+
                         Issues = string.IsNullOrWhiteSpace(requirement.QualityIssues)
                             ? new List<string>()
-                            : requirement.QualityIssues
-                                .Split(';', StringSplitOptions.RemoveEmptyEntries)
-                                .Select(x => x.Trim())
-                                .ToList(),
+                            : JsonSerializer.Deserialize<List<string>>(
+                                requirement.QualityIssues) ?? new List<string>(),
+
                         Warnings = string.IsNullOrWhiteSpace(requirement.QualityWarnings)
                             ? new List<string>()
-                            : requirement.QualityWarnings
-                                .Split(';', StringSplitOptions.RemoveEmptyEntries)
-                                .Select(x => x.Trim())
-                                .ToList()
+                            : JsonSerializer.Deserialize<List<string>>(
+                                requirement.QualityWarnings) ?? new List<string>()
                     },
                     QualityStatus = requirement.QualityStatus,
                     WorkflowStatus = requirement.Status.ToString().ToUpper(),
@@ -265,5 +290,20 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                 return Response<EditRequirementContentResponse>.Failure(new EditRequirementContentResponse(),"An unexpected error occurred while updating the requirement.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
             }
         }
+        private static string BuildRequirementETag(int? version)
+        {
+            return $"\"{version}\"";
+        }
+
+        private static bool MatchesIfMatch(string? ifMatch, int? currentVersion)
+        {
+            if (string.IsNullOrWhiteSpace(ifMatch))
+                return false;
+
+            var expected = BuildRequirementETag(currentVersion);
+            return string.Equals(ifMatch.Trim(), expected, StringComparison.Ordinal);
+        }
+
+
     }
 }
