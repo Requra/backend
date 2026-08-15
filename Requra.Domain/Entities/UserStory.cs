@@ -4,7 +4,7 @@ namespace Requra.Domain.Entities
 {
     public class UserStory
     {
-        
+
         public Guid Id { get; private set; }
         public string SourceUserStoryId { get; private set; } = null!;
 
@@ -42,15 +42,16 @@ namespace Requra.Domain.Entities
         // Constructor
         private UserStory()
         {
-            
+
         }
-        public UserStory(string title, string creatorId, Guid requirementId, UserStoryPriority priority)
+        public UserStory(string title, string creatorId, Guid requirementId, UserStoryPriority priority, Guid? projectId = null)
         {
             Id = Guid.NewGuid();
             Title = title;
             CreatorId = creatorId;
             RequirementId = requirementId;
             Priority = priority;
+            ProjectId = projectId ?? Guid.Empty;
 
             Status = UserStoryStatus.NeedReview;
             CreatedAt = DateTime.UtcNow;
@@ -64,6 +65,24 @@ namespace Requra.Domain.Entities
             Description = description;
             AcceptanceCriteria = acceptanceCriteria ?? new List<string>();
             Language = language;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void UpdateDetails(string? title = null, string? description = null, List<string>? acceptanceCriteria = null, 
+            UserStoryPriority? priority = null, UserStoryStatus? status = null, Language? language = null)
+        {
+            if (!string.IsNullOrWhiteSpace(title))
+                Title = title;
+            if (!string.IsNullOrWhiteSpace(description))
+                Description = description;
+            if (acceptanceCriteria != null && acceptanceCriteria.Any())
+                AcceptanceCriteria = acceptanceCriteria;
+            if (priority.HasValue)
+                Priority = priority.Value;
+            if (status.HasValue)
+                Status = status.Value;
+            if (language.HasValue)
+                Language = language;
             UpdatedAt = DateTime.UtcNow;
         }
 
@@ -82,6 +101,24 @@ namespace Requra.Domain.Entities
         public void LinkJira(string jiraTicket)
         {
             JiraTicket = jiraTicket;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetClickUpTaskId(string taskId)
+        {
+            JiraTicket = taskId;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetDescription(string? description)
+        {
+            Description = description;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void SetProjectId(Guid projectId)
+        {
+            ProjectId = projectId;
             UpdatedAt = DateTime.UtcNow;
         }
     }

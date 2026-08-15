@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260814163433_AddClickUpIntegrationToProject")]
+    partial class AddClickUpIntegrationToProject
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -840,9 +843,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("host_id");
 
-                    b.Property<DateTime?>("MeetingEndsAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("PlatformUrl")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -958,7 +958,7 @@ namespace Requra.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
-                        .HasColumnName("IsDeleted");
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -1321,23 +1321,11 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("Actor")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Category")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("ConfidenceScore")
-                        .HasColumnType("double precision");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamptz")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("NOW()");
-
-                    b.Property<string>("DeduplicationKey")
-                        .HasColumnType("text");
 
                     b.Property<string>("Description")
                         .HasColumnType("text")
@@ -1347,42 +1335,8 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("language");
 
-                    b.Property<string>("LastModifiedById")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Priority")
-                        .HasColumnType("text");
-
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("QualityIssues")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("QualityScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<int?>("QualityStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("QualityWarnings")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReviewFeedback")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReviewdById")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ReviewedById")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SourceRequirementId")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1406,61 +1360,11 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("NOW()");
 
-                    b.Property<int>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer")
-                        .HasColumnName("version");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("ReviewdById");
-
-                    b.HasIndex("ProjectId", "SourceRequirementId")
-                        .IsUnique();
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("requirements", (string)null);
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.RequirementSourceReference", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ChunkId")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("ConfidenceScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<Guid?>("DocumentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DocumentName")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("Page")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Quote")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("RequirementId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SourceId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SourceType")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("RequirementId");
-
-                    b.ToTable("RequirementSourceReference");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.Summary", b =>
@@ -1574,10 +1478,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Property<Guid>("RequirementId")
                         .HasColumnType("uuid")
                         .HasColumnName("requirement_id");
-
-                    b.Property<string>("SourceUserStoryId")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1946,30 +1846,7 @@ namespace Requra.Infrastructure.Migrations
                         .WithMany("Requirements")
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("Requra.Domain.Entities.ApplicationUser", "ReviewdBy")
-                        .WithMany()
-                        .HasForeignKey("ReviewdById");
-
                     b.Navigation("Project");
-
-                    b.Navigation("ReviewdBy");
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.RequirementSourceReference", b =>
-                {
-                    b.HasOne("Requra.Domain.Entities.Document", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId");
-
-                    b.HasOne("Requra.Domain.Entities.Requirement", "Requirement")
-                        .WithMany("RequirementSourceReferences")
-                        .HasForeignKey("RequirementId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Document");
-
-                    b.Navigation("Requirement");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.Summary", b =>
@@ -2096,8 +1973,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Navigation("Approvals");
 
                     b.Navigation("DocumentRequirements");
-
-                    b.Navigation("RequirementSourceReferences");
 
                     b.Navigation("UserStories");
                 });
