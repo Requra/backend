@@ -1297,6 +1297,52 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 {
                     return Response<GetProjectReviewDashboardResponse>.Failure(new GetProjectReviewDashboardResponse(),"Analysis result payload is empty or invalid.",StatusCodes.Status500InternalServerError);
                 }
+                
+                var requirementEntities = await _context.Requirements
+                    .AsNoTracking()
+                    .Where(x => x.ProjectId == invitation.ProjectId)
+                    .Select(x => new
+                    {
+                        x.Id,
+                        x.SourceRequirementId,
+                        x.Title,
+                        x.Description,
+                        x.Type,
+                        x.Priority,
+                        x.ConfidenceScore
+                    })
+                    .ToListAsync(cancellationToken);
+
+                var requirementMap = requirementEntities
+                    .Where(x => !string.IsNullOrWhiteSpace(x.SourceRequirementId))
+                    .GroupBy(x => x.SourceRequirementId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(x => x.Id).First());
+
+           
+                var userStoryEntities = await _context.UserStories
+                    .AsNoTracking()
+                    .Where(x => x.ProjectId == invitation.ProjectId)
+                    .Select(x => new
+                    {
+                        x.Id,
+                        x.SourceUserStoryId,   
+                        x.Title,
+                        x.Description,
+                        //x.UserStory,
+                        x.Priority,
+                        x.RequirementId
+                    })
+                    .ToListAsync(cancellationToken);
+
+                var userStoryMap = userStoryEntities
+                    .Where(x => !string.IsNullOrWhiteSpace(x.SourceUserStoryId))
+                    .GroupBy(x => x.SourceUserStoryId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(x => x.Id).First());
+
 
                 var response = new GetProjectReviewDashboardResponse
                 {
@@ -1315,34 +1361,75 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         Scope = rawResult.Summary?.Scope ?? new List<string>(),
                         OutOfScope = rawResult.Summary?.OutOfScope ?? new List<string>()
                     },
+                    //Requirements = rawResult.Requirements?
+                    //    .Select(x => new ProjectReviewDashboardRequirementDto
+                    //    {
+                    //        Id = x.Id,
+                    //        RequirementId = x.Id,
+                    //        Title = x.Title,
+                    //        Description = x.Description,
+                    //        Classification = x.Type,
+                    //        Priority = x.Priority,
+                    //        ConfidenceScore = x.ConfidenceScore
+                    //    })
+                    //    .ToList() ?? new List<ProjectReviewDashboardRequirementDto>(),
+                    //UserStories = rawResult.UserStories?
+                    //    .Select(x => new ProjectReviewDashboardUserStoryDto
+                    //    {
+                    //        Id = x.Id,
+                    //        StoryId = x.Id,
+                    //        Title = x.Title,
+                    //        Description = x.Title,
+                    //        UserStory = x.UserStory,
+                    //        AcceptanceCriteria = x.AcceptanceCriteria?
+                    //            .Select(ac => ac.Text)
+                    //            .ToList() ?? new List<string>(),
+                    //        Priority = x.Priority,
+                    //        RequirementId = x.RequirementId,
+                    //        Classification = x.Type
+                    //    })
+                    //    .ToList() ?? new List<ProjectReviewDashboardUserStoryDto>()
                     Requirements = rawResult.Requirements?
-                        .Select(x => new ProjectReviewDashboardRequirementDto
-                        {
-                            Id = x.Id,
-                            RequirementId = x.Id,
-                            Title = x.Title,
-                            Description = x.Description,
-                            Classification = x.Type,
-                            Priority = x.Priority,
-                            ConfidenceScore = x.ConfidenceScore
-                        })
-                        .ToList() ?? new List<ProjectReviewDashboardRequirementDto>(),
+                .Select(x =>
+                {
+                    requirementMap.TryGetValue(x.Id, out var matchedRequirement);
+
+                    return new ProjectReviewDashboardRequirementDto
+                    {
+                        Id = x.Id, // REQ-001
+                        FeedbackTargetId = matchedRequirement?.Id ?? Guid.Empty,
+                        RequirementId = x.Id,
+                        Title = x.Title,
+                        Description = x.Description,
+                        Classification = x.Type,
+                        Priority = x.Priority,
+                        ConfidenceScore = x.ConfidenceScore
+                    };
+                })
+                .ToList() ?? new List<ProjectReviewDashboardRequirementDto>(),
+
                     UserStories = rawResult.UserStories?
-                        .Select(x => new ProjectReviewDashboardUserStoryDto
-                        {
-                            Id = x.Id,
-                            StoryId = x.Id,
-                            Title = x.Title,
-                            Description = x.Title,
-                            UserStory = x.UserStory,
-                            AcceptanceCriteria = x.AcceptanceCriteria?
-                                .Select(ac => ac.Text)
-                                .ToList() ?? new List<string>(),
-                            Priority = x.Priority,
-                            RequirementId = x.RequirementId,
-                            Classification = x.Type
-                        })
-                        .ToList() ?? new List<ProjectReviewDashboardUserStoryDto>()
+                .Select(x =>
+                {
+                    userStoryMap.TryGetValue(x.Id, out var matchedUserStory);
+
+                    return new ProjectReviewDashboardUserStoryDto
+                    {
+                        Id = x.Id, // US-001
+                        FeedbackTargetId = matchedUserStory?.Id ?? Guid.Empty,
+                        StoryId = x.Id,
+                        Title = x.Title,
+                        Description = x.Title, 
+                        UserStory = x.UserStory,
+                        AcceptanceCriteria = x.AcceptanceCriteria?
+                            .Select(ac => ac.Text)
+                            .ToList() ?? new List<string>(),
+                        Priority = x.Priority,
+                        RequirementId = x.RequirementId,
+                        Classification = x.Type
+                    };
+                })
+                .ToList() ?? new List<ProjectReviewDashboardUserStoryDto>()
                 };
 
                 return Response<GetProjectReviewDashboardResponse>.Success(response,"Project review dashboard retrieved successfully.",StatusCodes.Status200OK);

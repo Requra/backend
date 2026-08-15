@@ -6,6 +6,8 @@ namespace Requra.Domain.Entities
     {
         
         public Guid Id { get; private set; }
+        public string SourceUserStoryId { get; private set; } = null!;
+
 
         public string Title { get; private set; } = null!;
 
@@ -29,6 +31,7 @@ namespace Requra.Domain.Entities
         public DateTime CreatedAt { get; private set; }
 
         public DateTime UpdatedAt { get; private set; }
+
 
         // Navigation
         public ApplicationUser Creator { get; private set; } = null!;
