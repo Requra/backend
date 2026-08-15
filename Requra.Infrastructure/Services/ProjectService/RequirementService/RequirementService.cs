@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Requra.Application.DTOs.AI;
 using Requra.Application.DTOs.Project.Requirements;
 using Requra.Application.Interfaces.IProjectService.IRequirementService;
 using Requra.Application.Response;
+using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
 using System;
@@ -208,7 +210,9 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                     priority: request.Priority,
                     modifiedById: request.CurrentUserId);
 
+                await UpdateRequirementInLatestAnalysisResultRawJsonAsync(requirement, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
+
 
                 var response = new EditRequirementContentResponse
                 {
@@ -225,7 +229,7 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                         .Distinct()
                         .ToList(),
                     SourceRefs = requirement.RequirementSourceReferences
-                        .Select(x => new RequirementSourceRefDto
+                        .Select(x => new Requra.Application.DTOs.Project.Requirements.RequirementSourceRefDto
                         {
                             SourceDocumentId = x.SourceId,
                             Document_Name = x.DocumentName,
@@ -250,7 +254,7 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                     //            .Select(x => x.Trim())
                     //            .ToList()
                     //},
-                    Quality = new RequirementQualityDto
+                    Quality = new Requra.Application.DTOs.Project.Requirements.RequirementQualityDto
                     {
                         Score = requirement.QualityScore,
 
@@ -303,6 +307,76 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
             var expected = BuildRequirementETag(currentVersion);
             return string.Equals(ifMatch.Trim(), expected, StringComparison.Ordinal);
         }
+
+
+
+        private async Task<AnalysisResult?> GetLatestAnalysisResultForProjectAsync(Guid projectId, CancellationToken cancellationToken)
+        {
+            var analysisRun = await _context.AnalysisRuns
+                .AsNoTracking()
+                .Where(x =>
+                    x.ProjectId == projectId &&
+                    (x.Status == AnalysisRunStatus.COMPLETED || x.Status == AnalysisRunStatus.PARTIAL))
+                .OrderByDescending(x => x.CompletedAt ?? x.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (analysisRun == null)
+                return null;
+
+            return await _context.AnalysisResults
+                .FirstOrDefaultAsync(x => x.AnalysisRunId == analysisRun.Id, cancellationToken);
+        }
+
+        private async Task UpdateRequirementInLatestAnalysisResultRawJsonAsync(Requirement requirement,CancellationToken cancellationToken)
+        {
+            if (!requirement.ProjectId.HasValue)
+                return;
+
+            var analysisResult = await GetLatestAnalysisResultForProjectAsync(requirement.ProjectId.Value, cancellationToken);
+
+            if (analysisResult == null || string.IsNullOrWhiteSpace(analysisResult.RawJson))
+                return;
+
+            ResultDto? rawDto;
+            try
+            {
+                rawDto = JsonSerializer.Deserialize<ResultDto>(
+                    analysisResult.RawJson,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+            }
+            catch
+            {
+                return;
+            }
+
+            if (rawDto?.Requirements == null || rawDto.Requirements.Count == 0)
+                return;
+
+            var rawRequirement = rawDto.Requirements
+                .FirstOrDefault(x => x.Id == requirement.SourceRequirementId);
+
+            if (rawRequirement == null)
+                return;
+
+            rawRequirement.Title = requirement.Title;
+            rawRequirement.Description = requirement.Description;
+            rawRequirement.Type = requirement.Type.ToString();
+            rawRequirement.Priority = requirement.Priority;
+            
+
+
+            analysisResult.RawJson = JsonSerializer.Serialize(rawDto, new JsonSerializerOptions
+            {
+                WriteIndented = false
+            });
+
+            //await _context.SaveChangesAsync(cancellationToken);
+        }
+
+
 
 
     }
