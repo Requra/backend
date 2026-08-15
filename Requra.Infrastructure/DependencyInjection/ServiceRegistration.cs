@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ViewComponents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,46 +19,46 @@ using Requra.Application.Interfaces.IProjectRepository;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
+using Requra.Application.Interfaces.IProjectService.IRequirementService;
 using Requra.Application.Interfaces.IRecordingService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalDTOs.Email;
+using Requra.Infrastructure.ExternalInterfaces.IClickUpService;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
 using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
 using Requra.Infrastructure.ExternalInterfaces.IExternalAuth;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
 using Requra.Infrastructure.ExternalServices.AIClient;
+using Requra.Infrastructure.ExternalServices.ClickUpService;
 using Requra.Infrastructure.ExternalServices.CloudinaryService;
 using Requra.Infrastructure.ExternalServices.EmailSender;
 using Requra.Infrastructure.ExternalServices.ExternalAuth;
 using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Initializers;
+using Requra.Infrastructure.Options;
 using Requra.Infrastructure.Repositories.Project;
 using Requra.Infrastructure.Services.AnalysisRunService;
 using Requra.Infrastructure.Services.AuthService;
+using Requra.Infrastructure.Services.ClickUpService;
 using Requra.Infrastructure.Services.DocumentService;
 using Requra.Infrastructure.Services.ExportService;
+using Requra.Infrastructure.Services.JobPollingService;
 using Requra.Infrastructure.Services.JWTService;
 using Requra.Infrastructure.Services.MeetingService;
+using Requra.Infrastructure.Services.MeetingService.AgoraTokenService;
 using Requra.Infrastructure.Services.OtpService;
 using Requra.Infrastructure.Services.ProfileService;
 using Requra.Infrastructure.Services.ProjectService;
 using Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService;
 using Requra.Infrastructure.Services.ProjectService.ProjectReviewService;
+using Requra.Infrastructure.Services.ProjectService.RequirementService;
 using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.Services.StartupRecoveryService;
-using Requra.Infrastructure.Services.JobPollingService;
-using Requra.Infrastructure.ExternalInterfaces.IClickUpService;
-using Requra.Infrastructure.ExternalServices.ClickUpService;
-using Requra.Infrastructure.Services.ClickUpService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
 using System.Text;
-using Microsoft.AspNetCore.Mvc.ViewComponents;
-using Requra.Application.Interfaces.IProjectService.IRequirementService;
-using Requra.Infrastructure.Services.ProjectService.RequirementService;
-using Requra.Infrastructure.Options;
 
 namespace Requra.Infrastructure.DependencyInjection
 {
@@ -162,7 +163,7 @@ namespace Requra.Infrastructure.DependencyInjection
 
             services.Configure<LiveKitOptions>(configuration.GetSection(LiveKitOptions.SectionName));
             services.Configure<MeetingOptions>(configuration.GetSection(MeetingOptions.SectionName));
-
+            services.Configure<AgoraOptions>(configuration.GetSection("Agora"));
 
             return services;
         }

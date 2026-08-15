@@ -1,4 +1,5 @@
 ﻿using Requra.Application.DTOs;
+using Requra.Application.DTOs.Agora;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.LiveKit;
 using Requra.Application.DTOs.Meeting;
@@ -12,14 +13,8 @@ namespace Requra.Application.Interfaces.IMeetingService
 {
     public interface IMeetingService
     {
-        Task<Response<MeetingDto>> CreateMeetingAsync(
-            Guid projectId,
-            CreateMeetingRequest request,
-            string currentUserId);
-        Task<Response<PagedResult<ProjectMeetingsDto>>> GetMeetingsAsync(
-        Guid projectId,
-        string currentUserId,
-        GetMeetingsQuery query);
+        Task<Response<MeetingDto>> CreateMeetingAsync(Guid projectId,CreateMeetingRequest request,string currentUserId);
+        Task<Response<PagedResult<ProjectMeetingsDto>>> GetMeetingsAsync(Guid projectId,string currentUserId,GetMeetingsQuery query);
 
         Task<Response<MeetingDetailsDto>> GetMeetingByIdAsync(Guid meetingId,string currentUserId);
         Task<Response<MeetingDto>> CancelMeetingAsync(Guid meetingId,string currentUserId);
@@ -44,8 +39,12 @@ namespace Requra.Application.Interfaces.IMeetingService
         Task<Response<MeetingParticipantResponse>> SaveConsentAsync(SaveConsentRequest request, CancellationToken cancellationToken = default);
 
 
-
+        //LiveKit
         Task<Response<LiveKitTokenResponseDto>> IssueTokenAsync(Guid meetingId,string callerUserId,Guid? participantId,CancellationToken cancellationToken = default);
 
+        //Agora
+        Task<Response<AgoraRtcTokenResponseDto>> IssueAgoraTokenAsync(Guid meetingId, string callerUserId, Guid? participantId, CancellationToken cancellationToken = default);
     }
+
 }
+
