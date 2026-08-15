@@ -508,11 +508,132 @@ namespace Requra.Infrastructure.Services.ProjectService
             }
         }
 
+        public async Task ConnectClickUpAsync(Guid projectId, string accessToken, string teamId, string? spaceId = null, string? listId = null, int expiresInSeconds = 3600)
+        {
+            try
+            {
+                _logger.LogInformation("ConnectClickUpAsync called for project {ProjectId} with ExpiresInSeconds: {ExpiresInSeconds}", projectId, expiresInSeconds);
 
+                var project = await _context.Projects.FindAsync(projectId);
+                if (project == null)
+                    throw new InvalidOperationException($"Project {projectId} not found");
+
+                _logger.LogInformation("Current time before calculation: {Now}", DateTime.UtcNow);
+                var calculatedExpiry = DateTime.UtcNow.AddSeconds(expiresInSeconds);
+                _logger.LogInformation("Calculated expiry time: {ExpiresAt}", calculatedExpiry);
+
+                project.ConnectToClickUp(accessToken, teamId, spaceId, listId, expiresInSeconds);
+
+                _logger.LogInformation("After ConnectToClickUp - Token: {Token}, TeamId: {TeamId}, SpaceId: {SpaceId}, ListId: {ListId}, ExpiresAt: {ExpiresAt}",
+                    !string.IsNullOrEmpty(project.ClickUpAccessToken),
+                    project.ClickUpTeamId,
+                    project.ClickUpSpaceId,
+                    project.ClickUpListId,
+                    project.ClickUpTokenExpiresAt);
+
+                // Explicitly mark ClickUp-related properties as modified
+                _context.Entry(project).Property(p => p.IsClickUpConnected).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpAccessToken).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpTeamId).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpSpaceId).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpListId).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpTokenExpiresAt).IsModified = true;
+                _context.Entry(project).Property(p => p.UpdatedAt).IsModified = true;
+
+                _logger.LogInformation("Properties marked as modified. Saving changes...");
+                var changes = await _context.SaveChangesAsync();
+                _logger.LogInformation("SaveChangesAsync completed. Changes saved: {ChangeCount}", changes);
+
+                // Verify the save by re-fetching
+                var savedProject = await _context.Projects.FindAsync(projectId);
+                _logger.LogInformation("Verification - Token: {Token}, TeamId: {TeamId}, SpaceId: {SpaceId}, ListId: {ListId}, ExpiresAt: {ExpiresAt}",
+                    !string.IsNullOrEmpty(savedProject?.ClickUpAccessToken),
+                    savedProject?.ClickUpTeamId,
+                    savedProject?.ClickUpSpaceId,
+                    savedProject?.ClickUpListId,
+                    savedProject?.ClickUpTokenExpiresAt);
+
+                _logger.LogInformation("Project {ProjectId} connected to ClickUp team {TeamId}", projectId, teamId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error connecting project {ProjectId} to ClickUp", projectId);
+                throw;
+            }
+        }
+
+        public async Task DisconnectClickUpAsync(Guid projectId)
+        {
+            try
+            {
+                var project = await _context.Projects.FindAsync(projectId);
+                if (project == null)
+                    throw new InvalidOperationException($"Project {projectId} not found");
+
+                project.DisconnectFromClickUp();
+
+                // Explicitly mark ClickUp-related properties as modified
+                _context.Entry(project).Property(p => p.IsClickUpConnected).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpAccessToken).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpTeamId).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpSpaceId).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpListId).IsModified = true;
+                _context.Entry(project).Property(p => p.ClickUpTokenExpiresAt).IsModified = true;
+                _context.Entry(project).Property(p => p.UpdatedAt).IsModified = true;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Project {ProjectId} disconnected from ClickUp", projectId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disconnecting project {ProjectId} from ClickUp", projectId);
+                throw;
+            }
+        }
+
+        public async Task<bool> UserHasAccessToProjectAsync(Guid projectId, string userId)
+        {
+            try
+            {
+                var hasAccess = await _context.ProjectMembers
+                    .AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+
+                return hasAccess;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking user access to project");
+                return false;
+            }
+        }
+
+        public async Task<object> GetClickUpConnectionStatusAsync(Guid projectId)
+        {
+            try
+            {
+                var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
+                if (project == null)
+                    throw new InvalidOperationException($"Project {projectId} not found");
+
+                return new
+                {
+                    isConnected = project.IsClickUpConnected,
+                    teamId = project.ClickUpTeamId,
+                    spaceId = project.ClickUpSpaceId,
+                    listId = project.ClickUpListId,
+                    tokenExpired = project.IsClickUpTokenExpired(),
+                    expiresAt = project.ClickUpTokenExpiresAt
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving ClickUp connection status");
+                throw;
+            }
+        }
 
     }
 }
-
-
 
 
