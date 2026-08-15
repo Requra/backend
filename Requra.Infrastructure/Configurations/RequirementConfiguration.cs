@@ -55,7 +55,17 @@ namespace Requra.Infrastructure.Configurations
                        .HasColumnType("timestamptz")
                        .HasDefaultValueSql("NOW()");
 
-                // 🔥 Relationships
+                builder.HasIndex(x => new
+                {
+                    x.ProjectId,
+                    x.SourceRequirementId
+                })
+                    .IsUnique();
+
+                builder.Property(x => x.Version)
+                       .HasColumnName("version")
+                       .IsConcurrencyToken()
+                       .IsRequired();
 
                 builder.HasMany(r => r.DocumentRequirements)
                        .WithOne(dr => dr.Requirement)

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs;
+using Requra.Application.DTOs.Agora;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.LiveKit;
 using Requra.Application.DTOs.Meeting;
@@ -393,7 +395,7 @@ namespace Requra.Presentation.Controllers.Meeting
         [HttpPost("{meetingId:guid}/livekit-token")]
         public async Task<IActionResult> IssueLiveKitToken([FromRoute] Guid meetingId,[FromBody] LiveKitTokenRequestDto request,CancellationToken cancellationToken)
         {
-            // Never trust a user ID from the request body — always from the JWT.
+
             var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var result = await _meetingService.IssueTokenAsync(meetingId,callerUserId!,request?.ParticipantId,cancellationToken);
@@ -411,6 +413,27 @@ namespace Requra.Presentation.Controllers.Meeting
             };
 
            
+        }
+        [HttpPost("{meetingId:guid}/agora-token")]
+        
+        public async Task<IActionResult> IssueAgoraToken([FromRoute] Guid meetingId,[FromQuery] Guid? participantId,CancellationToken cancellationToken)
+        {
+            var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+
+            var response = await _meetingService.IssueAgoraTokenAsync( meetingId, callerUserId, participantId, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
         }
 
     }

@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml.InkML;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,7 +15,7 @@ using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.JobPollingService
 {
-    public class JobPollingService(IServiceScopeFactory _scopeFactory, ILogger<JobPollingService> _logger) : IJobPollingService
+    public class JobPollingService(IServiceScopeFactory _scopeFactory, ILogger<JobPollingService> _logger,RequraDbContext _context) : IJobPollingService
     {
         public async Task PollUntilFinishedAsync(Guid runId, string jobId, int maxAttempts = 1000)
         {
@@ -54,12 +55,18 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     if (statusResponse.Status == "COMPLETED" || statusResponse.Status == "PARTIAL")
                     {
                         var result = await aiClient.GetResultAsync(jobId);
+
+                        var rawJson = JsonSerializer.Serialize(result);
                         db.AnalysisResults.Add(new AnalysisResult
                         {
                             AnalysisRunId = runId,
-                            RawJson = JsonSerializer.Serialize(result),
+                            RawJson = rawJson,
                             CreatedAt = DateTime.UtcNow
                         });
+                        await MapRequirementsFromAiResultAsync(
+                                rawJson,
+                                run.ProjectId
+                                );
 
                         // Map AI results to database entities
                         await MapAIResultsToEntitiesAsync(db, run, result);
@@ -153,6 +160,98 @@ namespace Requra.Infrastructure.Services.JobPollingService
             };
         }
 
+        private async Task MapRequirementsFromAiResultAsync(string rawJson,Guid projectId,CancellationToken cancellationToken = default)
+        {
+            var aiResult = JsonSerializer.Deserialize<ResultDto>(
+                rawJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            if (aiResult?.Requirements == null || aiResult.Requirements.Count == 0)
+                return;
+
+            foreach (var aiRequirement in aiResult.Requirements)
+            {
+                if (string.IsNullOrWhiteSpace(aiRequirement.Id))
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(aiRequirement.Title))
+                    continue;
+
+                var alreadyExists = await _context.Requirements
+                    .AnyAsync(
+                        x => x.ProjectId == projectId && x.SourceRequirementId == aiRequirement.Id,
+                        cancellationToken);
+
+                if (alreadyExists)
+                    continue;
+
+                var requirementType = MapRequirementType(aiRequirement.Type);
+
+                var qualityIssues = SerializeList(aiRequirement.Quality?.Issues);
+                var qualityWarnings = SerializeList(aiRequirement.Quality?.Warnings);
+
+                var requirement = new Requirement(
+                    sourceRequirementId: aiRequirement.Id,
+                    title: aiRequirement.Title,
+                    description: aiRequirement.Description,
+                    type: requirementType,
+                    projectId: projectId,
+                    confidenceScore: aiRequirement.ConfidenceScore,
+                    qualityScore: aiRequirement.Quality?.Score,
+                    qualityIssues: qualityIssues,
+                    qualityWarnings: qualityWarnings,
+                    deduplicationKey: aiRequirement.DeduplicationKey,
+                    actor: aiRequirement.Actor,
+                    category: aiRequirement.Category,
+                    priority: aiRequirement.Priority
+                );
+
+                foreach (var sourceReference in aiRequirement.SourceRefs ?? Enumerable.Empty<RequirementSourceRefDto>())
+                {
+                    var reference = new RequirementSourceReference(
+                        page: sourceReference.Page,
+                        quote: sourceReference.Quote,
+                        chunkId: sourceReference.ChunkId,
+                        sourceId: sourceReference.SourceId,
+                        sourceType: sourceReference.SourceType,
+                        documentName: sourceReference.DocumentName,
+                        confidenceScore: sourceReference.ConfidenceScore
+                    );
+
+                    requirement.AddSourceReference(reference);
+                }
+
+                _context.Requirements.Add(requirement);
+            }
+        }
+        private static string? SerializeList(List<string>? values)
+        {
+            if (values == null || values.Count == 0)
+                return null;
+
+            return JsonSerializer.Serialize(values);
+        }
+        private static RequirementType MapRequirementType(string? type)
+        {
+            return type?.Trim().ToLowerInvariant() switch
+            {
+                "functional" =>
+                    RequirementType.Functional,
+
+                "non-functional" =>
+                    RequirementType.Non_Functional,
+
+                "business" =>
+                    RequirementType.Business_Rule,
+
+                _ => throw new ArgumentException(
+                    $"Unknown requirement type: {type}")
+            };
+        }
+
         private async Task MapAIResultsToEntitiesAsync(RequraDbContext db, AnalysisRun run, Application.DTOs.AI.JobResultResponseDto result)
         {
             try
@@ -164,63 +263,63 @@ namespace Requra.Infrastructure.Services.JobPollingService
                 var aiRequirementIdToDbId = new Dictionary<string, Guid>();
 
                 // Map Requirements from AI result to database entities
-                if (result.Requirements != null && result.Requirements.Count > 0)
-                {
-                    foreach (var reqDto in result.Requirements)
-                    {
-                        // Check if requirement already exists by title
-                        var existingReq = await db.Requirements
-                            .FirstOrDefaultAsync(r => r.ProjectId == run.ProjectId && r.Title == reqDto.Title);
+                //if (result.Requirements != null && result.Requirements.Count > 0)
+                //{
+                //    foreach (var reqDto in result.Requirements)
+                //    {
+                //        // Check if requirement already exists by title
+                //        var existingReq = await db.Requirements
+                //            .FirstOrDefaultAsync(r => r.ProjectId == run.ProjectId && r.Title == reqDto.Title);
 
-                        Guid dbRequirementId;
+                //        Guid dbRequirementId;
 
-                        if (existingReq == null)
-                        {
-                            // Create new requirement using constructor
-                            var newReq = new Requirement(
-                                reqDto.Title,
-                                Domain.Enums.RequirementType.Functional,
-                                null
-                            );
+                //        if (existingReq == null)
+                //        {
+                //            // Create new requirement using constructor
+                //            var newReq = new Requirement(
+                //                reqDto.Title,
+                //                Domain.Enums.RequirementType.Functional,
+                //                null
+                //            );
 
-                            // Use UpdateDetails to set description
-                            newReq.UpdateDetails(
-                                reqDto.Title,
-                                reqDto.Description,
-                                Domain.Enums.RequirementType.Functional,
-                                null
-                            );
+                //            // Use UpdateDetails to set description
+                //            newReq.UpdateDetails(
+                //                reqDto.Title,
+                //                reqDto.Description,
+                //                Domain.Enums.RequirementType.Functional,
+                //                null
+                //            );
 
-                            // Mark as approved based on deduplication key presence
-                            if (!string.IsNullOrEmpty(reqDto.DeduplicationKey))
-                            {
-                                newReq.Approve();
-                            }
+                //            // Mark as approved based on deduplication key presence
+                //            if (!string.IsNullOrEmpty(reqDto.DeduplicationKey))
+                //            {
+                //                newReq.Approve();
+                //            }
 
-                            db.Requirements.Add(newReq);
-                            await db.SaveChangesAsync();
-                            dbRequirementId = newReq.Id;
-                        }
-                        else
-                        {
-                            dbRequirementId = existingReq.Id;
+                //            db.Requirements.Add(newReq);
+                //            await db.SaveChangesAsync();
+                //            dbRequirementId = newReq.Id;
+                //        }
+                //        else
+                //        {
+                //            dbRequirementId = existingReq.Id;
 
-                            // Update approval status if needed
-                            if (!string.IsNullOrEmpty(reqDto.DeduplicationKey) &&
-                                existingReq.Status != Domain.Enums.RequirementStatus.Approved)
-                            {
-                                existingReq.Approve();
-                                await db.SaveChangesAsync();
-                            }
-                        }
+                //            // Update approval status if needed
+                //            if (!string.IsNullOrEmpty(reqDto.DeduplicationKey) &&
+                //                existingReq.Status != Domain.Enums.RequirementStatus.Approved)
+                //            {
+                //                existingReq.Approve();
+                //                await db.SaveChangesAsync();
+                //            }
+                //        }
 
-                        // Map AI ID to our database ID
-                        if (!aiRequirementIdToDbId.ContainsKey(reqDto.Id))
-                        {
-                            aiRequirementIdToDbId[reqDto.Id] = dbRequirementId;
-                        }
-                    }
-                }
+                //        // Map AI ID to our database ID
+                //        if (!aiRequirementIdToDbId.ContainsKey(reqDto.Id))
+                //        {
+                //            aiRequirementIdToDbId[reqDto.Id] = dbRequirementId;
+                //        }
+                //    }
+                //}
 
                 // Map User Stories from AI result to database entities
                 if (result.UserStories != null && result.UserStories.Count > 0)
@@ -321,4 +420,5 @@ namespace Requra.Infrastructure.Services.JobPollingService
             }
         }
     }
+    
 }

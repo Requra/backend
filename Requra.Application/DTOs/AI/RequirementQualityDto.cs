@@ -11,7 +11,7 @@ namespace Requra.Application.DTOs.AI
         public List<string> Issues { get; set; }
 
         [JsonPropertyName("score")]
-        public double Score { get; set; }
+        public double? Score { get; set; }
 
         [JsonPropertyName("warnings")]
         public List<string> Warnings { get; set; }

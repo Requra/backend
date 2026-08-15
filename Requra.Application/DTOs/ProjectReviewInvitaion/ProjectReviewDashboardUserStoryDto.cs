@@ -7,6 +7,7 @@ namespace Requra.Application.DTOs.ProjectReviewInvitaion
     public class ProjectReviewDashboardUserStoryDto
     {
         public string Id { get; set; } = null!;
+        public Guid FeedbackTargetId { get; set; }                  // real UserStory.Id
         public string StoryId { get; set; } = null!;
         public string? Title { get; set; }
         public string? Description { get; set; }

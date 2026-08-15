@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using AgoraIO.Media;
+using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using DocumentFormat.OpenXml.Spreadsheet;
 using FluentValidation;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Requra.Application.DTOs;
+using Requra.Application.DTOs.Agora;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
 using Requra.Application.DTOs.LiveKit;
 using Requra.Application.DTOs.Meeting;
@@ -24,11 +26,12 @@ using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
 using Requra.Infrastructure.ExternalServices.EmailSender;
 using Requra.Infrastructure.Options;
 using Requra.Infrastructure.Services.InvitationService.MeetingInvitationService;
+using Requra.Infrastructure.Services.MeetingService.AgoraTokenService;
 using System.Security.Claims;
 
 namespace Requra.Infrastructure.Services.MeetingService
 {
-    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender, IOptions<LiveKitOptions> _liveKitOptions,IOptions<MeetingOptions> _meetingOptions) : IMeetingService
+    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender, IOptions<LiveKitOptions> _liveKitOptions,IOptions<MeetingOptions> _meetingOptions, IOptions<AgoraOptions> _agoraOptions) : IMeetingService
     {
 
         public async Task<Response<MeetingDto>> CreateMeetingAsync(Guid projectId,CreateMeetingRequest request,string currentUserId)
@@ -1744,7 +1747,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     return Response<LiveKitTokenResponseDto>.Failure("The meeting's live window has ended.",StatusCodes.Status409Conflict);
                 }
 
-                var accessToken = new AccessToken(_liveKitOptions.Value.ApiKey, _liveKitOptions.Value.ApiSecret)
+                var accessToken = new Livekit.Server.Sdk.Dotnet.AccessToken(_liveKitOptions.Value.ApiKey, _liveKitOptions.Value.ApiSecret)
                     .WithIdentity(identity)
                     .WithTtl(ttl)
                     .WithGrants(new VideoGrants
@@ -1779,8 +1782,152 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
+        public async Task<Response<AgoraRtcTokenResponseDto>> IssueAgoraTokenAsync(Guid meetingId,string callerUserId,Guid? participantId,CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(callerUserId))
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "Caller identity could not be resolved from the token.",
+                    StatusCodes.Status401Unauthorized);
+            }
 
+            if (string.IsNullOrWhiteSpace(_agoraOptions.Value.AppId) ||
+                string.IsNullOrWhiteSpace(_agoraOptions.Value.AppCertificate))
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "Agora provider is not configured.",
+                    StatusCodes.Status500InternalServerError);
+            }
 
+            var meeting = await _context.MeetingSessions
+                .Include(m => m.Participants)
+                .FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+
+            if (meeting is null)
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "Meeting not found.",
+                    StatusCodes.Status404NotFound);
+            }
+
+            if (meeting.Status != MeetingStatus.Live)
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "Meeting is not currently live.",
+                    StatusCodes.Status409Conflict);
+            }
+
+            if (meeting.MeetingEndsAt.HasValue && DateTime.UtcNow >= meeting.MeetingEndsAt.Value)
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "The meeting's live window has ended.",
+                    StatusCodes.Status409Conflict);
+            }
+
+            MeetingParticipant? participant;
+
+            if (participantId.HasValue)
+            {
+                participant = meeting.Participants
+                    .FirstOrDefault(p => p.Id == participantId.Value);
+
+                if (participant is null)
+                {
+                    return Response<AgoraRtcTokenResponseDto>.Failure(
+                        "Participant not found for this meeting.",
+                        StatusCodes.Status403Forbidden);
+                }
+
+                if (participant.UserId != callerUserId)
+                {
+                    return Response<AgoraRtcTokenResponseDto>.Failure(
+                        "Caller does not own this participant record.",
+                        StatusCodes.Status403Forbidden);
+                }
+            }
+            else
+            {
+                var candidates = meeting.Participants
+                    .Where(p => p.UserId == callerUserId && p.Status == ParticipantStatus.Joined)
+                    .ToList();
+
+                if (candidates.Count != 1)
+                {
+                    return Response<AgoraRtcTokenResponseDto>.Failure(
+                        "Could not unambiguously resolve the caller's participant record; pass participantId explicitly.",
+                        StatusCodes.Status403Forbidden);
+                }
+
+                participant = candidates[0];
+            }
+
+            if (participant.Status != ParticipantStatus.Joined)
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "Participant has not joined the meeting.",
+                    StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                var channelName = meeting.Id.ToString();
+                var uid = participant.Id.ToString();
+
+                var expirationSeconds = _agoraOptions.Value.TokenExpirationSeconds > 0
+                    ? _agoraOptions.Value.TokenExpirationSeconds
+                    : 3600;
+
+                var expiresAt = DateTime.UtcNow.AddSeconds(expirationSeconds);
+
+                if (meeting.MeetingEndsAt.HasValue && meeting.MeetingEndsAt.Value < expiresAt)
+                {
+                    expiresAt = meeting.MeetingEndsAt.Value;
+                }
+
+                var ttl = expiresAt - DateTime.UtcNow;
+                if (ttl <= TimeSpan.Zero)
+                {
+                    return Response<AgoraRtcTokenResponseDto>.Failure(
+                        "The meeting's live window has ended.",
+                        StatusCodes.Status409Conflict);
+                }
+
+                var privilegeExpireTs = new DateTimeOffset(expiresAt).ToUnixTimeSeconds();
+
+                var agoraRole = participant.Role == MeetingRole.Viewer
+                    ? AgoraIO.Media.RtcTokenBuilder2.Role.RoleSubscriber
+                    : AgoraIO.Media.RtcTokenBuilder2.Role.RolePublisher;
+                var expireInSeconds = (uint)Math.Max(1, (int)Math.Ceiling(ttl.TotalSeconds));
+                var token = RtcTokenBuilder2.buildTokenWithUserAccount(
+                    _agoraOptions.Value.AppId,
+                    _agoraOptions.Value.AppCertificate,
+                    channelName,
+                    uid,
+                    agoraRole,
+                    expireInSeconds,
+                    expireInSeconds);
+
+                var response = new AgoraRtcTokenResponseDto
+                {
+                    AppId = _agoraOptions.Value.AppId,
+                    ChannelName = channelName,
+                    Uid = uid,
+                    Token = token,
+                    Role = agoraRole == AgoraIO.Media.RtcTokenBuilder2.Role.RolePublisher ? "PUBLISHER" : "SUBSCRIBER",
+                    ExpiresAt = expiresAt
+                };
+
+                return Response<AgoraRtcTokenResponseDto>.Success(
+                    response,
+                    "Agora RTC token issued successfully.");
+            }
+            catch (Exception)
+            {
+                return Response<AgoraRtcTokenResponseDto>.Failure(
+                    "Unable to issue Agora RTC token at this time.",
+                    StatusCodes.Status500InternalServerError);
+            }
+        }
         private static MeetingParticipantResponse MapToParticipantResponse(MeetingParticipant participant)
         {
             return new MeetingParticipantResponse
