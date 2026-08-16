@@ -69,7 +69,7 @@ namespace Requra.Infrastructure.Services.JobPollingService
                                 );
 
                         // Map AI results to database entities
-                        await MapAIResultsToEntitiesAsync(db, run, result);
+                        //await MapAIResultsToEntitiesAsync(db, run, result);
 
                         run.UpdateAnalysis(
                             MapStatus(statusResponse.Status),
