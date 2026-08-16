@@ -58,6 +58,7 @@ using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
+using Requra.Infrastructure.ExternalDTOs.ClickUpDto;
 using System.Text;
 
 namespace Requra.Infrastructure.DependencyInjection
@@ -118,6 +119,7 @@ namespace Requra.Infrastructure.DependencyInjection
 
             services.AddDistributedMemoryCache();
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.Configure<ClickUpOAuthSettings>(configuration.GetSection("ClickUp"));
             services.AddScoped<IEmailSender, EmailSender>();
             services.AddScoped<IOtpService, OtpService>();
 
