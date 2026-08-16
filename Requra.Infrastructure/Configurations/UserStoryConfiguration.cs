@@ -28,17 +28,28 @@ namespace Requra.Infrastructure.Configurations
             builder.Property(us => us.Description)
                    .HasColumnName("description")
                    .HasColumnType("text");
+            //old
+            //builder.Property(u => u.AcceptanceCriteria)
+            //       .HasColumnName("acceptance_criteria")
+            //       .HasColumnType("jsonb")
+            //       .HasConversion(
+            //           v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+            //           v => JsonSerializer.Deserialize<List<AcceptanceCriterion>>(v, (JsonSerializerOptions)null) ?? new List<AcceptanceCriterion>())
+            //       .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<AcceptanceCriterion>>(
+            //           (c1, c2) => c1.SequenceEqual(c2),
+            //           c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            //           c => c.ToList()));
 
             builder.Property(u => u.AcceptanceCriteria)
-                   .HasColumnName("acceptance_criteria")
-                   .HasColumnType("jsonb")
-                   .HasConversion(
-                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
-                       v => JsonSerializer.Deserialize<List<AcceptanceCriterion>>(v, (JsonSerializerOptions)null) ?? new List<AcceptanceCriterion>())
-                   .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<AcceptanceCriterion>>(
-                       (c1, c2) => c1.SequenceEqual(c2),
-                       c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                       c => c.ToList()));
+                  .HasColumnName("acceptance_criteria")
+                  .HasColumnType("jsonb")
+                  .HasConversion(
+                      v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                      v => DeserializeAcceptanceCriteria(v))
+                  .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<AcceptanceCriterion>>(
+                      (c1, c2) => c1.SequenceEqual(c2),
+                      c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                      c => c.ToList()));
 
             builder.Property(us => us.Status)
                    .HasColumnName("status")
@@ -97,6 +108,46 @@ namespace Requra.Infrastructure.Configurations
                    .WithMany(p => p.UserStories)
                    .HasForeignKey(us => us.ProjectId)
                    .OnDelete(DeleteBehavior.Cascade);
+            builder.Property(us => us.ReviewFeedback)
+       .HasColumnName("review_feedback")
+       .HasColumnType("text");
+
+            builder.Property(us => us.ReviewedById)
+                   .HasColumnName("reviewed_by_id");
+
+            builder.Property(us => us.ReviewedAt)
+                   .HasColumnName("reviewed_at")
+                   .HasColumnType("timestamptz");
+
+            builder.Property(us => us.Version)
+                   .HasColumnName("version")
+                   .IsConcurrencyToken()
+                   .HasDefaultValue(1)
+                   .IsRequired();
+
+        }
+        private static List<AcceptanceCriterion> DeserializeAcceptanceCriteria(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return new List<AcceptanceCriterion>();
+
+            using var document = JsonDocument.Parse(json);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                return new List<AcceptanceCriterion>();
+
+            var isLegacyStringArray = document.RootElement.EnumerateArray()
+                .All(el => el.ValueKind == JsonValueKind.String);
+
+            if (isLegacyStringArray)
+            {
+                return document.RootElement.EnumerateArray()
+                    .Select(el => new AcceptanceCriterion(el.GetString() ?? string.Empty, null))
+                    .ToList();
+            }
+
+            return JsonSerializer.Deserialize<List<AcceptanceCriterion>>(json, (JsonSerializerOptions)null)
+                   ?? new List<AcceptanceCriterion>();
         }
     }
 }

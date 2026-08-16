@@ -10,5 +10,6 @@ namespace Requra.Application.Interfaces.IProjectService.IProjectResultsService.I
     public interface IUserStoryService
     {
         Task<Response<PagedResult<UserStoryDto>>> GetUserStoriesByProjectIdAsync(Guid projectId);
+        Task<Response<UpdateUserStoryStatusResponse>> UpdateUserStoryStatusAsync(UpdateUserStoryStatusRequest request, CancellationToken cancellationToken = default);
     }
 }
