@@ -359,7 +359,9 @@ namespace Requra.Infrastructure.Services.ClickUpService
 
             if (userStory.AcceptanceCriteria != null && userStory.AcceptanceCriteria.Any())
             {
-                var criteria = string.Join("\n- ", userStory.AcceptanceCriteria);
+                //var criteria = string.Join("\n- ", userStory.AcceptanceCriteria);
+
+                var criteria = string.Join("\n- ", userStory.AcceptanceCriteria.Select(ac => ac.Text));
                 description += $"\n\n### Acceptance Criteria\n- {criteria}";
             }
 

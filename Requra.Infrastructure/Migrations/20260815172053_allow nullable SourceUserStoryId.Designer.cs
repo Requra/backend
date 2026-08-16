@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815172053_allow nullable SourceUserStoryId")]
+    partial class allownullableSourceUserStoryId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -736,49 +739,6 @@ namespace Requra.Infrastructure.Migrations
                     b.ToTable("invitations", (string)null);
                 });
 
-            modelBuilder.Entity("Requra.Domain.Entities.JiraFields", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.PrimitiveCollection<List<string>>("Components")
-                        .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<string>("EpicName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("IssueType")
-                        .HasColumnType("text");
-
-                    b.PrimitiveCollection<List<string>>("Labels")
-                        .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.Property<string>("Priority")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("StoryPoints")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Summary")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserStoryId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserStoryId")
-                        .IsUnique();
-
-                    b.ToTable("JiraFields");
-                });
-
             modelBuilder.Entity("Requra.Domain.Entities.MeetingParticipant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -895,8 +855,7 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
 
-                    b.Property<string>("RecordingUrls")
-                        .IsRequired()
+                    b.Property<string>("RecordingUrl")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("ScheduledAt")
@@ -1129,7 +1088,7 @@ namespace Requra.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("ProjectReviewInvitations", (string)null);
+                    b.ToTable("ProjectReviewInvitations");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.Recording", b =>
@@ -1504,7 +1463,7 @@ namespace Requra.Infrastructure.Migrations
 
                     b.HasIndex("RequirementId");
 
-                    b.ToTable("RequirementSourceReference", (string)null);
+                    b.ToTable("RequirementSourceReference");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.Summary", b =>
@@ -1578,9 +1537,9 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("AcceptanceCriteria")
+                    b.PrimitiveCollection<List<string>>("AcceptanceCriteria")
                         .IsRequired()
-                        .HasColumnType("jsonb")
+                        .HasColumnType("text[]")
                         .HasColumnName("acceptance_criteria");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1593,9 +1552,6 @@ namespace Requra.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("creator_id");
-
-                    b.Property<string>("DeduplicationKey")
-                        .HasColumnType("text");
 
                     b.Property<string>("Description")
                         .HasColumnType("text")
@@ -1622,9 +1578,6 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("requirement_id");
 
-                    b.Property<string>("SourceRequirementId")
-                        .HasColumnType("text");
-
                     b.Property<string>("SourceUserStoryId")
                         .HasColumnType("text");
 
@@ -1633,17 +1586,11 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
-                    b.Property<int?>("StoryPoints")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("title");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -1660,81 +1607,6 @@ namespace Requra.Infrastructure.Migrations
                     b.HasIndex("RequirementId");
 
                     b.ToTable("user_stories", (string)null);
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.UserStoryQuality", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.PrimitiveCollection<List<string>>("Issues")
-                        .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.Property<double>("Score")
-                        .HasColumnType("double precision");
-
-                    b.Property<Guid>("UserStoryId")
-                        .HasColumnType("uuid");
-
-                    b.PrimitiveCollection<List<string>>("Warnings")
-                        .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserStoryId")
-                        .IsUnique();
-
-                    b.ToTable("UserStoryQuality");
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.UserStorySourceRef", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("ChunkId")
-                        .HasColumnType("text")
-                        .HasColumnName("chunk_id");
-
-                    b.Property<double>("ConfidenceScore")
-                        .HasColumnType("double precision")
-                        .HasColumnName("confidence_score");
-
-                    b.Property<string>("DocumentName")
-                        .HasColumnType("text")
-                        .HasColumnName("document_name");
-
-                    b.Property<string>("Page")
-                        .HasColumnType("text")
-                        .HasColumnName("page");
-
-                    b.Property<string>("Quote")
-                        .HasColumnType("text")
-                        .HasColumnName("quote");
-
-                    b.Property<string>("SourceId")
-                        .HasColumnType("text")
-                        .HasColumnName("source_id");
-
-                    b.Property<string>("SourceType")
-                        .HasColumnType("text")
-                        .HasColumnName("source_type");
-
-                    b.Property<Guid>("UserStoryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_story_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserStoryId");
-
-                    b.ToTable("user_story_source_refs", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1825,7 +1697,7 @@ namespace Requra.Infrastructure.Migrations
 
                             b1.HasKey("ApplicationUserId", "Id");
 
-                            b1.ToTable("RefreshToken", (string)null);
+                            b1.ToTable("RefreshToken");
 
                             b1.WithOwner()
                                 .HasForeignKey("ApplicationUserId");
@@ -1955,17 +1827,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Navigation("InvitedBy");
 
                     b.Navigation("Meeting");
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.JiraFields", b =>
-                {
-                    b.HasOne("Requra.Domain.Entities.UserStory", "UserStory")
-                        .WithOne("JiraFields")
-                        .HasForeignKey("Requra.Domain.Entities.JiraFields", "UserStoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UserStory");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.MeetingParticipant", b =>
@@ -2165,28 +2026,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Navigation("Requirement");
                 });
 
-            modelBuilder.Entity("Requra.Domain.Entities.UserStoryQuality", b =>
-                {
-                    b.HasOne("Requra.Domain.Entities.UserStory", "UserStory")
-                        .WithOne("Quality")
-                        .HasForeignKey("Requra.Domain.Entities.UserStoryQuality", "UserStoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UserStory");
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.UserStorySourceRef", b =>
-                {
-                    b.HasOne("Requra.Domain.Entities.UserStory", "UserStory")
-                        .WithMany("SourceRefs")
-                        .HasForeignKey("UserStoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UserStory");
-                });
-
             modelBuilder.Entity("Requra.Domain.Entities.AIModel", b =>
                 {
                     b.Navigation("DocumentModels");
@@ -2263,15 +2102,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Navigation("RequirementSourceReferences");
 
                     b.Navigation("UserStories");
-                });
-
-            modelBuilder.Entity("Requra.Domain.Entities.UserStory", b =>
-                {
-                    b.Navigation("JiraFields");
-
-                    b.Navigation("Quality");
-
-                    b.Navigation("SourceRefs");
                 });
 #pragma warning restore 612, 618
         }

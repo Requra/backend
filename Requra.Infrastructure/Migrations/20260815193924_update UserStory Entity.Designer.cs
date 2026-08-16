@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815193924_update UserStory Entity")]
+    partial class updateUserStoryEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -895,8 +898,7 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
 
-                    b.Property<string>("RecordingUrls")
-                        .IsRequired()
+                    b.Property<string>("RecordingUrl")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("ScheduledAt")
@@ -1129,7 +1131,7 @@ namespace Requra.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("ProjectReviewInvitations", (string)null);
+                    b.ToTable("ProjectReviewInvitations");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.Recording", b =>
@@ -1504,7 +1506,7 @@ namespace Requra.Infrastructure.Migrations
 
                     b.HasIndex("RequirementId");
 
-                    b.ToTable("RequirementSourceReference", (string)null);
+                    b.ToTable("RequirementSourceReference");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.Summary", b =>
@@ -1825,7 +1827,7 @@ namespace Requra.Infrastructure.Migrations
 
                             b1.HasKey("ApplicationUserId", "Id");
 
-                            b1.ToTable("RefreshToken", (string)null);
+                            b1.ToTable("RefreshToken");
 
                             b1.WithOwner()
                                 .HasForeignKey("ApplicationUserId");
