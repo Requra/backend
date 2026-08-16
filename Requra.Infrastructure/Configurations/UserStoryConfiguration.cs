@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Requra.Domain.Entities;
+using Requra.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -124,6 +125,46 @@ namespace Requra.Infrastructure.Configurations
                    .IsConcurrencyToken()
                    .HasDefaultValue(1)
                    .IsRequired();
+
+            builder.Property(us => us.LastModifiedBy)
+                  .HasColumnName("last_modified_by");
+
+            builder.Property(us => us.RevisionNumber)
+                   .HasColumnName("revision_number")
+                   .HasDefaultValue(1)
+                   .IsRequired();
+
+            builder.Property(us => us.RevisionSource)
+                   .HasColumnName("revision_source")
+                   .HasConversion<string>()
+                   .HasDefaultValue(RevisionSource.AI_GENERATED)
+                   .IsRequired();
+
+            //builder.Property(us => us.Labels)
+            //       .HasColumnName("labels")
+            //       .HasColumnType("jsonb")
+            //       .HasConversion(
+            //           v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+            //           v => string.IsNullOrWhiteSpace(v)
+            //                ? new List<string>()
+            //                : JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null) ?? new List<string>())
+            //       .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+            //           (c1, c2) => c1.SequenceEqual(c2),
+            //           c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            //           c => c.ToList()));
+            builder.Property(us => us.Labels)
+                   .HasColumnName("labels")
+                   .HasColumnType("jsonb")
+                   .HasDefaultValueSql("'[]'::jsonb")
+                   .HasConversion(
+                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                       v => string.IsNullOrWhiteSpace(v)
+                            ? new List<string>()
+                            : JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null) ?? new List<string>())
+                   .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+                       (c1, c2) => c1.SequenceEqual(c2),
+                       c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                       c => c.ToList()));
 
         }
         private static List<AcceptanceCriterion> DeserializeAcceptanceCriteria(string? json)

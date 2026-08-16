@@ -68,5 +68,36 @@ namespace Requra.Presentation.Controllers.Project.ProjectResults
                 _ => StatusCode(response.StatusCode, response)
             };
         }
+        [HttpPatch("~/api/projects/{projectId:guid}/user-stories/{storyId:guid}")]
+        public async Task<IActionResult> EditUserStoryContent(
+           [FromRoute] Guid projectId,
+           [FromRoute] Guid storyId,
+           [FromHeader(Name = "If-Match")] string? ifMatch,
+           [FromBody] EditUserStoryContentBody body,
+           CancellationToken cancellationToken)
+        {
+            var modifiedById = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var request = EditUserStoryContentRequest.FromBody(projectId, storyId, ifMatch, modifiedById, body);
+
+            var response = await _userStoryService.EditUserStoryContentAsync(request, cancellationToken);
+
+            if (response.IsSuccess && response.Data != null)
+            {
+                Response.Headers.ETag = $"\"{response.Data.Version}\"";
+            }
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(StatusCodes.Status403Forbidden, response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(StatusCodes.Status500InternalServerError, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
     }
 }

@@ -188,6 +188,122 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.Us
 
             return string.Equals(value, currentVersion.ToString(), StringComparison.Ordinal);
         }
+        public async Task<Response<EditUserStoryContentResponse>> EditUserStoryContentAsync(EditUserStoryContentRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request.ProjectId == Guid.Empty || request.StoryId == Guid.Empty)
+                return Response<EditUserStoryContentResponse>.Failure("ProjectId and StoryId are required.", 400);
+
+            if (string.IsNullOrWhiteSpace(request.ModifiedById))
+                return Response<EditUserStoryContentResponse>.Failure("Current user is not authenticated.", 401);
+
+            UserStoryPriority? priority = null;
+            if (!string.IsNullOrWhiteSpace(request.Priority))
+            {
+                if (!Enum.TryParse<UserStoryPriority>(request.Priority, ignoreCase: true, out var parsedPriority))
+                    return Response<EditUserStoryContentResponse>.Failure("priority must be one of Low, Medium, High, Critical.", 400);
+                priority = parsedPriority;
+            }
+
+            if (request.Title != null && request.Title.Length > 255)
+                return Response<EditUserStoryContentResponse>.Failure("title must not exceed 255 characters.", 400);
+
+            List<AcceptanceCriterion>? acceptanceCriteria = null;
+            if (request.AcceptanceCriteria != null)
+            {
+                if (request.AcceptanceCriteria.Any(ac => string.IsNullOrWhiteSpace(ac.Text)))
+                    return Response<EditUserStoryContentResponse>.Failure("Each acceptance criterion must include text.", 400);
+
+                acceptanceCriteria = request.AcceptanceCriteria
+                    .Select(ac => new AcceptanceCriterion(ac.Text!.Trim(), ac.Format, ac.Id))
+                    .ToList();
+            }
+
+            try
+            {
+                var project = await _context.Projects
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == request.ProjectId, cancellationToken);
+
+                if (project is null)
+                    return Response<EditUserStoryContentResponse>.Failure("Project not found.", 404);
+
+                var isMember = await _context.ProjectMembers
+                    .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == request.ModifiedById, cancellationToken);
+
+                if (!isMember)
+                    return Response<EditUserStoryContentResponse>.Failure("You are not allowed to edit user stories on this project.", 403);
+
+                var story = await _context.UserStories
+                    .Include(us => us.SourceRefs)
+                    .Include(us => us.Quality)
+                    .FirstOrDefaultAsync(x => x.Id == request.StoryId && x.ProjectId == request.ProjectId, cancellationToken);
+
+                if (story is null)
+                    return Response<EditUserStoryContentResponse>.Failure("User story not found.", 404);
+
+                if (string.IsNullOrWhiteSpace(request.IfMatch) || !MatchesIfMatch(request.IfMatch, story.Version))
+                    return Response<EditUserStoryContentResponse>.Failure("The user story has been modified by another user. Please refresh and try again.", 409);
+
+                story.EditContent(request.Title, request.Description, acceptanceCriteria, priority, request.Labels, request.ModifiedById);
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var response = new EditUserStoryContentResponse
+                {
+                    Id = story.Id,
+                    Title = story.Title,
+                    Description = story.Description,
+                    UserStoryText = story.Description,
+                    AcceptanceCriteria = story.AcceptanceCriteria.Select(ac => new AcceptanceCriterionDto
+                    {
+                        Id = ac.Id,
+                        Text = ac.Text,
+                        Format = ac.CriterionType
+                    }).ToList(),
+                    Priority = story.Priority.ToString(),
+                    Labels = story.Labels,
+                    RequirementId = story.RequirementId,
+                    SourceRefs = story.SourceRefs.Select(sr => new SourceRefDto
+                    {
+                        Page = sr.Page,
+                        Quote = sr.Quote,
+                        ChunkId = sr.ChunkId,
+                        SourceId = sr.SourceId,
+                        SourceType = sr.SourceType,
+                        DocumentName = sr.DocumentName,
+                        ConfidenceScore = sr.ConfidenceScore
+                    }).ToList(),
+                    Quality = story.Quality == null ? null : new QualityDto
+                    {
+                        Score = story.Quality.Score,
+                        Issues = story.Quality.Issues,
+                        Warnings = story.Quality.Warnings,
+                        QualityStatus = story.Quality.QualityStatus.ToString()
+                    },
+                    WorkflowStatus = ToWorkflowStatusString(story.Status),
+                    ReviewFeedback = story.ReviewFeedback,
+                    ReviewedBy = story.ReviewedById,
+                    ReviewedAt = story.ReviewedAt,
+                    CreatedAt = story.CreatedAt,
+                    UpdatedAt = story.UpdatedAt,
+                    LastModifiedBy = story.LastModifiedBy,
+                    Version = story.Version,
+                    RevisionNumber = story.RevisionNumber,
+                    RevisionSource = story.RevisionSource.ToString()
+                };
+
+                return Response<EditUserStoryContentResponse>.Success(response, "User story updated successfully", 200);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<EditUserStoryContentResponse>.Failure("A concurrency error occurred while updating the user story.", 409, new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error editing content for user story {StoryId} in project {ProjectId}", request.StoryId, request.ProjectId);
+                return Response<EditUserStoryContentResponse>.Failure("An unexpected error occurred while updating the user story.", 500, new List<string> { ex.Message });
+            }
+        }
 
     }
 }
