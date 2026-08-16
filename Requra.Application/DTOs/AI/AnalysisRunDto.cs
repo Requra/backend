@@ -24,7 +24,7 @@ namespace Requra.Application.DTOs.AI
 
         public List<Guid> DocumentIds { get; set; } = new();
 
-        public Guid? MeetingId { get; set; }
+        public List<Guid>? MeetingIds { get; set; }
 
         public DateTime? StartedAt { get; set; }
 

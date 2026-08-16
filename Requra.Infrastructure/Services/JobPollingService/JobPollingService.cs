@@ -63,10 +63,10 @@ namespace Requra.Infrastructure.Services.JobPollingService
                             RawJson = rawJson,
                             CreatedAt = DateTime.UtcNow
                         });
-                        await MapRequirementsFromAiResultAsync(
-                                rawJson,
-                                run.ProjectId
-                                );
+                        //await MapRequirementsFromAiResultAsync(
+                        //        rawJson,
+                        //        run.ProjectId
+                        //        );
 
                         // Map AI results to database entities
                         //await MapAIResultsToEntitiesAsync(db, run, result);

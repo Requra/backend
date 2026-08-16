@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Requra.Domain.Entities;
+using System.Reflection.Emit;
+using System.Text.Json;
 
 namespace Requra.Infrastructure.Configurations
 {
@@ -126,6 +129,20 @@ namespace Requra.Infrastructure.Configurations
                 .WithOne(r => r.Meeting)
                 .HasForeignKey(r => r.MeetingId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+      builder.Property(x => x.RecordingUrls)
+     .HasColumnType("text")
+     .HasConversion(
+         v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+         v => string.IsNullOrWhiteSpace(v)
+             ? new List<string>()
+             : JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+     .Metadata.SetValueComparer(
+         new ValueComparer<List<string>>(
+             (c1, c2) => (c1 ?? new List<string>()).SequenceEqual(c2 ?? new List<string>()),
+             c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+             c => c == null ? new List<string>() : c.ToList()
+         ));
         }
     }
 }

@@ -4,6 +4,7 @@ namespace Requra.Domain.Entities
 {
     public class MeetingSession
     {
+
         public Guid Id { get; private set; }
 
         public string? SessionToken { get; private set; }
@@ -22,7 +23,7 @@ namespace Requra.Domain.Entities
         public Guid ProjectId { get; private set; }
         public TranscriptStatus TranscriptStatus { get; private set; }
         public string? TranscriptDocumentUrl { get; private set; }
-        public string? RecordingUrl { get; private set; }
+        public List<string> RecordingUrls { get; private set; } = new();
         public DateTime? MeetingEndsAt { get; private set; }
 
         // Navigation
@@ -123,6 +124,43 @@ namespace Requra.Domain.Entities
 
             if (scheduledAt.HasValue)
                 ScheduledAt = scheduledAt.Value;
+
+            UpdatedAt = DateTime.UtcNow;
+        }
+        //public void SetRecordingUrl(string url)
+        //{
+        //    RecordingUrl = url;
+        //    UpdatedAt = DateTime.UtcNow;
+        //}
+
+        public void AddRecordingUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return;
+
+            var normalizedUrl = url.Trim();
+
+            var current = RecordingUrls ?? new List<string>();
+
+            if (current.Any(x => string.Equals(x, normalizedUrl, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            RecordingUrls = current
+                .Append(normalizedUrl)
+                .ToList();
+
+            UpdatedAt = DateTime.UtcNow;
+        }
+        public void SetRecordingUrls(IEnumerable<string> urls)
+        {
+            if (urls == null)
+                return;
+
+            RecordingUrls = urls
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             UpdatedAt = DateTime.UtcNow;
         }

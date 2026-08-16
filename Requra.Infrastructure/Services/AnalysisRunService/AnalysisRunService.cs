@@ -35,26 +35,35 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
         public async Task<Response<AnalysisRunDto>> StartRunAsync(StartRunRequest request, Guid projectId, string userId)
         {
-            //check first if projectId Exists
             var project = await dbContext.Projects.FindAsync(projectId);
             if (project == null)
             {
                 return Response<AnalysisRunDto>.Failure("Project not found", 404);
             }
-            var isMember = await dbContext.ProjectMembers.AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+
+            var isMember = await dbContext.ProjectMembers
+                .AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+
             if (!isMember)
-                return Response<AnalysisRunDto>.Failure(null, "You are not allowed to access this project or Start a new run", 403);
+            {
+                return Response<AnalysisRunDto>.Failure(
+                    null,
+                    "You are not allowed to access this project or Start a new run",
+                    403);
+            }
 
             List<Document> documents;
             if (request.DocumentIds != null && request.DocumentIds.Any())
             {
-                //check if all documentIds exist and belong to the project
-                 documents = await dbContext.Documents
+                documents = await dbContext.Documents
                     .Where(d => request.DocumentIds.Contains(d.Id) && d.ProjectId == projectId)
                     .ToListAsync();
+
                 if (documents.Count != request.DocumentIds.Count)
                 {
-                    return Response<AnalysisRunDto>.Failure("One or more documents not found or do not belong to the project", 404);
+                    return Response<AnalysisRunDto>.Failure(
+                        "One or more documents not found or do not belong to the project",
+                        404);
                 }
             }
             else
@@ -62,18 +71,43 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                 documents = await dbContext.Documents
                     .Where(d => d.ProjectId == projectId)
                     .ToListAsync();
+            }
 
-                if (!documents.Any())
+            List<MeetingSession> meetingSessions;
+            if (request.MeetingIds != null && request.MeetingIds.Any())
+            {
+                meetingSessions = await dbContext.MeetingSessions
+                    .Where(ms => request.MeetingIds.Contains(ms.Id) && ms.ProjectId == projectId)
+                    .ToListAsync();
+
+                if (meetingSessions.Count != request.MeetingIds.Count)
                 {
                     return Response<AnalysisRunDto>.Failure(
-                        "Project has no documents",
-                        400);
+                        "One or more meetings not found or do not belong to the project",
+                        404);
                 }
             }
+            else
+            {
+                meetingSessions = await dbContext.MeetingSessions
+                    .Where(ms => ms.ProjectId == projectId)
+                    .ToListAsync();
+            }
+
+            var hasDocuments = documents.Any();
+            var hasMeetings = meetingSessions.Any();
+
+            if (!hasDocuments && !hasMeetings)
+            {
+                return Response<AnalysisRunDto>.Failure(
+                    "Project has no documents or meetings to analyze",
+                    400);
+            }
+
             var categories = documents
-                            .Select(d => DocumentTypeHelper.GetCategory(d.Type))
-                           .Distinct()
-                            .ToList();
+                .Select(d => DocumentTypeHelper.GetCategory(d.Type))
+                .Distinct()
+                .ToList();
 
             if (categories.Contains("unknown"))
             {
@@ -82,12 +116,12 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                     400);
             }
 
-            if (categories.Count > 1)
-            {
-                return Response<AnalysisRunDto>.Failure(
-                    "Cannot mix audio files with documents in the same run",
-                    400);
-            }
+            //if (categories.Count > 1)
+            //{
+            //    return Response<AnalysisRunDto>.Failure(
+            //        "Cannot mix audio files with documents in the same run",
+            //        400);
+            //}
 
             var activeRun = await dbContext.AnalysisRuns
                 .Where(x => x.ProjectId == projectId &&
@@ -97,8 +131,12 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                 .FirstOrDefaultAsync();
 
             var finalDocumentIds = (request.DocumentIds != null && request.DocumentIds.Any())
-            ? request.DocumentIds
-            : documents.Select(d => d.Id).ToList();
+                ? request.DocumentIds
+                : documents.Select(d => d.Id).ToList();
+
+            var finalMeetingIds = (request.MeetingIds != null && request.MeetingIds.Any())
+                ? request.MeetingIds
+                : meetingSessions.Select(ms => ms.Id).ToList();
 
             if (activeRun != null)
             {
@@ -111,10 +149,9 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                         Progress = activeRun.Progress,
                         CurrentNode = activeRun.CurrentNode,
                         CurrentNodeLabel = PipelineNodeMapper.GetLabel(activeRun.CurrentNode),
-                        //job_id will be added later "Inicates job id of the current agent"
                         ErrorMessage = activeRun.ErrorMessage,
                         DocumentIds = finalDocumentIds,
-                        MeetingId = request.MeetingId,
+                        MeetingIds = finalMeetingIds,
                         CreatedAt = activeRun.CreatedAt,
                         UpdatedAt = activeRun.UpdatedAt,
                         StartedAt = activeRun.StartedAt,
@@ -130,7 +167,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                 Id = Guid.NewGuid(),
                 ProjectId = projectId,
                 Status = AnalysisRunStatus.QUEUED,
-                CurrentNode="queued",//will be enum may be later
+                CurrentNode = "queued",
                 CreatedAt = DateTime.UtcNow,
                 Progress = 0,
                 UpdatedAt = DateTime.UtcNow
@@ -141,27 +178,68 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
             var safeFiles = new List<FileUploadDto>();
 
+            // Add documents
             foreach (var doc in documents)
             {
+                if (string.IsNullOrWhiteSpace(doc.StorageUrl))
+                    continue;
+
                 var bytes = await fileDownloader.DownloadAsync(doc.StorageUrl);
 
                 safeFiles.Add(new FileUploadDto
                 {
                     Content = bytes,
-                    FileName = doc.Title
+                    FileName = string.IsNullOrWhiteSpace(doc.Title)
+                        ? $"document-{doc.Id}"
+                        : doc.Title
                 });
             }
+
+            // Add meeting recordings
+            foreach (var meeting in meetingSessions)
+            {
+                if (meeting.RecordingUrls == null || !meeting.RecordingUrls.Any())
+                    continue;
+
+                var validUrls = meeting.RecordingUrls
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var index = 1;
+
+                foreach (var recordingUrl in validUrls)
+                {
+                    var bytes = await fileDownloader.DownloadAsync(recordingUrl);
+
+                    safeFiles.Add(new FileUploadDto
+                    {
+                        Content = bytes,
+                        FileName = !string.IsNullOrWhiteSpace(meeting.Title)
+                            ? $"{meeting.Title}-recording-{index}"
+                            : $"meeting-{meeting.Id}-recording-{index}"
+                    });
+
+                    index++;
+                }
+            }
+
+            if (!safeFiles.Any())
+            {
+                return Response<AnalysisRunDto>.Failure(
+                    "No downloadable document or meeting recording files were found for this run.",
+                    400);
+            }
+
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    //await _worker.ProcessRun(run.Id, projectId, request.DocumentIds);
                     await _worker.ProcessRun(safeFiles, run.Id, projectId);
                 }
                 catch (Exception ex)
                 {
                     using var scope = _scopeFactory.CreateScope();
-
                     var db = scope.ServiceProvider.GetRequiredService<RequraDbContext>();
 
                     var failedRun = await db.AnalysisRuns.FindAsync(run.Id);
@@ -169,12 +247,13 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                     {
                         failedRun.Status = AnalysisRunStatus.FAILED;
                         failedRun.ErrorMessage = ex.Message;
+                        failedRun.UpdatedAt = DateTime.UtcNow;
 
                         await db.SaveChangesAsync();
                     }
                 }
             });
-       
+
             return Response<AnalysisRunDto>.Success(
                 new AnalysisRunDto
                 {
@@ -185,9 +264,8 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                     CurrentNode = run.CurrentNode,
                     CurrentNodeLabel = PipelineNodeMapper.GetLabel(run.CurrentNode),
                     ErrorMessage = run.ErrorMessage,
-                    //aijobid will be added later "Inicates job id of the current agent"
                     DocumentIds = finalDocumentIds,
-                    MeetingId = request.MeetingId,
+                    MeetingIds = finalMeetingIds,
                     StartedAt = run.StartedAt,
                     CompletedAt = run.CompletedAt,
                     CreatedAt = run.CreatedAt,
@@ -197,7 +275,6 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                 200
             );
         }
-
 
         public async Task<Response<AnalysisRunDto>> GetRunAsync(Guid projectId, Guid runId, string userId)
         {

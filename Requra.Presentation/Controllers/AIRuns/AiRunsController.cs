@@ -41,7 +41,7 @@ namespace Requra.Presentation.Controllers.AIRuns
                     400
                 ));
             }
-            //var userId = "027b0157-7553-4fbd-a171-6e3e8777911c"; //testing only
+            //userId = "18a8c6c8-4a2e-4aa7-8e3b-0c67964cb02f"; //testing only
             var response = await _service.StartRunAsync(request, projectGuid, userId);
 
             return StatusCode(response.StatusCode, response);
