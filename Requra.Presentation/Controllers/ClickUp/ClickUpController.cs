@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
+using Requra.Infrastructure.ExternalDTOs.ClickUpDto;
 using Requra.Infrastructure.ExternalInterfaces.IClickUpService;
 using Requra.Infrastructure.Services.ClickUpService;
 using System.Security.Claims;
@@ -10,7 +12,7 @@ namespace Requra.Presentation.Controllers.ClickUp
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[Authorize]
+    [Authorize]
     public class ClickUpController : ControllerBase
     {
         private readonly IClickUpService _clickUpService;
@@ -18,36 +20,39 @@ namespace Requra.Presentation.Controllers.ClickUp
         private readonly IClickUpPushService _clickUpPushService;
         private readonly IProjectService _projectService;
         private readonly ILogger<ClickUpController> _logger;
+        private readonly ClickUpOAuthSettings _clickUpSettings;
 
         public ClickUpController(
             IClickUpService clickUpService,
             IClickUpSyncService clickUpSyncService,
             IClickUpPushService clickUpPushService,
             IProjectService projectService,
-            ILogger<ClickUpController> logger)
+            ILogger<ClickUpController> logger,
+            IOptions<ClickUpOAuthSettings> clickUpSettings)
         {
             _clickUpService = clickUpService;
             _clickUpSyncService = clickUpSyncService;
             _clickUpPushService = clickUpPushService;
             _projectService = projectService;
             _logger = logger;
+            _clickUpSettings = clickUpSettings.Value;
         }
 
         /// <summary>
         /// Initiates OAuth flow by returning the authorization URL
         /// </summary>
         [HttpGet("auth/authorize")]
-        public IActionResult GetAuthorizationUrl([FromQuery] string redirectUri, [FromQuery] Guid projectId)
+        public IActionResult GetAuthorizationUrl([FromQuery] Guid projectId)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(redirectUri))
-                    return BadRequest(Response<string>.Failure("Redirect URI is required"));
-
                 if (projectId == Guid.Empty)
                     return BadRequest(Response<string>.Failure("Project ID is required"));
 
-                var authUrl = _clickUpService.GetAuthorizationUrl(redirectUri);
+                if (string.IsNullOrWhiteSpace(_clickUpSettings.RedirectUri))
+                    return StatusCode(500, Response<string>.Failure("ClickUp redirect URI not configured in settings"));
+
+                var authUrl = _clickUpService.GetAuthorizationUrl(_clickUpSettings.RedirectUri);
 
                 return Ok(Response<object>.Success(new
                 {
@@ -149,73 +154,89 @@ namespace Requra.Presentation.Controllers.ClickUp
         /// <summary>
         /// Syncs all ClickUp tasks for a project to UserStories
         /// </summary>
-        [HttpPost("sync/{projectId}")]
-        public async Task<IActionResult> SyncProjectTasks(Guid projectId)
-        {
-            try
-            {
-                //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                //if (string.IsNullOrWhiteSpace(userId))
-                //    return Unauthorized();
+        //[HttpPost("sync/{projectId}")]
+        //public async Task<IActionResult> SyncProjectTasks(Guid projectId)
+        //{
+        //    try
+        //    {
+        //        //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //        //if (string.IsNullOrWhiteSpace(userId))
+        //        //    return Unauthorized();
 
-                //// Verify user has access to project
-                //var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
-                //if (!hasAccess)
-                //    return Forbid();
+        //        //// Verify user has access to project
+        //        //var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
+        //        //if (!hasAccess)
+        //        //    return Forbid();
 
-                var syncedCount = await _clickUpSyncService.SyncProjectTasksAsync(projectId);
+        //        var syncedCount = await _clickUpSyncService.SyncProjectTasksAsync(projectId);
 
-                return Ok(Response<object>.Success(new
-                {
-                    syncedCount
-                }, $"Successfully synced {syncedCount} tasks"));
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Project not connected to ClickUp");
-                return BadRequest(Response<string>.Failure(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error syncing ClickUp tasks for project {ProjectId}", projectId);
-                return StatusCode(500, Response<string>.Failure("Error syncing ClickUp tasks"));
-            }
-        }
+        //        return Ok(Response<object>.Success(new
+        //        {
+        //            syncedCount
+        //        }, $"Successfully synced {syncedCount} tasks"));
+        //    }
+        //    catch (InvalidOperationException ex)
+        //    {
+        //        _logger.LogWarning(ex, "Project not connected to ClickUp");
+        //        return BadRequest(Response<string>.Failure(ex.Message));
+        //    }
+        //    catch (HttpRequestException ex)
+        //    {
+        //        _logger.LogError(ex, "HTTP error syncing ClickUp tasks for project {ProjectId}", projectId);
+        //        return StatusCode(500, Response<string>.Failure($"ClickUp API error: {ex.Message}"));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var message = ex.InnerException?.Message ?? ex.Message;
+        //        _logger.LogError(ex, "Error syncing ClickUp tasks for project {ProjectId}. InnerException: {InnerMessage}", projectId, ex.InnerException?.Message);
+        //        return StatusCode(500, Response<string>.Failure($"Error syncing ClickUp tasks: {message}"));
+        //    }
+        //}
 
         /// <summary>
         /// Syncs ClickUp tasks from a specific list
         /// </summary>
-        [HttpPost("sync/{projectId}/list/{listId}")]
-        public async Task<IActionResult> SyncListTasks(Guid projectId, string listId)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrWhiteSpace(userId))
-                    return Unauthorized();
+        //[HttpPost("sync/{projectId}/list/{listId}")]
+        //public async Task<IActionResult> SyncListTasks(Guid projectId, string listId)
+        //{
+        //    try
+        //    {
+        //        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //        if (string.IsNullOrWhiteSpace(userId))
+        //            return Unauthorized();
 
-                // Verify user has access to project
-                var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
-                if (!hasAccess)
-                    return Forbid();
+        //        // Verify user has access to project
+        //        var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
+        //        if (!hasAccess)
+        //            return Forbid();
 
-                if (string.IsNullOrWhiteSpace(listId))
-                    return BadRequest(Response<string>.Failure("List ID is required"));
+        //        if (string.IsNullOrWhiteSpace(listId))
+        //            return BadRequest(Response<string>.Failure("List ID is required"));
 
-                var syncedCount = await _clickUpSyncService.SyncListTasksAsync(projectId, listId);
+        //        var syncedCount = await _clickUpSyncService.SyncListTasksAsync(projectId, listId);
 
-                return Ok(Response<object>.Success(new
-                {
-                    syncedCount,
-                    listId
-                }, $"Successfully synced {syncedCount} tasks from list"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error syncing list tasks");
-                return StatusCode(500, Response<string>.Failure("Error syncing list tasks"));
-            }
-        }
+        //        return Ok(Response<object>.Success(new
+        //        {
+        //            syncedCount,
+        //            listId
+        //        }, $"Successfully synced {syncedCount} tasks from list"));
+        //    }
+        //    catch (InvalidOperationException ex)
+        //    {
+        //        _logger.LogWarning(ex, "Project not connected to ClickUp");
+        //        return BadRequest(Response<string>.Failure(ex.Message));
+        //    }
+        //    catch (HttpRequestException ex)
+        //    {
+        //        _logger.LogError(ex, "HTTP error syncing list tasks");
+        //        return StatusCode(500, Response<string>.Failure($"ClickUp API error: {ex.Message}"));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error syncing list tasks");
+        //        return StatusCode(500, Response<string>.Failure($"Error syncing list tasks: {ex.Message}"));
+        //    }
+        //}
 
         /// <summary>
         /// Disconnects a project from ClickUp
@@ -253,14 +274,14 @@ namespace Requra.Presentation.Controllers.ClickUp
         {
             try
             {
-                //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                //if (string.IsNullOrWhiteSpace(userId))
-                //    return Unauthorized();
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Unauthorized();
 
-                //// Verify user has access to project
-                //var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
-                //if (!hasAccess)
-                //    return Forbid();
+                // Verify user has access to project
+                var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
+                if (!hasAccess)
+                    return Forbid();
 
                 var status = await _projectService.GetClickUpConnectionStatusAsync(projectId);
 
@@ -277,30 +298,30 @@ namespace Requra.Presentation.Controllers.ClickUp
         /// Pushes all UserStories from a project to ClickUp
         /// Creates new tasks for UserStories without ClickUp IDs, updates existing ones
         /// </summary>
-        [HttpPost("push/{projectId}")]
-        public async Task<IActionResult> PushProjectTasks(Guid projectId)
-        {
-            try
-            {
-                //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                //if (string.IsNullOrWhiteSpace(userId))
-                //    return Unauthorized();
+        //[HttpPost("push/{projectId}")]
+        //public async Task<IActionResult> PushProjectTasks(Guid projectId)
+        //{
+        //    try
+        //    {
+        //        //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //        //if (string.IsNullOrWhiteSpace(userId))
+        //        //    return Unauthorized();
 
-                //// Verify user has access to project
-                //var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
-                //if (!hasAccess)
-                //    return Forbid();
+        //        //// Verify user has access to project
+        //        //var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
+        //        //if (!hasAccess)
+        //        //    return Forbid();
 
-                var result = await _clickUpPushService.PushProjectTasksAsync(projectId);
+        //        var result = await _clickUpPushService.PushProjectTasksAsync(projectId);
 
-                return Ok(Response<PushProjectTasksResult>.Success(result, result.Message ?? "UserStories pushed successfully"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error pushing UserStories to ClickUp for project {ProjectId}", projectId);
-                return StatusCode(500, Response<string>.Failure("Error pushing UserStories to ClickUp"));
-            }
-        }
+        //        return Ok(Response<PushProjectTasksResult>.Success(result, result.Message ?? "UserStories pushed successfully"));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error pushing UserStories to ClickUp for project {ProjectId}", projectId);
+        //        return StatusCode(500, Response<string>.Failure("Error pushing UserStories to ClickUp"));
+        //    }
+        //}
 
         /// <summary>
         /// Pushes only approved UserStories from a project to ClickUp
@@ -310,14 +331,14 @@ namespace Requra.Presentation.Controllers.ClickUp
         {
             try
             {
-                //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                //if (string.IsNullOrWhiteSpace(userId))
-                //    return Unauthorized();
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Unauthorized();
 
-                //// Verify user has access to project
-                //var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
-                //if (!hasAccess)
-                //    return Forbid();
+                // Verify user has access to project
+                var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
+                if (!hasAccess)
+                    return Forbid();
 
                 var result = await _clickUpPushService.PushApprovedTasksAsync(projectId);
 
@@ -333,33 +354,33 @@ namespace Requra.Presentation.Controllers.ClickUp
         /// <summary>
         /// Pushes a single UserStory to ClickUp
         /// </summary>
-        [HttpPost("push/{projectId}/story/{userStoryId}")]
-        public async Task<IActionResult> PushSingleTask(Guid projectId, Guid userStoryId)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrWhiteSpace(userId))
-                    return Unauthorized();
+        //[HttpPost("push/{projectId}/story/{userStoryId}")]
+        //public async Task<IActionResult> PushSingleTask(Guid projectId, Guid userStoryId)
+        //{
+        //    try
+        //    {
+        //        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //        if (string.IsNullOrWhiteSpace(userId))
+        //            return Unauthorized();
 
-                // Verify user has access to project
-                var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
-                if (!hasAccess)
-                    return Forbid();
+        //        // Verify user has access to project
+        //        var hasAccess = await _projectService.UserHasAccessToProjectAsync(projectId, userId);
+        //        if (!hasAccess)
+        //            return Forbid();
 
-                var result = await _clickUpPushService.PushTaskAsync(projectId, userStoryId);
+        //        var result = await _clickUpPushService.PushTaskAsync(projectId, userStoryId);
 
-                if (!result.Success)
-                    return BadRequest(Response<PushTaskResult>.Failure(result.Message));
+        //        if (!result.Success)
+        //            return BadRequest(Response<PushTaskResult>.Failure(result.Message));
 
-                return Ok(Response<PushTaskResult>.Success(result, result.Message ?? "UserStory pushed successfully"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error pushing UserStory {UserStoryId} to ClickUp", userStoryId);
-                return StatusCode(500, Response<string>.Failure("Error pushing UserStory to ClickUp"));
-            }
-        }
+        //        return Ok(Response<PushTaskResult>.Success(result, result.Message ?? "UserStory pushed successfully"));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error pushing UserStory {UserStoryId} to ClickUp", userStoryId);
+        //        return StatusCode(500, Response<string>.Failure("Error pushing UserStory to ClickUp"));
+        //    }
+        //}
     }
 
     public class OAuthCallbackRequest

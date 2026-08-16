@@ -127,18 +127,41 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
                 var response = await _httpClient.SendAsync(request, cancellationToken);
-                response.EnsureSuccessStatusCode();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogError("Failed to get teams. Status: {StatusCode}, Response: {Response}", response.StatusCode, errorContent);
+                    throw new HttpRequestException($"Failed to get teams: {response.StatusCode} - {errorContent}");
+                }
 
                 var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogInformation("ClickUp teams response: {Response}", jsonContent);
 
                 var result = System.Text.Json.JsonSerializer.Deserialize<ClickUpTeamsResponse>(jsonContent, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                _logger.LogInformation("Retrieved user teams. Teams count: {TeamsCount}", result?.Teams?.Count ?? 0);
-                return result ?? throw new InvalidOperationException("Failed to deserialize teams response");
+
+                if (result == null)
+                {
+                    _logger.LogError("Failed to deserialize teams response");
+                    throw new InvalidOperationException("Failed to deserialize teams response");
+                }
+
+                _logger.LogInformation("Retrieved user teams. Teams count: {TeamsCount}", result.Teams?.Count ?? 0);
+                if (result.Teams != null && result.Teams.Count > 0)
+                {
+                    _logger.LogInformation("First team - Id: {TeamId}, Name: {TeamName}", result.Teams[0].Id, result.Teams[0].Name);
+                }
+
+                return result;
             }
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, "Failed to retrieve user teams");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error retrieving user teams");
                 throw;
             }
         }

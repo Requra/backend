@@ -63,13 +63,16 @@ namespace Requra.Infrastructure.Services.JobPollingService
                             RawJson = rawJson,
                             CreatedAt = DateTime.UtcNow
                         });
-                        await MapRequirementsFromAiResultAsync(
-                                rawJson,
-                                run.ProjectId
-                                );
+                        //await MapRequirementsFromAiResultAsync(
+                        //        rawJson,
+                        //        run.ProjectId
+                        //        );
+                        //await MapUserStoriesFromAiResultAsync(
+                        //        rawJson,
+                        //        run.ProjectId
+                        //        ); //will add Creator Id later
 
-                        // Map AI results to database entities
-                        //await MapAIResultsToEntitiesAsync(db, run, result);
+
 
                         run.UpdateAnalysis(
                             MapStatus(statusResponse.Status),
@@ -252,172 +255,145 @@ namespace Requra.Infrastructure.Services.JobPollingService
             };
         }
 
-        private async Task MapAIResultsToEntitiesAsync(RequraDbContext db, AnalysisRun run, Application.DTOs.AI.JobResultResponseDto result)
+        private async Task MapUserStoriesFromAiResultAsync(
+    string rawJson,
+    Guid projectId,
+    string? creatorId = null,
+    CancellationToken cancellationToken = default)
         {
-            try
-            {
-                if (run.ProjectId == null)
-                    return;
-
-                // Dictionary to map AI Requirement IDs to our database Requirement IDs
-                var aiRequirementIdToDbId = new Dictionary<string, Guid>();
-
-                // Map Requirements from AI result to database entities
-                //if (result.Requirements != null && result.Requirements.Count > 0)
-                //{
-                //    foreach (var reqDto in result.Requirements)
-                //    {
-                //        // Check if requirement already exists by title
-                //        var existingReq = await db.Requirements
-                //            .FirstOrDefaultAsync(r => r.ProjectId == run.ProjectId && r.Title == reqDto.Title);
-
-                //        Guid dbRequirementId;
-
-                //        if (existingReq == null)
-                //        {
-                //            // Create new requirement using constructor
-                //            var newReq = new Requirement(
-                //                reqDto.Title,
-                //                Domain.Enums.RequirementType.Functional,
-                //                null
-                //            );
-
-                //            // Use UpdateDetails to set description
-                //            newReq.UpdateDetails(
-                //                reqDto.Title,
-                //                reqDto.Description,
-                //                Domain.Enums.RequirementType.Functional,
-                //                null
-                //            );
-
-                //            // Mark as approved based on deduplication key presence
-                //            if (!string.IsNullOrEmpty(reqDto.DeduplicationKey))
-                //            {
-                //                newReq.Approve();
-                //            }
-
-                //            db.Requirements.Add(newReq);
-                //            await db.SaveChangesAsync();
-                //            dbRequirementId = newReq.Id;
-                //        }
-                //        else
-                //        {
-                //            dbRequirementId = existingReq.Id;
-
-                //            // Update approval status if needed
-                //            if (!string.IsNullOrEmpty(reqDto.DeduplicationKey) &&
-                //                existingReq.Status != Domain.Enums.RequirementStatus.Approved)
-                //            {
-                //                existingReq.Approve();
-                //                await db.SaveChangesAsync();
-                //            }
-                //        }
-
-                //        // Map AI ID to our database ID
-                //        if (!aiRequirementIdToDbId.ContainsKey(reqDto.Id))
-                //        {
-                //            aiRequirementIdToDbId[reqDto.Id] = dbRequirementId;
-                //        }
-                //    }
-                //}
-
-                // Map User Stories from AI result to database entities
-                if (result.UserStories != null && result.UserStories.Count > 0)
+            var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
+                rawJson,
+                new JsonSerializerOptions
                 {
-                    // Get a system user ID for the creator
-                    var creatorId = "system"; // Placeholder - adjust based on your actual user ID
+                    PropertyNameCaseInsensitive = true
+                });
 
-                    foreach (var storyDto in result.UserStories)
-                    {
-                        // Check if user story already exists
-                        var existingStory = await db.UserStories
-                            .FirstOrDefaultAsync(us => us.ProjectId == run.ProjectId && us.Title == storyDto.Title);
+            if (aiResult?.UserStories == null || aiResult.UserStories.Count == 0)
+                return;
 
-                        // Find associated requirement using the mapped ID
-                        Guid? requirementId = null;
-
-                        if (!string.IsNullOrEmpty(storyDto.RequirementId) &&
-                            aiRequirementIdToDbId.TryGetValue(storyDto.RequirementId, out var dbReqId))
-                        {
-                            requirementId = dbReqId;
-                        }
-                        else
-                        {
-                            // Fallback: try to find requirement by matching with AI response
-                            var aiRequirement = result.Requirements?
-                                .FirstOrDefault(r => r.Id == storyDto.RequirementId);
-
-                            if (aiRequirement != null)
-                            {
-                                // Find our database requirement by title
-                                var dbRequirement = await db.Requirements
-                                    .FirstOrDefaultAsync(r => r.ProjectId == run.ProjectId &&
-                                                              r.Title == aiRequirement.Title);
-
-                                if (dbRequirement != null)
-                                {
-                                    requirementId = dbRequirement.Id;
-                                }
-                            }
-                        }
-
-                        // Only create user story if we found an associated requirement
-                        if (requirementId.HasValue)
-                        {
-                            if (existingStory == null)
-                            {
-                                var newStory = new UserStory(
-                                    storyDto.Title,
-                                    creatorId,
-                                    requirementId.Value,
-                                    Domain.Enums.UserStoryPriority.medium
-                                );
-
-                                // Extract acceptance criteria text
-                                var acceptanceCriteria = storyDto.AcceptanceCriteria?
-                                    .Select(ac => ac.Text)
-                                    .ToList();
-
-                                newStory.UpdateDetails(
-                                    storyDto.Title,
-                                    storyDto.UserStory,
-                                    acceptanceCriteria,
-                                    null
-                                );
-
-                                // Mark as approved based on deduplication key presence
-                                if (!string.IsNullOrEmpty(storyDto.DeduplicationKey))
-                                {
-                                    newStory.ChangeStatus(Domain.Enums.UserStoryStatus.Approved);
-                                }
-
-                                db.UserStories.Add(newStory);
-                                await db.SaveChangesAsync();
-                            }
-                            else if (!string.IsNullOrEmpty(storyDto.DeduplicationKey))
-                            {
-                                // Update existing story status if it's approved
-                                if (existingStory.Status != Domain.Enums.UserStoryStatus.Approved)
-                                {
-                                    existingStory.ChangeStatus(Domain.Enums.UserStoryStatus.Approved);
-                                    await db.SaveChangesAsync();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning(
-                                "Could not find associated requirement for user story '{Title}' in project {ProjectId}",
-                                storyDto.Title, run.ProjectId);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
+            foreach (var aiUserStory in aiResult.UserStories)
             {
-                _logger.LogError(ex, "Error mapping AI results to entities for run {RunId}", run.Id);
-                // Don't throw - let the process continue even if mapping fails
+                // Validate User Story
+                if (string.IsNullOrWhiteSpace(aiUserStory.Id))
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(aiUserStory.Title))
+                    continue;
+
+                // Check if User Story already exists
+                var alreadyExists = await _context.UserStories
+                    .AnyAsync(
+                        x => x.ProjectId == projectId &&
+                             x.SourceUserStoryId == aiUserStory.Id,
+                        cancellationToken);
+
+                if (alreadyExists)
+                    continue;
+
+                // Find the Requirement using the AI source ID.
+                // Example:
+                // AI -> "requirement_id": "REQ-001"
+                // DB -> Requirement.SourceRequirementId = "REQ-001"
+                var requirement = await _context.Requirements
+                    .FirstOrDefaultAsync(
+                        x => x.ProjectId == projectId &&
+                             x.SourceRequirementId == aiUserStory.RequirementId,
+                        cancellationToken);
+
+                if (requirement == null)
+                    continue;
+
+                // Map AI values to domain enums
+                var priority = MapUserStoryPriority(aiUserStory.Priority);
+
+                var type = MapUserStoryType(aiUserStory.Type);
+
+                // New User Stories start with NeedReview status
+                var status = UserStoryStatus.NeedReview;
+
+                // Map Acceptance Criteria
+                var acceptanceCriteria = new List<AcceptanceCriterion>();
+
+                foreach (var aiCriterion in
+                         aiUserStory.AcceptanceCriteria ??
+                         Enumerable.Empty<AcceptanceCriteriaDto>())
+                {
+                    if (string.IsNullOrWhiteSpace(aiCriterion.Text))
+                        continue;
+
+                    var criterion = new AcceptanceCriterion(
+                        sourceAcceptanceCriterionId: aiCriterion.Id,
+                        text: aiCriterion.Text,
+                        criterionType: aiCriterion.CriterionType
+                    );
+
+                    acceptanceCriteria.Add(criterion);
+                }
+
+                // Create User Story
+                // The AI "user_story" is stored in our Description field.
+                var userStory = new UserStory(
+                    sourceUserStoryId: aiUserStory.Id,
+                    title: aiUserStory.Title,
+                    description: aiUserStory.UserStory,
+                    acceptanceCriteria: acceptanceCriteria,
+                    type: type,
+                    status: status,
+                    priority: priority,
+                    language: null,
+                    creatorId: creatorId,
+                    requirementId: requirement.Id,
+                    projectId: projectId,
+                    storyPoints: aiUserStory.JiraFields?.StoryPoints,
+                    sourceRequirementId: aiUserStory.RequirementId,
+                    deduplicationKey: aiUserStory.DeduplicationKey
+                );
+
+                // Map Source References
+                foreach (var sourceReference in
+                         aiUserStory.SourceRefs ??
+                         Enumerable.Empty<UserStorySourceRefDto>())
+                {
+                    var reference = new UserStorySourceRef(
+                        page: sourceReference.Page,
+                        quote: sourceReference.Quote,
+                        chunkId: sourceReference.ChunkId,
+                        sourceId: sourceReference.SourceId,
+                        sourceType: sourceReference.SourceType,
+                        documentName: sourceReference.DocumentName,
+                        confidenceScore: sourceReference.ConfidenceScore
+                    );
+
+                    userStory.AddSourceReference(reference);
+                }
+
+                _context.UserStories.Add(userStory);
             }
+        }
+
+        private static UserStoryPriority MapUserStoryPriority(string? priority)
+        {
+            return priority?.Trim().ToLowerInvariant() switch
+            {
+                "low" => UserStoryPriority.low,
+                "medium" => UserStoryPriority.medium,
+                "high" => UserStoryPriority.high,
+                "critical" => UserStoryPriority.critical,
+
+                _ => UserStoryPriority.medium
+            };
+        }
+
+        private static UserStoryType MapUserStoryType(string? type)
+        {
+            return type?.Trim().ToLowerInvariant() switch
+            {
+                "functional" => UserStoryType.Functional,
+                "non-functional" => UserStoryType.NonFunctional,
+
+                _ => throw new ArgumentException(
+                    $"Unknown user story type: {type}")
+            };
         }
     }
     

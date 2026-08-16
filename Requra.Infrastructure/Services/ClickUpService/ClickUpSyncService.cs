@@ -46,31 +46,39 @@ namespace Requra.Infrastructure.Services.ClickUpService
         {
             try
             {
+                _logger.LogInformation("Starting sync for project {ProjectId}", projectId);
+
                 var project = await _dbContext.Projects
                     .FirstOrDefaultAsync(p => p.Id == projectId && p.IsClickUpConnected, cancellationToken);
 
                 if (project == null)
                 {
                     _logger.LogWarning("Project {ProjectId} not found or not connected to ClickUp", projectId);
-                    return 0;
+                    throw new InvalidOperationException($"Project {projectId} not found or not connected to ClickUp");
                 }
+
+                _logger.LogInformation("Project found. ListId: {ListId}, SpaceId: {SpaceId}", project.ClickUpListId, project.ClickUpSpaceId);
 
                 if (project.IsClickUpTokenExpired())
                 {
                     _logger.LogWarning("ClickUp token for project {ProjectId} has expired", projectId);
                     project.DisconnectFromClickUp();
                     await _dbContext.SaveChangesAsync(cancellationToken);
-                    return 0;
+                    throw new InvalidOperationException("ClickUp token has expired");
                 }
 
                 if (string.IsNullOrWhiteSpace(project.ClickUpAccessToken))
-                    return 0;
+                {
+                    _logger.LogWarning("Project {ProjectId} has no access token", projectId);
+                    throw new InvalidOperationException("No ClickUp access token found");
+                }
 
                 ClickUpTasksResponse? tasksResponse = null;
 
                 // Fetch tasks from list if specified, otherwise from space
                 if (!string.IsNullOrWhiteSpace(project.ClickUpListId))
                 {
+                    _logger.LogInformation("Fetching tasks from ClickUp list {ListId}", project.ClickUpListId);
                     tasksResponse = await _clickUpService.GetListTasksAsync(
                         project.ClickUpAccessToken,
                         project.ClickUpListId,
@@ -78,6 +86,7 @@ namespace Requra.Infrastructure.Services.ClickUpService
                 }
                 else if (!string.IsNullOrWhiteSpace(project.ClickUpSpaceId))
                 {
+                    _logger.LogInformation("Fetching tasks from ClickUp space {SpaceId}", project.ClickUpSpaceId);
                     tasksResponse = await _clickUpService.GetSpaceTasksAsync(
                         project.ClickUpAccessToken,
                         project.ClickUpSpaceId,
@@ -86,7 +95,7 @@ namespace Requra.Infrastructure.Services.ClickUpService
                 else
                 {
                     _logger.LogWarning("Project {ProjectId} has no ClickUp list or space configured", projectId);
-                    return 0;
+                    throw new InvalidOperationException("No ClickUp list or space configured");
                 }
 
                 if (tasksResponse?.Tasks == null || !tasksResponse.Tasks.Any())
@@ -94,6 +103,8 @@ namespace Requra.Infrastructure.Services.ClickUpService
                     _logger.LogInformation("No tasks found in ClickUp for project {ProjectId}", projectId);
                     return 0;
                 }
+
+                _logger.LogInformation("Found {TaskCount} tasks to sync", tasksResponse.Tasks.Count);
 
                 int syncedCount = 0;
                 foreach (var task in tasksResponse.Tasks)
@@ -109,7 +120,28 @@ namespace Requra.Infrastructure.Services.ClickUpService
                     }
                 }
 
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    _logger.LogInformation("Saving {ChangedEntityCount} changed entities to database", _dbContext.ChangeTracker.Entries().Count(e => e.State != Microsoft.EntityFrameworkCore.EntityState.Unchanged));
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to save changes to database after syncing tasks. EntityState entries: {EntityCount}",
+                        _dbContext.ChangeTracker.Entries().Count());
+
+                    // Log all changed entities for debugging
+                    foreach (var entry in _dbContext.ChangeTracker.Entries().Where(e => e.State != Microsoft.EntityFrameworkCore.EntityState.Unchanged))
+                    {
+                        _logger.LogError("Entity {EntityType} in state {EntityState}: {EntityKey}",
+                            entry.Entity.GetType().Name,
+                            entry.State,
+                            entry.Entity);
+                    }
+
+                    throw;
+                }
+
                 _logger.LogInformation("Successfully synced {SyncedCount} tasks for project {ProjectId}", syncedCount, projectId);
                 return syncedCount;
             }
@@ -190,7 +222,6 @@ namespace Requra.Infrastructure.Services.ClickUpService
                     existingUserStory.UpdateDetails(
                         title: task.Name,
                         description: task.Description,
-                        acceptanceCriteria: ExtractAcceptanceCriteria(task.Description),
                         priority: priority,
                         status: status
                     );

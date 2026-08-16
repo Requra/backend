@@ -4,6 +4,7 @@ using Requra.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 
 namespace Requra.Infrastructure.Configurations
 {
@@ -30,7 +31,14 @@ namespace Requra.Infrastructure.Configurations
 
             builder.Property(u => u.AcceptanceCriteria)
                    .HasColumnName("acceptance_criteria")
-                   .HasColumnType("text[]");
+                   .HasColumnType("jsonb")
+                   .HasConversion(
+                       v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                       v => JsonSerializer.Deserialize<List<AcceptanceCriterion>>(v, (JsonSerializerOptions)null) ?? new List<AcceptanceCriterion>())
+                   .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<AcceptanceCriterion>>(
+                       (c1, c2) => c1.SequenceEqual(c2),
+                       c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                       c => c.ToList()));
 
             builder.Property(us => us.Status)
                    .HasColumnName("status")
