@@ -1,12 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Requra.Application.DTOs.AI;
 using Requra.Application.Interfaces.IProjectService;
 using Requra.Application.Response;
+using Requra.Domain.Entities;
+using Requra.Domain.Enums;
+using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalDTOs.ClickUpDto;
 using Requra.Infrastructure.ExternalInterfaces.IClickUpService;
 using Requra.Infrastructure.Services.ClickUpService;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Requra.Presentation.Controllers.ClickUp
 {
@@ -21,6 +27,8 @@ namespace Requra.Presentation.Controllers.ClickUp
         private readonly IProjectService _projectService;
         private readonly ILogger<ClickUpController> _logger;
         private readonly ClickUpOAuthSettings _clickUpSettings;
+        private readonly RequraDbContext _context;
+
 
         public ClickUpController(
             IClickUpService clickUpService,
@@ -28,7 +36,9 @@ namespace Requra.Presentation.Controllers.ClickUp
             IClickUpPushService clickUpPushService,
             IProjectService projectService,
             ILogger<ClickUpController> logger,
-            IOptions<ClickUpOAuthSettings> clickUpSettings)
+            IOptions<ClickUpOAuthSettings> clickUpSettings,
+            RequraDbContext dbContext
+            )
         {
             _clickUpService = clickUpService;
             _clickUpSyncService = clickUpSyncService;
@@ -36,6 +46,7 @@ namespace Requra.Presentation.Controllers.ClickUp
             _projectService = projectService;
             _logger = logger;
             _clickUpSettings = clickUpSettings.Value;
+            _context = dbContext;
         }
 
         /// <summary>
@@ -350,6 +361,226 @@ namespace Requra.Presentation.Controllers.ClickUp
                 return StatusCode(500, Response<string>.Failure("Error pushing approved UserStories to ClickUp"));
             }
         }
+//        [HttpPost("test-push/{projectId}")]
+//public async Task<IActionResult> TestPushApprovedTasks(
+//    Guid projectId,
+//    [FromBody] JsonElement rawJson,
+//    CancellationToken cancellationToken)
+//{
+//    try
+//    {
+//        // Convert request body back to raw JSON string
+//        var rawJsonString = rawJson.GetRawText();
+
+//        if (string.IsNullOrWhiteSpace(rawJsonString))
+//        {
+//            return BadRequest(
+//                Response<string>.Failure(
+//                    "Raw JSON body is required."));
+//        }
+
+//        // 1. Deserialize the raw JSON
+//        var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
+//            rawJsonString,
+//            new JsonSerializerOptions
+//            {
+//                PropertyNameCaseInsensitive = true
+//            });
+
+//        if (aiResult?.UserStories == null ||
+//            aiResult.UserStories.Count == 0)
+//        {
+//            return BadRequest(
+//                Response<string>.Failure(
+//                    "Raw JSON does not contain any user stories."));
+//        }
+
+//        var mappedCount = 0;
+//        var skippedCount = 0;
+
+//        // 2. Map User Stories
+//        foreach (var aiUserStory in aiResult.UserStories)
+//        {
+//                    // Validate ID
+//                    if (string.IsNullOrWhiteSpace(aiUserStory.Id))
+//                    {
+//                        skippedCount++;
+//                        continue;
+//                    }
+
+//                    // Validate Title
+//                    if (string.IsNullOrWhiteSpace(aiUserStory.Title))
+//                    {
+//                        skippedCount++;
+//                        continue;
+//                    }
+
+//                    // 3. Check if User Story already exists
+//                    var alreadyExists = await _context.UserStories
+//                .AnyAsync(
+//                    x => x.ProjectId == projectId &&
+//                         x.SourceUserStoryId == aiUserStory.Id,
+//                    cancellationToken);
+
+//                    if (alreadyExists)
+//                    {
+//                        skippedCount++;
+//                        continue;
+//                    }
+
+//                    // 4. Find Requirement
+//                //    var requirement = await _context.Requirements
+//                //.FirstOrDefaultAsync(
+//                //    x => x.ProjectId == projectId &&
+//                //         x.SourceRequirementId == aiUserStory.RequirementId,
+//                //    cancellationToken);
+
+//            //if (requirement == null)
+//            //{
+//            //    skippedCount++;
+//            //    continue;
+//            //}
+
+//            // 5. Map Priority
+//            var priority = aiUserStory.Priority?
+//                .Trim()
+//                .ToLowerInvariant() switch
+//            {
+//                "low" => UserStoryPriority.low,
+//                "medium" => UserStoryPriority.medium,
+//                "high" => UserStoryPriority.high,
+//                "critical" => UserStoryPriority.critical,
+//                _ => UserStoryPriority.medium
+//            };
+
+//            // 6. Map Type
+//            var type = aiUserStory.Type?
+//                .Trim()
+//                .ToLowerInvariant() switch
+//            {
+//                "functional" => UserStoryType.Functional,
+//                "non-functional" => UserStoryType.NonFunctional,
+
+//                _ => throw new ArgumentException(
+//                    $"Unknown user story type: {aiUserStory.Type}")
+//            };
+
+//            // 7. New User Story status
+//            var status = UserStoryStatus.NeedReview;
+
+//            // 8. Map Acceptance Criteria
+//            var acceptanceCriteria = new List<AcceptanceCriterion>();
+
+//            foreach (var aiCriterion in
+//                     aiUserStory.AcceptanceCriteria ??
+//                     Enumerable.Empty<AcceptanceCriteriaDto>())
+//            {
+//                if (string.IsNullOrWhiteSpace(aiCriterion.Text))
+//                    continue;
+
+//                var criterion = new AcceptanceCriterion(
+//                    sourceAcceptanceCriterionId: aiCriterion.Id,
+//                    text: aiCriterion.Text,
+//                    criterionType: aiCriterion.CriterionType
+//                );
+
+//                acceptanceCriteria.Add(criterion);
+//            }
+
+//            // 9. Create User Story
+//            var userStory = new UserStory(
+//    sourceUserStoryId: aiUserStory.Id,
+//    title: aiUserStory.Title,
+//    description: aiUserStory.UserStory,
+//    acceptanceCriteria: acceptanceCriteria,
+//    type: type,
+//    status: status,
+//    priority: priority,
+//    language: Language.En,
+//    creatorId: "01f535f1-9870-4141-9b29-21df2d9cd6ec",
+//    requirementId: Guid.Parse("ee5d2f32-27df-48d7-9ac4-784d6678ce9a"),
+//    projectId: projectId,
+//    storyPoints: aiUserStory.JiraFields?.StoryPoints,
+//    sourceRequirementId: aiUserStory.RequirementId,
+//    deduplicationKey: aiUserStory.DeduplicationKey
+//);
+    
+//            // 10. Map Source References
+//            foreach (var sourceReference in
+//                     aiUserStory.SourceRefs ??
+//                     Enumerable.Empty<UserStorySourceRefDto>())
+//            {
+//                var reference = new UserStorySourceRef(
+//                    page: sourceReference.Page,
+//                    quote: sourceReference.Quote,
+//                    chunkId: sourceReference.ChunkId,
+//                    sourceId: sourceReference.SourceId,
+//                    sourceType: sourceReference.SourceType,
+//                    documentName: sourceReference.DocumentName,
+//                    confidenceScore: sourceReference.ConfidenceScore
+//                );
+
+//                userStory.AddSourceReference(reference);
+//            }
+
+//            // 11. Add User Story
+//            _context.UserStories.Add(userStory);
+
+//            mappedCount++;
+//        }
+
+//        // 12. Save
+//        await _context.SaveChangesAsync(cancellationToken);
+
+//        return Ok(
+//            Response<object>.Success(
+//                new
+//                {
+//                    ProjectId = projectId,
+//                    TotalAiUserStories = aiResult.UserStories.Count,
+//                    MappedUserStories = mappedCount,
+//                    SkippedUserStories = skippedCount
+//                },
+//                "Test mapping completed successfully"
+//            ));
+//    }
+//    catch (JsonException ex)
+//    {
+//        _logger.LogError(
+//            ex,
+//            "Invalid Raw JSON while testing UserStory mapping for project {ProjectId}",
+//            projectId);
+
+//        return BadRequest(
+//            Response<string>.Failure(
+//                $"Invalid JSON: {ex.Message}"));
+//    }
+//    catch (ArgumentException ex)
+//    {
+//        _logger.LogError(
+//            ex,
+//            "Invalid AI value while mapping UserStories for project {ProjectId}",
+//            projectId);
+
+//        return BadRequest(
+//            Response<string>.Failure(ex.Message));
+//    }
+//            catch (DbUpdateException ex)
+//            {
+//                var innerMessage = ex.InnerException?.Message;
+
+//                _logger.LogError(
+//                    ex,
+//                    "Database error while mapping UserStories for project {ProjectId}. Inner: {InnerMessage}",
+//                    projectId,
+//                    innerMessage);
+
+//                return StatusCode(
+//                    500,
+//                    Response<string>.Failure(
+//                        $"Database error: {innerMessage ?? ex.Message}"));
+//            }
+//        }
 
         /// <summary>
         /// Pushes a single UserStory to ClickUp

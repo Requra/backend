@@ -282,7 +282,7 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
             }
         }
 
-        public async Task<ClickUpTask> CreateTaskAsync(string accessToken, string listId, string title, string? description = null, CancellationToken cancellationToken = default)
+        public async Task<ClickUpTask> CreateTaskAsync(string accessToken, string listId, string title, string? description = null, int? priority = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -290,11 +290,17 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
                 var request = new HttpRequestMessage(HttpMethod.Post, createTaskEndpoint);
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
-                var requestBody = new
+                var requestBody = new Dictionary<string, object?>
                 {
-                    name = title,
-                    description = description ?? ""
+                    { "name", title },
+                    { "description", description ?? "" }
                 };
+
+                // Only add priority if provided
+                if (priority.HasValue)
+                {
+                    requestBody["priority"] = priority.Value;
+                }
 
                 request.Content = new StringContent(
                     JsonSerializer.Serialize(requestBody),
@@ -302,7 +308,13 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
                     "application/json");
 
                 var response = await _httpClient.SendAsync(request, cancellationToken);
-                response.EnsureSuccessStatusCode();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogError("Failed to create task in ClickUp. Status: {StatusCode}, Response: {Response}", response.StatusCode, errorContent);
+                    response.EnsureSuccessStatusCode();
+                }
 
                 var result = await response.Content.ReadFromJsonAsync<ClickUpTask>(cancellationToken: cancellationToken);
                 _logger.LogInformation("Created new task in ClickUp list {ListId}", listId);
@@ -315,7 +327,7 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
             }
         }
 
-        public async Task<ClickUpTask> UpdateTaskAsync(string accessToken, string taskId, string? title = null, string? description = null, CancellationToken cancellationToken = default)
+        public async Task<ClickUpTask> UpdateTaskAsync(string accessToken, string taskId, string? title = null, string? description = null, int? priority = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -328,9 +340,11 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
                     requestBody["name"] = title;
                 if (!string.IsNullOrWhiteSpace(description))
                     requestBody["description"] = description;
+                if (priority.HasValue)
+                    requestBody["priority"] = priority.Value;
 
                 if (requestBody.Count == 0)
-                    throw new ArgumentException("At least one field (title or description) must be provided for update");
+                    throw new ArgumentException("At least one field (title, description, or priority) must be provided for update");
 
                 request.Content = new StringContent(
                     JsonSerializer.Serialize(requestBody),
@@ -338,7 +352,13 @@ namespace Requra.Infrastructure.ExternalServices.ClickUpService
                     "application/json");
 
                 var response = await _httpClient.SendAsync(request, cancellationToken);
-                response.EnsureSuccessStatusCode();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogError("Failed to update task in ClickUp. Status: {StatusCode}, Response: {Response}", response.StatusCode, errorContent);
+                    response.EnsureSuccessStatusCode();
+                }
 
                 var result = await response.Content.ReadFromJsonAsync<ClickUpTask>(cancellationToken: cancellationToken);
                 _logger.LogInformation("Updated task {TaskId}", taskId);

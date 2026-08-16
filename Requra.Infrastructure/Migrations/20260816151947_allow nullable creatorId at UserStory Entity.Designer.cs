@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Requra.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Requra.Infrastructure.Data;
 namespace Requra.Infrastructure.Migrations
 {
     [DbContext(typeof(RequraDbContext))]
-    partial class RequraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260816151947_allow nullable creatorId at UserStory Entity")]
+    partial class allownullablecreatorIdatUserStoryEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1605,20 +1608,9 @@ namespace Requra.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("jira_ticket");
 
-                    b.Property<string>("Labels")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("labels")
-                        .HasDefaultValueSql("'[]'::jsonb");
-
                     b.Property<string>("Language")
                         .HasColumnType("text")
                         .HasColumnName("language");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text")
-                        .HasColumnName("last_modified_by");
 
                     b.Property<string>("Priority")
                         .IsRequired()
@@ -1643,19 +1635,6 @@ namespace Requra.Infrastructure.Migrations
                     b.Property<string>("ReviewedById")
                         .HasColumnType("text")
                         .HasColumnName("reviewed_by_id");
-
-                    b.Property<int>("RevisionNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1)
-                        .HasColumnName("revision_number");
-
-                    b.Property<string>("RevisionSource")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("AI_GENERATED")
-                        .HasColumnName("revision_source");
 
                     b.Property<string>("SourceRequirementId")
                         .HasColumnType("text");
@@ -1708,41 +1687,28 @@ namespace Requra.Infrastructure.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("Issues")
+                    b.PrimitiveCollection<List<string>>("Issues")
                         .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("issues");
-
-                    b.Property<string>("QualityStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("NOT_EVALUATED")
-                        .HasColumnName("quality_status");
+                        .HasColumnType("text[]");
 
                     b.Property<double>("Score")
-                        .HasColumnType("double precision")
-                        .HasColumnName("score");
+                        .HasColumnType("double precision");
 
                     b.Property<Guid>("UserStoryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_story_id");
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("Warnings")
+                    b.PrimitiveCollection<List<string>>("Warnings")
                         .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("warnings");
+                        .HasColumnType("text[]");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserStoryId")
                         .IsUnique();
 
-                    b.ToTable("user_story_qualities", (string)null);
+                    b.ToTable("UserStoryQuality");
                 });
 
             modelBuilder.Entity("Requra.Domain.Entities.UserStorySourceRef", b =>
