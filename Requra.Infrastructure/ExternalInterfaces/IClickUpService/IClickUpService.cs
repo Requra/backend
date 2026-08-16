@@ -52,12 +52,12 @@ namespace Requra.Infrastructure.ExternalInterfaces.IClickUpService
         /// <summary>
         /// Creates a new task in ClickUp
         /// </summary>
-        Task<ClickUpTask> CreateTaskAsync(string accessToken, string listId, string title, string? description = null, CancellationToken cancellationToken = default);
+        Task<ClickUpTask> CreateTaskAsync(string accessToken, string listId, string title, string? description = null, int? priority = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates an existing task in ClickUp
         /// </summary>
-        Task<ClickUpTask> UpdateTaskAsync(string accessToken, string taskId, string? title = null, string? description = null, CancellationToken cancellationToken = default);
+        Task<ClickUpTask> UpdateTaskAsync(string accessToken, string taskId, string? title = null, string? description = null, int? priority = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Validates if the token is still valid

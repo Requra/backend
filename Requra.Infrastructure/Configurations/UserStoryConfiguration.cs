@@ -67,7 +67,7 @@ namespace Requra.Infrastructure.Configurations
 
             builder.Property(us => us.CreatorId)
                    .HasColumnName("creator_id")
-                   .IsRequired();
+                   .IsRequired(false);
 
             builder.Property(us => us.RequirementId)
                    .HasColumnName("requirement_id")

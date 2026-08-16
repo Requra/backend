@@ -67,10 +67,11 @@ namespace Requra.Infrastructure.Services.JobPollingService
                         //        rawJson,
                         //        run.ProjectId
                         //        );
-                        //await MapUserStoriesFromAiResultAsync(
-                        //        rawJson,
-                        //        run.ProjectId
-                        //        ); //will add Creator Id later
+                        await MapUserStoriesFromAiResultAsync(
+                                db,
+                                rawJson,
+                                run.ProjectId
+                                ); //will add Creator Id later
 
 
 
@@ -256,11 +257,13 @@ namespace Requra.Infrastructure.Services.JobPollingService
         }
 
         private async Task MapUserStoriesFromAiResultAsync(
-    string rawJson,
-    Guid projectId,
-    string? creatorId = null,
-    CancellationToken cancellationToken = default)
+       RequraDbContext db,
+       string rawJson,
+       Guid projectId,
+       string? creatorId = null,
+       CancellationToken cancellationToken = default)
         {
+            // Deserialize AI result
             var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
                 rawJson,
                 new JsonSerializerOptions
@@ -268,20 +271,24 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     PropertyNameCaseInsensitive = true
                 });
 
-            if (aiResult?.UserStories == null || aiResult.UserStories.Count == 0)
+            if (aiResult?.UserStories == null ||
+                aiResult.UserStories.Count == 0)
+            {
                 return;
+            }
 
             foreach (var aiUserStory in aiResult.UserStories)
             {
-                // Validate User Story
+                // 1. Validate User Story ID
                 if (string.IsNullOrWhiteSpace(aiUserStory.Id))
                     continue;
 
+                // 2. Validate User Story Title
                 if (string.IsNullOrWhiteSpace(aiUserStory.Title))
                     continue;
 
-                // Check if User Story already exists
-                var alreadyExists = await _context.UserStories
+                // 3. Check if User Story already exists
+                var alreadyExists = await db.UserStories
                     .AnyAsync(
                         x => x.ProjectId == projectId &&
                              x.SourceUserStoryId == aiUserStory.Id,
@@ -290,28 +297,36 @@ namespace Requra.Infrastructure.Services.JobPollingService
                 if (alreadyExists)
                     continue;
 
-                // Find the Requirement using the AI source ID.
-                // Example:
-                // AI -> "requirement_id": "REQ-001"
-                // DB -> Requirement.SourceRequirementId = "REQ-001"
-                var requirement = await _context.Requirements
-                    .FirstOrDefaultAsync(
-                        x => x.ProjectId == projectId &&
-                             x.SourceRequirementId == aiUserStory.RequirementId,
-                        cancellationToken);
+                // 4. Find Requirement using AI source requirement ID
+                //
+                // AI:
+                // "requirement_id": "REQ-001"
+                //
+                // DB:
+                // Requirement.SourceRequirementId = "REQ-001"
+                // Requirement.Id = actual database Guid
+                //
+                //var requirement = await db.Requirements
+                //    .FirstOrDefaultAsync(
+                //        x => x.ProjectId == projectId &&
+                //             x.SourceRequirementId == aiUserStory.RequirementId,
+                //        cancellationToken);
 
-                if (requirement == null)
-                    continue;
+                //if (requirement == null)
+                //    continue;
 
-                // Map AI values to domain enums
-                var priority = MapUserStoryPriority(aiUserStory.Priority);
+                // 5. Map Priority
+                var priority = MapUserStoryPriority(
+                    aiUserStory.Priority);
 
-                var type = MapUserStoryType(aiUserStory.Type);
+                // 6. Map Type
+                var type = MapUserStoryType(
+                    aiUserStory.Type);
 
-                // New User Stories start with NeedReview status
+                // 7. New User Stories start with NeedReview
                 var status = UserStoryStatus.NeedReview;
 
-                // Map Acceptance Criteria
+                // 8. Map Acceptance Criteria
                 var acceptanceCriteria = new List<AcceptanceCriterion>();
 
                 foreach (var aiCriterion in
@@ -330,8 +345,10 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     acceptanceCriteria.Add(criterion);
                 }
 
-                // Create User Story
-                // The AI "user_story" is stored in our Description field.
+                // 9. Create User Story
+                //
+                // AI "user_story" is stored in the Description field.
+                //
                 var userStory = new UserStory(
                     sourceUserStoryId: aiUserStory.Id,
                     title: aiUserStory.Title,
@@ -340,16 +357,16 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     type: type,
                     status: status,
                     priority: priority,
-                    language: null,
+                    language: Language.En,
                     creatorId: creatorId,
-                    requirementId: requirement.Id,
+                    requirementId: Guid.Parse("ee5d2f32-27df-48d7-9ac4-784d6678ce9a"), //untill we have requirement mapping, we will use a default requirement id
                     projectId: projectId,
                     storyPoints: aiUserStory.JiraFields?.StoryPoints,
                     sourceRequirementId: aiUserStory.RequirementId,
                     deduplicationKey: aiUserStory.DeduplicationKey
                 );
 
-                // Map Source References
+                // 10. Map Source References
                 foreach (var sourceReference in
                          aiUserStory.SourceRefs ??
                          Enumerable.Empty<UserStorySourceRefDto>())
@@ -367,7 +384,8 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     userStory.AddSourceReference(reference);
                 }
 
-                _context.UserStories.Add(userStory);
+                // 11. Add User Story to DbContext
+                db.UserStories.Add(userStory);
             }
         }
 
@@ -390,6 +408,7 @@ namespace Requra.Infrastructure.Services.JobPollingService
             {
                 "functional" => UserStoryType.Functional,
                 "non-functional" => UserStoryType.NonFunctional,
+                "business" => UserStoryType.BusinessRule,
 
                 _ => throw new ArgumentException(
                     $"Unknown user story type: {type}")

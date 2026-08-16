@@ -306,6 +306,7 @@ namespace Requra.Infrastructure.Services.ClickUpService
                         userStory.JiraTicket,
                         title: userStory.Title,
                         description: BuildClickUpTaskDescription(userStory),
+                        priority: MapUserStoryPriorityToClickUp(userStory.Priority),
                         cancellationToken);
 
                     result.ClickUpTaskId = updatedTask.Id;
@@ -324,6 +325,7 @@ namespace Requra.Infrastructure.Services.ClickUpService
                         listId,
                         title: userStory.Title,
                         description: BuildClickUpTaskDescription(userStory),
+                        priority: MapUserStoryPriorityToClickUp(userStory.Priority),
                         cancellationToken);
 
                     // Store the ClickUp task ID in JiraTicket field for future reference
@@ -362,20 +364,26 @@ namespace Requra.Infrastructure.Services.ClickUpService
                 //var criteria = string.Join("\n- ", userStory.AcceptanceCriteria);
 
                 var criteria = string.Join("\n- ", userStory.AcceptanceCriteria.Select(ac => ac.Text));
-                description += $"\n\n### Acceptance Criteria\n- {criteria}";
-            }
-
-            if (userStory.Status != null)
-            {
-                description += $"\n\n**Status**: {userStory.Status}";
-            }
-
-            if (userStory.Priority != null)
-            {
-                description += $"\n**Priority**: {userStory.Priority}";
+                description += $"\n\n • Acceptance Criteria : \n     - {criteria}";
             }
 
             return description;
+        }
+
+        /// <summary>
+        /// Maps UserStoryPriority to ClickUp priority value (integer)
+        /// ClickUp priorities: 1=Urgent, 2=High, 3=Normal, 4=Low
+        /// </summary>
+        private static int MapUserStoryPriorityToClickUp(UserStoryPriority? priority)
+        {
+            return priority switch
+            {
+                UserStoryPriority.critical => 1,  // Urgent
+                UserStoryPriority.high => 2,      // High
+                UserStoryPriority.medium => 3,    // Normal
+                UserStoryPriority.low => 4,       // Low
+                _ => 3                            // Default to Normal
+            };
         }
     }
 }
