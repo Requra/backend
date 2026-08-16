@@ -348,7 +348,11 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     sourceRequirementId: aiUserStory.RequirementId,
                     deduplicationKey: aiUserStory.DeduplicationKey
                 );
-
+                // quality
+                userStory.AttachQuality(
+                   aiUserStory.Quality?.Score,
+                   aiUserStory.Quality?.Issues,
+                   aiUserStory.Quality?.Warnings);
                 // Map Source References
                 foreach (var sourceReference in
                          aiUserStory.SourceRefs ??

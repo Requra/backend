@@ -43,6 +43,9 @@ namespace Requra.Domain.Entities
         public string? ReviewedById { get; private set; }
         public DateTime? ReviewedAt { get; private set; }
         public int Version { get; private set; } = 1;
+        public string? LastModifiedBy { get; private set; }
+        public int RevisionNumber { get; private set; } = 1;
+        public RevisionSource RevisionSource { get; private set; } = RevisionSource.AI_GENERATED;
 
         // Navigation
         public ApplicationUser Creator { get; private set; } = null!;
@@ -54,7 +57,7 @@ namespace Requra.Domain.Entities
 
         // Child collections
         public List<AcceptanceCriterion> AcceptanceCriteria { get; private set; } = new();
-
+        public List<string> Labels { get; private set; } = new();
         public List<UserStorySourceRef> SourceRefs { get; private set; } = new();
 
         public UserStoryQuality? Quality { get; private set; }
@@ -220,6 +223,51 @@ namespace Requra.Domain.Entities
             ReviewedAt = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
             Version += 1;
+        }
+        public void EditContent(
+            string? title,
+            string? description,
+            List<AcceptanceCriterion>? acceptanceCriteria,
+            UserStoryPriority? priority,
+            List<string>? labels,
+            string? modifiedById)
+        {
+            if (!string.IsNullOrWhiteSpace(title))
+                Title = title;
+
+            if (description != null)
+                Description = description;
+
+            if (acceptanceCriteria != null)
+            {
+                AcceptanceCriteria.Clear();
+                AcceptanceCriteria.AddRange(acceptanceCriteria);
+            }
+
+            if (priority.HasValue)
+                Priority = priority.Value;
+
+            if (labels != null)
+            {
+                Labels.Clear();
+                Labels.AddRange(labels);
+            }
+
+            Status = UserStoryStatus.Edited;
+            LastModifiedBy = modifiedById;
+            RevisionSource = RevisionSource.HUMAN_EDITED;
+            RevisionNumber += 1;
+            Version += 1;
+            UpdatedAt = DateTime.UtcNow;
+
+            Quality?.MarkStale();
+        }
+        public void AttachQuality(double? score, List<string>? issues, List<string>? warnings)
+        {
+            if (!score.HasValue)
+                return;
+
+            Quality = new UserStoryQuality(score.Value, issues, warnings);
         }
     }
 }
