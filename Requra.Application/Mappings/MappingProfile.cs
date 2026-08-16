@@ -68,6 +68,9 @@ namespace Requra.Application.Mappings
 
             .ForMember(dest => dest.Language,
                 opt => opt.MapFrom(src => src.Language != null ? src.Language.ToString() : null))
+            //new 
+            .ForMember(dest => dest.AcceptanceCriteria,
+             opt => opt.MapFrom(src => src.AcceptanceCriteria.Select(ac => ac.Text)))
 
             .ForMember(dest => dest.CreatorName,
                 opt => opt.MapFrom(src => src.Creator.FullName));

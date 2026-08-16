@@ -38,7 +38,11 @@ namespace Requra.Domain.Entities
         public DateTime CreatedAt { get; private set; }
 
         public DateTime UpdatedAt { get; private set; }
-
+        // update 
+        public string? ReviewFeedback { get; private set; }
+        public string? ReviewedById { get; private set; }
+        public DateTime? ReviewedAt { get; private set; }
+        public int Version { get; private set; } = 1;
 
         // Navigation
         public ApplicationUser Creator { get; private set; } = null!;
@@ -187,6 +191,35 @@ namespace Requra.Domain.Entities
         {
             ProjectId = projectId;
             UpdatedAt = DateTime.UtcNow;
+        }
+        public void Approve(string? reviewedById, string? reviewFeedback)
+        {
+            Status = UserStoryStatus.Approved;
+            ReviewedById = reviewedById;
+            ReviewFeedback = reviewFeedback;
+            ReviewedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+            Version += 1;
+        }
+
+        public void Reject(string? reviewedById, string? reviewFeedback)
+        {
+            Status = UserStoryStatus.Rejected;
+            ReviewedById = reviewedById;
+            ReviewFeedback = reviewFeedback;
+            ReviewedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+            Version += 1;
+        }
+
+        public void FlagForReview(string? reviewedById, string? reviewFeedback)
+        {
+            Status = UserStoryStatus.NeedReview;
+            ReviewedById = reviewedById;
+            ReviewFeedback = reviewFeedback;
+            ReviewedAt = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+            Version += 1;
         }
     }
 }

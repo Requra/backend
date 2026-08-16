@@ -6,6 +6,8 @@ namespace Requra.Domain.Enums
 {
     public enum UserStoryStatus
     {
+        Generated,
+        Edited,
         NeedReview,
         Approved,
         //InProgress,
