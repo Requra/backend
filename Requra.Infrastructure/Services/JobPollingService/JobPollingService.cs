@@ -63,10 +63,11 @@ namespace Requra.Infrastructure.Services.JobPollingService
                             RawJson = rawJson,
                             CreatedAt = DateTime.UtcNow
                         });
-                        //await MapRequirementsFromAiResultAsync(
-                        //        rawJson,
-                        //        run.ProjectId
-                        //        );
+                        await MapRequirementsFromAiResultAsync(
+                                db,
+                                rawJson,
+                                run.ProjectId
+                                );
                         await MapUserStoriesFromAiResultAsync(
                                 db,
                                 rawJson,
@@ -164,39 +165,85 @@ namespace Requra.Infrastructure.Services.JobPollingService
             };
         }
 
-        private async Task MapRequirementsFromAiResultAsync(string rawJson,Guid projectId,CancellationToken cancellationToken = default)
+        private async Task MapRequirementsFromAiResultAsync(
+    RequraDbContext db,
+    string rawJson,
+    Guid projectId,
+    CancellationToken cancellationToken = default)
         {
-            var aiResult = JsonSerializer.Deserialize<ResultDto>(
+            var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
                 rawJson,
                 new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
 
-            if (aiResult?.Requirements == null || aiResult.Requirements.Count == 0)
+            if (aiResult?.Requirements == null ||
+                aiResult.Requirements.Count == 0)
+            {
                 return;
+            }
 
             foreach (var aiRequirement in aiResult.Requirements)
             {
+                // Validate Requirement
                 if (string.IsNullOrWhiteSpace(aiRequirement.Id))
                     continue;
 
                 if (string.IsNullOrWhiteSpace(aiRequirement.Title))
                     continue;
 
-                var alreadyExists = await _context.Requirements
+                // Check if Requirement already exists
+                var alreadyExists = await db.Requirements
                     .AnyAsync(
-                        x => x.ProjectId == projectId && x.SourceRequirementId == aiRequirement.Id,
+                        x => x.ProjectId == projectId &&
+                             x.SourceRequirementId == aiRequirement.Id,
                         cancellationToken);
 
                 if (alreadyExists)
                     continue;
 
-                var requirementType = MapRequirementType(aiRequirement.Type);
+                // Map AI Requirement Type to domain enum
+                var requirementType =
+                    aiRequirement.Type?
+                        .Trim()
+                        .ToLowerInvariant() switch
+                    {
+                        "functional" =>
+                            RequirementType.Functional,
 
-                var qualityIssues = SerializeList(aiRequirement.Quality?.Issues);
-                var qualityWarnings = SerializeList(aiRequirement.Quality?.Warnings);
+                        "non-functional" =>
+                            RequirementType.Non_Functional,
 
+                        "business" =>
+                            RequirementType.Business_Rule,
+
+                        _ => throw new ArgumentException(
+                            $"Unknown requirement type: {aiRequirement.Type}")
+                    };
+
+                // Map Quality Issues
+                //
+                // These are:
+                // requirement.quality.issues
+                //
+                // They are List<string> according to RequirementQualityDto.
+                var qualityIssues =
+                    aiRequirement.Quality?.Issues == null ||
+                    aiRequirement.Quality.Issues.Count == 0
+                        ? null
+                        : JsonSerializer.Serialize(
+                            aiRequirement.Quality.Issues);
+
+                // Map Quality Warnings
+                var qualityWarnings =
+                    aiRequirement.Quality?.Warnings == null ||
+                    aiRequirement.Quality.Warnings.Count == 0
+                        ? null
+                        : JsonSerializer.Serialize(
+                            aiRequirement.Quality.Warnings);
+
+                // Create Requirement
                 var requirement = new Requirement(
                     sourceRequirementId: aiRequirement.Id,
                     title: aiRequirement.Title,
@@ -213,7 +260,10 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     priority: aiRequirement.Priority
                 );
 
-                foreach (var sourceReference in aiRequirement.SourceRefs ?? Enumerable.Empty<RequirementSourceRefDto>())
+                // Map Source References
+                foreach (var sourceReference in
+                         aiRequirement.SourceRefs ??
+                         Enumerable.Empty<RequirementSourceRefDto>())
                 {
                     var reference = new RequirementSourceReference(
                         page: sourceReference.Page,
@@ -228,32 +278,9 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     requirement.AddSourceReference(reference);
                 }
 
-                _context.Requirements.Add(requirement);
+                // Add Requirement to DbContext
+                db.Requirements.Add(requirement);
             }
-        }
-        private static string? SerializeList(List<string>? values)
-        {
-            if (values == null || values.Count == 0)
-                return null;
-
-            return JsonSerializer.Serialize(values);
-        }
-        private static RequirementType MapRequirementType(string? type)
-        {
-            return type?.Trim().ToLowerInvariant() switch
-            {
-                "functional" =>
-                    RequirementType.Functional,
-
-                "non-functional" =>
-                    RequirementType.Non_Functional,
-
-                "business" =>
-                    RequirementType.Business_Rule,
-
-                _ => throw new ArgumentException(
-                    $"Unknown requirement type: {type}")
-            };
         }
 
         private async Task MapUserStoriesFromAiResultAsync(
@@ -297,23 +324,26 @@ namespace Requra.Infrastructure.Services.JobPollingService
                 if (alreadyExists)
                     continue;
 
-                // 4. Find Requirement using AI source requirement ID
-                //
-                // AI:
-                // "requirement_id": "REQ-001"
-                //
-                // DB:
-                // Requirement.SourceRequirementId = "REQ-001"
-                // Requirement.Id = actual database Guid
-                //
-                //var requirement = await db.Requirements
-                //    .FirstOrDefaultAsync(
-                //        x => x.ProjectId == projectId &&
-                //             x.SourceRequirementId == aiUserStory.RequirementId,
-                //        cancellationToken);
+                //4.Find Requirement using AI source requirement ID
 
-                //if (requirement == null)
-                //    continue;
+
+                // AI:
+                //"requirement_id": "REQ-001"
+
+
+                // DB:
+                //Requirement.SourceRequirementId = "REQ-001"
+                // Requirement.Id = actual database Guid
+
+
+                var requirement = await db.Requirements
+                    .FirstOrDefaultAsync(
+                        x => x.ProjectId == projectId &&
+                             x.SourceRequirementId == aiUserStory.RequirementId,
+                        cancellationToken);
+
+                if (requirement == null)
+                    continue;
 
                 // 5. Map Priority
                 var priority = MapUserStoryPriority(
@@ -359,7 +389,7 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     priority: priority,
                     language: Language.En,
                     creatorId: creatorId,
-                    requirementId: Guid.Parse("ee5d2f32-27df-48d7-9ac4-784d6678ce9a"), //untill we have requirement mapping, we will use a default requirement id
+                    requirementId: requirement.Id,
                     projectId: projectId,
                     storyPoints: aiUserStory.JiraFields?.StoryPoints,
                     sourceRequirementId: aiUserStory.RequirementId,
