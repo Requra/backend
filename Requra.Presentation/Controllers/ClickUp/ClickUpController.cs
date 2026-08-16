@@ -361,226 +361,226 @@ namespace Requra.Presentation.Controllers.ClickUp
                 return StatusCode(500, Response<string>.Failure("Error pushing approved UserStories to ClickUp"));
             }
         }
-//        [HttpPost("test-push/{projectId}")]
-//public async Task<IActionResult> TestPushApprovedTasks(
-//    Guid projectId,
-//    [FromBody] JsonElement rawJson,
-//    CancellationToken cancellationToken)
-//{
-//    try
-//    {
-//        // Convert request body back to raw JSON string
-//        var rawJsonString = rawJson.GetRawText();
+        //        [HttpPost("test-push/{projectId}")]
+        //public async Task<IActionResult> TestPushApprovedTasks(
+        //    Guid projectId,
+        //    [FromBody] JsonElement rawJson,
+        //    CancellationToken cancellationToken)
+        //{
+        //    try
+        //    {
+        //        // Convert request body back to raw JSON string
+        //        var rawJsonString = rawJson.GetRawText();
 
-//        if (string.IsNullOrWhiteSpace(rawJsonString))
-//        {
-//            return BadRequest(
-//                Response<string>.Failure(
-//                    "Raw JSON body is required."));
-//        }
+        //        if (string.IsNullOrWhiteSpace(rawJsonString))
+        //        {
+        //            return BadRequest(
+        //                Response<string>.Failure(
+        //                    "Raw JSON body is required."));
+        //        }
 
-//        // 1. Deserialize the raw JSON
-//        var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
-//            rawJsonString,
-//            new JsonSerializerOptions
-//            {
-//                PropertyNameCaseInsensitive = true
-//            });
+        //        // 1. Deserialize the raw JSON
+        //        var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
+        //            rawJsonString,
+        //            new JsonSerializerOptions
+        //            {
+        //                PropertyNameCaseInsensitive = true
+        //            });
 
-//        if (aiResult?.UserStories == null ||
-//            aiResult.UserStories.Count == 0)
-//        {
-//            return BadRequest(
-//                Response<string>.Failure(
-//                    "Raw JSON does not contain any user stories."));
-//        }
+        //        if (aiResult?.UserStories == null ||
+        //            aiResult.UserStories.Count == 0)
+        //        {
+        //            return BadRequest(
+        //                Response<string>.Failure(
+        //                    "Raw JSON does not contain any user stories."));
+        //        }
 
-//        var mappedCount = 0;
-//        var skippedCount = 0;
+        //        var mappedCount = 0;
+        //        var skippedCount = 0;
 
-//        // 2. Map User Stories
-//        foreach (var aiUserStory in aiResult.UserStories)
-//        {
-//                    // Validate ID
-//                    if (string.IsNullOrWhiteSpace(aiUserStory.Id))
-//                    {
-//                        skippedCount++;
-//                        continue;
-//                    }
+        //        // 2. Map User Stories
+        //        foreach (var aiUserStory in aiResult.UserStories)
+        //        {
+        //                    // Validate ID
+        //                    if (string.IsNullOrWhiteSpace(aiUserStory.Id))
+        //                    {
+        //                        skippedCount++;
+        //                        continue;
+        //                    }
 
-//                    // Validate Title
-//                    if (string.IsNullOrWhiteSpace(aiUserStory.Title))
-//                    {
-//                        skippedCount++;
-//                        continue;
-//                    }
+        //                    // Validate Title
+        //                    if (string.IsNullOrWhiteSpace(aiUserStory.Title))
+        //                    {
+        //                        skippedCount++;
+        //                        continue;
+        //                    }
 
-//                    // 3. Check if User Story already exists
-//                    var alreadyExists = await _context.UserStories
-//                .AnyAsync(
-//                    x => x.ProjectId == projectId &&
-//                         x.SourceUserStoryId == aiUserStory.Id,
-//                    cancellationToken);
+        //                    // 3. Check if User Story already exists
+        //                    var alreadyExists = await _context.UserStories
+        //                .AnyAsync(
+        //                    x => x.ProjectId == projectId &&
+        //                         x.SourceUserStoryId == aiUserStory.Id,
+        //                    cancellationToken);
 
-//                    if (alreadyExists)
-//                    {
-//                        skippedCount++;
-//                        continue;
-//                    }
+        //                    if (alreadyExists)
+        //                    {
+        //                        skippedCount++;
+        //                        continue;
+        //                    }
 
-//                    // 4. Find Requirement
-//                //    var requirement = await _context.Requirements
-//                //.FirstOrDefaultAsync(
-//                //    x => x.ProjectId == projectId &&
-//                //         x.SourceRequirementId == aiUserStory.RequirementId,
-//                //    cancellationToken);
+        //                    // 4. Find Requirement
+        //                //    var requirement = await _context.Requirements
+        //                //.FirstOrDefaultAsync(
+        //                //    x => x.ProjectId == projectId &&
+        //                //         x.SourceRequirementId == aiUserStory.RequirementId,
+        //                //    cancellationToken);
 
-//            //if (requirement == null)
-//            //{
-//            //    skippedCount++;
-//            //    continue;
-//            //}
+        //            //if (requirement == null)
+        //            //{
+        //            //    skippedCount++;
+        //            //    continue;
+        //            //}
 
-//            // 5. Map Priority
-//            var priority = aiUserStory.Priority?
-//                .Trim()
-//                .ToLowerInvariant() switch
-//            {
-//                "low" => UserStoryPriority.low,
-//                "medium" => UserStoryPriority.medium,
-//                "high" => UserStoryPriority.high,
-//                "critical" => UserStoryPriority.critical,
-//                _ => UserStoryPriority.medium
-//            };
+        //            // 5. Map Priority
+        //            var priority = aiUserStory.Priority?
+        //                .Trim()
+        //                .ToLowerInvariant() switch
+        //            {
+        //                "low" => UserStoryPriority.low,
+        //                "medium" => UserStoryPriority.medium,
+        //                "high" => UserStoryPriority.high,
+        //                "critical" => UserStoryPriority.critical,
+        //                _ => UserStoryPriority.medium
+        //            };
 
-//            // 6. Map Type
-//            var type = aiUserStory.Type?
-//                .Trim()
-//                .ToLowerInvariant() switch
-//            {
-//                "functional" => UserStoryType.Functional,
-//                "non-functional" => UserStoryType.NonFunctional,
+        //            // 6. Map Type
+        //            var type = aiUserStory.Type?
+        //                .Trim()
+        //                .ToLowerInvariant() switch
+        //            {
+        //                "functional" => UserStoryType.Functional,
+        //                "non-functional" => UserStoryType.NonFunctional,
 
-//                _ => throw new ArgumentException(
-//                    $"Unknown user story type: {aiUserStory.Type}")
-//            };
+        //                _ => throw new ArgumentException(
+        //                    $"Unknown user story type: {aiUserStory.Type}")
+        //            };
 
-//            // 7. New User Story status
-//            var status = UserStoryStatus.NeedReview;
+        //            // 7. New User Story status
+        //            var status = UserStoryStatus.NeedReview;
 
-//            // 8. Map Acceptance Criteria
-//            var acceptanceCriteria = new List<AcceptanceCriterion>();
+        //            // 8. Map Acceptance Criteria
+        //            var acceptanceCriteria = new List<AcceptanceCriterion>();
 
-//            foreach (var aiCriterion in
-//                     aiUserStory.AcceptanceCriteria ??
-//                     Enumerable.Empty<AcceptanceCriteriaDto>())
-//            {
-//                if (string.IsNullOrWhiteSpace(aiCriterion.Text))
-//                    continue;
+        //            foreach (var aiCriterion in
+        //                     aiUserStory.AcceptanceCriteria ??
+        //                     Enumerable.Empty<AcceptanceCriteriaDto>())
+        //            {
+        //                if (string.IsNullOrWhiteSpace(aiCriterion.Text))
+        //                    continue;
 
-//                var criterion = new AcceptanceCriterion(
-//                    sourceAcceptanceCriterionId: aiCriterion.Id,
-//                    text: aiCriterion.Text,
-//                    criterionType: aiCriterion.CriterionType
-//                );
+        //                var criterion = new AcceptanceCriterion(
+        //                    sourceAcceptanceCriterionId: aiCriterion.Id,
+        //                    text: aiCriterion.Text,
+        //                    criterionType: aiCriterion.CriterionType
+        //                );
 
-//                acceptanceCriteria.Add(criterion);
-//            }
+        //                acceptanceCriteria.Add(criterion);
+        //            }
 
-//            // 9. Create User Story
-//            var userStory = new UserStory(
-//    sourceUserStoryId: aiUserStory.Id,
-//    title: aiUserStory.Title,
-//    description: aiUserStory.UserStory,
-//    acceptanceCriteria: acceptanceCriteria,
-//    type: type,
-//    status: status,
-//    priority: priority,
-//    language: Language.En,
-//    creatorId: "01f535f1-9870-4141-9b29-21df2d9cd6ec",
-//    requirementId: Guid.Parse("ee5d2f32-27df-48d7-9ac4-784d6678ce9a"),
-//    projectId: projectId,
-//    storyPoints: aiUserStory.JiraFields?.StoryPoints,
-//    sourceRequirementId: aiUserStory.RequirementId,
-//    deduplicationKey: aiUserStory.DeduplicationKey
-//);
-    
-//            // 10. Map Source References
-//            foreach (var sourceReference in
-//                     aiUserStory.SourceRefs ??
-//                     Enumerable.Empty<UserStorySourceRefDto>())
-//            {
-//                var reference = new UserStorySourceRef(
-//                    page: sourceReference.Page,
-//                    quote: sourceReference.Quote,
-//                    chunkId: sourceReference.ChunkId,
-//                    sourceId: sourceReference.SourceId,
-//                    sourceType: sourceReference.SourceType,
-//                    documentName: sourceReference.DocumentName,
-//                    confidenceScore: sourceReference.ConfidenceScore
-//                );
+        //            // 9. Create User Story
+        //            var userStory = new UserStory(
+        //    sourceUserStoryId: aiUserStory.Id,
+        //    title: aiUserStory.Title,
+        //    description: aiUserStory.UserStory,
+        //    acceptanceCriteria: acceptanceCriteria,
+        //    type: type,
+        //    status: status,
+        //    priority: priority,
+        //    language: Language.En,
+        //    creatorId: "01f535f1-9870-4141-9b29-21df2d9cd6ec",
+        //    requirementId: Guid.Parse("ee5d2f32-27df-48d7-9ac4-784d6678ce9a"),
+        //    projectId: projectId,
+        //    storyPoints: aiUserStory.JiraFields?.StoryPoints,
+        //    sourceRequirementId: aiUserStory.RequirementId,
+        //    deduplicationKey: aiUserStory.DeduplicationKey
+        //);
 
-//                userStory.AddSourceReference(reference);
-//            }
+        //            // 10. Map Source References
+        //            foreach (var sourceReference in
+        //                     aiUserStory.SourceRefs ??
+        //                     Enumerable.Empty<UserStorySourceRefDto>())
+        //            {
+        //                var reference = new UserStorySourceRef(
+        //                    page: sourceReference.Page,
+        //                    quote: sourceReference.Quote,
+        //                    chunkId: sourceReference.ChunkId,
+        //                    sourceId: sourceReference.SourceId,
+        //                    sourceType: sourceReference.SourceType,
+        //                    documentName: sourceReference.DocumentName,
+        //                    confidenceScore: sourceReference.ConfidenceScore
+        //                );
 
-//            // 11. Add User Story
-//            _context.UserStories.Add(userStory);
+        //                userStory.AddSourceReference(reference);
+        //            }
 
-//            mappedCount++;
-//        }
+        //            // 11. Add User Story
+        //            _context.UserStories.Add(userStory);
 
-//        // 12. Save
-//        await _context.SaveChangesAsync(cancellationToken);
+        //            mappedCount++;
+        //        }
 
-//        return Ok(
-//            Response<object>.Success(
-//                new
-//                {
-//                    ProjectId = projectId,
-//                    TotalAiUserStories = aiResult.UserStories.Count,
-//                    MappedUserStories = mappedCount,
-//                    SkippedUserStories = skippedCount
-//                },
-//                "Test mapping completed successfully"
-//            ));
-//    }
-//    catch (JsonException ex)
-//    {
-//        _logger.LogError(
-//            ex,
-//            "Invalid Raw JSON while testing UserStory mapping for project {ProjectId}",
-//            projectId);
+        //        // 12. Save
+        //        await _context.SaveChangesAsync(cancellationToken);
 
-//        return BadRequest(
-//            Response<string>.Failure(
-//                $"Invalid JSON: {ex.Message}"));
-//    }
-//    catch (ArgumentException ex)
-//    {
-//        _logger.LogError(
-//            ex,
-//            "Invalid AI value while mapping UserStories for project {ProjectId}",
-//            projectId);
+        //        return Ok(
+        //            Response<object>.Success(
+        //                new
+        //                {
+        //                    ProjectId = projectId,
+        //                    TotalAiUserStories = aiResult.UserStories.Count,
+        //                    MappedUserStories = mappedCount,
+        //                    SkippedUserStories = skippedCount
+        //                },
+        //                "Test mapping completed successfully"
+        //            ));
+        //    }
+        //    catch (JsonException ex)
+        //    {
+        //        _logger.LogError(
+        //            ex,
+        //            "Invalid Raw JSON while testing UserStory mapping for project {ProjectId}",
+        //            projectId);
 
-//        return BadRequest(
-//            Response<string>.Failure(ex.Message));
-//    }
-//            catch (DbUpdateException ex)
-//            {
-//                var innerMessage = ex.InnerException?.Message;
+        //        return BadRequest(
+        //            Response<string>.Failure(
+        //                $"Invalid JSON: {ex.Message}"));
+        //    }
+        //    catch (ArgumentException ex)
+        //    {
+        //        _logger.LogError(
+        //            ex,
+        //            "Invalid AI value while mapping UserStories for project {ProjectId}",
+        //            projectId);
 
-//                _logger.LogError(
-//                    ex,
-//                    "Database error while mapping UserStories for project {ProjectId}. Inner: {InnerMessage}",
-//                    projectId,
-//                    innerMessage);
+        //        return BadRequest(
+        //            Response<string>.Failure(ex.Message));
+        //    }
+        //            catch (DbUpdateException ex)
+        //            {
+        //                var innerMessage = ex.InnerException?.Message;
 
-//                return StatusCode(
-//                    500,
-//                    Response<string>.Failure(
-//                        $"Database error: {innerMessage ?? ex.Message}"));
-//            }
-//        }
+        //                _logger.LogError(
+        //                    ex,
+        //                    "Database error while mapping UserStories for project {ProjectId}. Inner: {InnerMessage}",
+        //                    projectId,
+        //                    innerMessage);
+
+        //                return StatusCode(
+        //                    500,
+        //                    Response<string>.Failure(
+        //                        $"Database error: {innerMessage ?? ex.Message}"));
+        //            }
+        //        }
 
         /// <summary>
         /// Pushes a single UserStory to ClickUp
@@ -612,6 +612,262 @@ namespace Requra.Presentation.Controllers.ClickUp
         //        return StatusCode(500, Response<string>.Failure("Error pushing UserStory to ClickUp"));
         //    }
         //}
+
+     //   [HttpPost("test-map-requirements/{projectId}")]
+     //   public async Task<IActionResult> TestMapRequirements(
+     //Guid projectId,
+     //[FromBody] JsonElement rawJson,
+     //CancellationToken cancellationToken)
+     //   {
+     //       try
+     //       {
+     //           // Convert request body to raw JSON
+     //           var rawJsonString = rawJson.GetRawText();
+
+     //           if (string.IsNullOrWhiteSpace(rawJsonString))
+     //           {
+     //               return BadRequest(
+     //                   Response<string>.Failure(
+     //                       "Raw JSON body is required."));
+     //           }
+
+     //           // 1. Deserialize complete AI result
+     //           var aiResult = JsonSerializer.Deserialize<JobResultResponseDto>(
+     //               rawJsonString,
+     //               new JsonSerializerOptions
+     //               {
+     //                   PropertyNameCaseInsensitive = true
+     //               });
+
+     //           if (aiResult?.Requirements == null ||
+     //               aiResult.Requirements.Count == 0)
+     //           {
+     //               return BadRequest(
+     //                   Response<string>.Failure(
+     //                       "Raw JSON does not contain any requirements."));
+     //           }
+
+     //           var mappedCount = 0;
+     //           var skippedCount = 0;
+
+     //           // 2. Map Requirements
+     //           foreach (var aiRequirement in aiResult.Requirements)
+     //           {
+     //               // -----------------------------------------
+     //               // Validate ID
+     //               // -----------------------------------------
+     //               if (string.IsNullOrWhiteSpace(aiRequirement.Id))
+     //               {
+     //                   skippedCount++;
+     //                   continue;
+     //               }
+
+     //               // -----------------------------------------
+     //               // Validate Title
+     //               // -----------------------------------------
+     //               if (string.IsNullOrWhiteSpace(aiRequirement.Title))
+     //               {
+     //                   skippedCount++;
+     //                   continue;
+     //               }
+
+     //               // -----------------------------------------
+     //               // Check if Requirement already exists
+     //               // -----------------------------------------
+     //               var alreadyExists = await _context.Requirements
+     //                   .AnyAsync(
+     //                       x => x.ProjectId == projectId &&
+     //                            x.SourceRequirementId == aiRequirement.Id,
+     //                       cancellationToken);
+
+     //               if (alreadyExists)
+     //               {
+     //                   skippedCount++;
+     //                   continue;
+     //               }
+
+     //               // -----------------------------------------
+     //               // Map Requirement Type
+     //               // -----------------------------------------
+     //               var requirementType =
+     //                   aiRequirement.Type?
+     //                       .Trim()
+     //                       .ToLowerInvariant() switch
+     //                   {
+     //                       "functional" =>
+     //                           RequirementType.Functional,
+
+     //                       "non-functional" =>
+     //                           RequirementType.Non_Functional,
+
+     //                       "business" =>
+     //                           RequirementType.Business_Rule,
+
+     //                       _ => throw new ArgumentException(
+     //                           $"Unknown requirement type: {aiRequirement.Type}")
+     //                   };
+
+     //               // -----------------------------------------
+     //               // Serialize Quality Issues
+     //               //
+     //               // These come from:
+     //               //
+     //               // requirement.quality.issues
+     //               //
+     //               // NOT root:
+     //               //
+     //               // quality_issues
+     //               // -----------------------------------------
+     //               var qualityIssues =
+     //                   aiRequirement.Quality?.Issues == null ||
+     //                   aiRequirement.Quality.Issues.Count == 0
+     //                       ? null
+     //                       : JsonSerializer.Serialize(
+     //                           aiRequirement.Quality.Issues);
+
+     //               // -----------------------------------------
+     //               // Serialize Quality Warnings
+     //               // -----------------------------------------
+     //               var qualityWarnings =
+     //                   aiRequirement.Quality?.Warnings == null ||
+     //                   aiRequirement.Quality.Warnings.Count == 0
+     //                       ? null
+     //                       : JsonSerializer.Serialize(
+     //                           aiRequirement.Quality.Warnings);
+
+     //               // -----------------------------------------
+     //               // Create Requirement
+     //               // -----------------------------------------
+     //               var requirement = new Requirement(
+     //                   sourceRequirementId: aiRequirement.Id,
+     //                   title: aiRequirement.Title,
+     //                   description: aiRequirement.Description,
+     //                   type: requirementType,
+     //                   projectId: projectId,
+
+     //                   confidenceScore:
+     //                       aiRequirement.ConfidenceScore,
+
+     //                   qualityScore:
+     //                       aiRequirement.Quality?.Score,
+
+     //                   qualityIssues:
+     //                       qualityIssues,
+
+     //                   qualityWarnings:
+     //                       qualityWarnings,
+
+     //                   deduplicationKey:
+     //                       aiRequirement.DeduplicationKey,
+
+     //                   actor:
+     //                       aiRequirement.Actor,
+
+     //                   category:
+     //                       aiRequirement.Category,
+
+     //                   priority:
+     //                       aiRequirement.Priority
+     //               );
+
+     //               // -----------------------------------------
+     //               // Map Source References
+     //               // -----------------------------------------
+     //               foreach (var sourceReference in
+     //                        aiRequirement.SourceRefs ??
+     //                        Enumerable.Empty<RequirementSourceRefDto>())
+     //               {
+     //                   var reference = new RequirementSourceReference(
+     //                       page: sourceReference.Page,
+     //                       quote: sourceReference.Quote,
+     //                       chunkId: sourceReference.ChunkId,
+     //                       sourceId: sourceReference.SourceId,
+     //                       sourceType: sourceReference.SourceType,
+     //                       documentName: sourceReference.DocumentName,
+     //                       confidenceScore: sourceReference.ConfidenceScore
+     //                   );
+
+     //                   requirement.AddSourceReference(reference);
+     //               }
+
+     //               // -----------------------------------------
+     //               // Add Requirement
+     //               // -----------------------------------------
+     //               _context.Requirements.Add(requirement);
+
+     //               mappedCount++;
+     //           }
+
+     //           // -----------------------------------------
+     //           // Save changes
+     //           // -----------------------------------------
+     //           await _context.SaveChangesAsync(cancellationToken);
+
+     //           // -----------------------------------------
+     //           // Return result
+     //           // -----------------------------------------
+     //           return Ok(
+     //               Response<object>.Success(
+     //                   new
+     //                   {
+     //                       ProjectId = projectId,
+     //                       TotalAiRequirements = aiResult.Requirements.Count,
+     //                       MappedRequirements = mappedCount,
+     //                       SkippedRequirements = skippedCount
+     //                   },
+     //                   "Test requirement mapping completed successfully"
+     //               ));
+     //       }
+     //       catch (JsonException ex)
+     //       {
+     //           _logger.LogError(
+     //               ex,
+     //               "Invalid Raw JSON while testing Requirement mapping for project {ProjectId}",
+     //               projectId);
+
+     //           return BadRequest(
+     //               Response<string>.Failure(
+     //                   $"Invalid JSON: {ex.Message}"));
+     //       }
+     //       catch (ArgumentException ex)
+     //       {
+     //           _logger.LogError(
+     //               ex,
+     //               "Invalid AI value while mapping Requirements for project {ProjectId}",
+     //               projectId);
+
+     //           return BadRequest(
+     //               Response<string>.Failure(
+     //                   ex.Message));
+     //       }
+     //       catch (DbUpdateException ex)
+     //       {
+     //           var innerMessage = ex.InnerException?.Message;
+
+     //           _logger.LogError(
+     //               ex,
+     //               "Database error while mapping Requirements for project {ProjectId}. Inner: {InnerMessage}",
+     //               projectId,
+     //               innerMessage);
+
+     //           return StatusCode(
+     //               500,
+     //               Response<string>.Failure(
+     //                   $"Database error: {innerMessage ?? ex.Message}"));
+     //       }
+     //       catch (Exception ex)
+     //       {
+     //           _logger.LogError(
+     //               ex,
+     //               "Error during test mapping of Requirements for project {ProjectId}",
+     //               projectId);
+
+     //           return StatusCode(
+     //               500,
+     //               Response<string>.Failure(
+     //                   "Error during test mapping of Requirements"));
+     //       }
+     //   }
     }
 
     public class OAuthCallbackRequest
