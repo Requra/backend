@@ -105,6 +105,8 @@ namespace Requra.Domain.Entities
             PublicId = publicId;
             FinalFileSizeBytes = finalFileSizeBytes;
             UpdatedAt = DateTime.UtcNow;
+            Meeting?.AddRecordingUrl(StorageUrl);
+
         }
 
         public void MarkFinalizing()
@@ -152,6 +154,8 @@ namespace Requra.Domain.Entities
             StorageKey = storageKey;
             PublicId = publicId;
             UpdatedAt = DateTime.UtcNow;
+            Meeting?.AddRecordingUrl(StorageUrl);
+
         }
 
         public void SetOriginalExtension(string extension)
