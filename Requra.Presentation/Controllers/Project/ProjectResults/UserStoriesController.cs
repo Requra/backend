@@ -2,12 +2,13 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
+using Requra.Application.DTOs.UserStories;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Response;
 
 namespace Requra.Presentation.Controllers.Project.ProjectResults
 {
-    [Route("api/projects/{projectId}/results/user-stories")]
+    [Route("api/projects")]
     [ApiController]
     [Authorize]
     public class UserStoriesController : ControllerBase
@@ -19,10 +20,19 @@ namespace Requra.Presentation.Controllers.Project.ProjectResults
             _userStoryService = userStoryService;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetUserStoriesByProjectId(Guid projectId)
+        [HttpGet("{projectId:guid}/results/user-stories")]
+        public async Task<IActionResult> GetUserStoriesByProjectId([FromRoute] Guid projectId,[FromQuery] int pageNumber = 1,[FromQuery] int pageSize = 25,[FromQuery] List<string>? status = null,[FromQuery] string? search = null)
         {
-            var response = await _userStoryService.GetUserStoriesByProjectIdAsync(projectId);
+            var request = new GetProjectUserStoriesRequest
+            {
+                ProjectId = projectId,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Status = status,
+                Search = search
+            };
+
+            var response = await _userStoryService.GetUserStoriesByProjectIdAsync(request);
 
             return response.StatusCode switch
             {

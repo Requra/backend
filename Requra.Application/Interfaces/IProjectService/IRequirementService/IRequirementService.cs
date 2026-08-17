@@ -12,6 +12,6 @@ namespace Requra.Application.Interfaces.IProjectService.IRequirementService
     {
         Task<Response<UpdateRequirementStatusResponse>> UpdateRequirementStatusAsync(UpdateRequirementStatusRequest request, CancellationToken cancellationToken = default);
         Task<Response<EditRequirementContentResponse>> EditRequirementContentAsync(EditRequirementContentRequest request, CancellationToken cancellationToken = default);
-        Task<Response<PagedResult<RequirementsDto>>> GetRequirementsByProjectIdAsync(Guid projectId);
+        Task<Response<PagedResult<RequirementsDto>>> GetRequirementsByProjectIdAsync(GetProjectRequirementsRequest request);
     }
 }

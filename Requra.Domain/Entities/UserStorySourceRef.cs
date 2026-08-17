@@ -8,7 +8,7 @@ namespace Requra.Domain.Entities
     {
         public Guid Id { get; private set; }
 
-        public object? Page { get; private set; } //so far only as I am not sure it returns int or not from AI
+        public int? Page { get; private set; } //so far only as I am not sure it returns int or not from AI
 
         public string? Quote { get; private set; }
 
@@ -32,7 +32,7 @@ namespace Requra.Domain.Entities
         }
 
         public UserStorySourceRef(
-       object? page,
+       int? page,
        string? quote,
        string? chunkId,
        string? sourceId,

@@ -19,10 +19,10 @@ namespace Requra.Infrastructure.Configurations
 
             builder.Property(ref_ => ref_.Page)
                    .HasColumnName("page")
-                   .HasColumnType("text")
-                   .HasConversion(
-                       v => v == null ? null : JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
-                       v => v == null ? null : JsonSerializer.Deserialize<object>(v, (JsonSerializerOptions)null));
+                   .HasColumnType("text");
+                   //.HasConversion(
+                   //    v => v == null ? null : JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                   //    v => v == null ? null : JsonSerializer.Deserialize<object>(v, (JsonSerializerOptions)null));
 
             builder.Property(ref_ => ref_.Quote)
                    .HasColumnName("quote")

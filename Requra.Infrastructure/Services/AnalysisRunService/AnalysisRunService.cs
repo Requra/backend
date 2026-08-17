@@ -212,12 +212,17 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
                 {
                     var bytes = await fileDownloader.DownloadAsync(recordingUrl);
 
+                    var extension = GetFileExtensionFromUrl(recordingUrl);
+                    var safeTitle = SanitizeFileName(!string.IsNullOrWhiteSpace(meeting.Title)
+                        ? meeting.Title
+                        : $"meeting-{meeting.Id}-recording");
+
+                    var fileName = $"{safeTitle}-{index}{extension}";
+
                     safeFiles.Add(new FileUploadDto
                     {
                         Content = bytes,
-                        FileName = !string.IsNullOrWhiteSpace(meeting.Title)
-                            ? $"{meeting.Title}-recording-{index}"
-                            : $"meeting-{meeting.Id}-recording-{index}"
+                        FileName = fileName
                     });
 
                     index++;
@@ -623,6 +628,40 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
 
                 return Response<ExportResultsDto>.Failure(null, "Failed to generate export", 500);
             }
+        }
+        private static string GetFileExtensionFromUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return ".bin";
+
+            try
+            {
+                var uri = new Uri(url);
+                var path = uri.AbsolutePath;
+
+                var extension = Path.GetExtension(path);
+
+                if (string.IsNullOrWhiteSpace(extension))
+                    return ".bin";
+
+                return extension.ToLowerInvariant();
+            }
+            catch
+            {
+                return ".bin";
+            }
+        }
+        private static string SanitizeFileName(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                return "file";
+
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(c, '-');
+            }
+
+            return fileName.Trim();
         }
     }
 }
