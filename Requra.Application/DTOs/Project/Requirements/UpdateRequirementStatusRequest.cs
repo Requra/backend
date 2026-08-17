@@ -16,4 +16,13 @@ namespace Requra.Application.DTOs.Project.Requirements
 
 
     }
+    public class UpdateRequirementStatusApiRequest
+    {
+        
+        public RequirementStatus WorkflowStatus { get; set; }
+        public string? ReviewFeedback { get; set; }
+      
+
+
+    }
 }

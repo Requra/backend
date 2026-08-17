@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Requra.Application.DTOs;
 using Requra.Application.DTOs.AI;
 using Requra.Application.DTOs.Project.Requirements;
 using Requra.Application.Interfaces.IProjectService.IRequirementService;
@@ -294,6 +295,110 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                 return Response<EditRequirementContentResponse>.Failure(new EditRequirementContentResponse(),"An unexpected error occurred while updating the requirement.",StatusCodes.Status500InternalServerError,new List<string> { ex.Message });
             }
         }
+
+        public async Task<Response<PagedResult<RequirementsDto>>> GetRequirementsByProjectIdAsync(Guid projectId)
+        {
+            if (projectId == Guid.Empty)
+            {
+                return Response<PagedResult<RequirementsDto>>.Failure(new PagedResult<RequirementsDto>(),"Invalid ProjectId",400);
+            }
+
+            try
+            {
+                var projectExists = await _context.Projects.AsNoTracking().AnyAsync(x => x.Id == projectId);
+
+                if (!projectExists)
+                {
+                    return Response<PagedResult<RequirementsDto>>.Failure(new PagedResult<RequirementsDto>(),"Project not found",404);
+                }
+
+                var query = _context.Requirements
+                    .AsNoTracking()
+                    .Include(x => x.RequirementSourceReferences)
+                    .Where(x => x.ProjectId == projectId);
+
+                var totalCount = await query.CountAsync();
+
+                var entities = await query
+                    .OrderByDescending(x => x.CreatedAt)
+                    .ToListAsync();
+
+                var items = entities.Select(requirement => new RequirementsDto
+                {
+                    Id = requirement.Id,
+                    SourceRequirementId = requirement.SourceRequirementId,
+                    Title = requirement.Title,
+                    Description = requirement.Description,
+                    Type = requirement.Type.ToString(),
+                    Status = requirement.Status.ToString(),
+                    Language = requirement.Language?.ToString(),
+                    ProjectId = requirement.ProjectId,
+                    ConfidenceScore = requirement.ConfidenceScore,
+                    QualityScore = requirement.QualityScore,
+                    QualityIssues = string.IsNullOrWhiteSpace(requirement.QualityIssues)
+                        ? new List<string>()
+                        : DeserializeStringList(requirement.QualityIssues),
+                    QualityWarnings = string.IsNullOrWhiteSpace(requirement.QualityWarnings)
+                        ? new List<string>()
+                        : DeserializeStringList(requirement.QualityWarnings),
+                    DeduplicationKey = requirement.DeduplicationKey,
+                    Actor = requirement.Actor,
+                    Category = requirement.Category,
+                    Priority = requirement.Priority,
+                    ReviewedById = requirement.ReviewedById,
+                    ReviewFeedback = requirement.ReviewFeedback,
+                    ReviewedAt = requirement.ReviewedAt,
+                    LastModifiedById = requirement.LastModifiedById,
+                    Version = requirement.Version,
+                    QualityStatus = requirement.QualityStatus,
+                    CreatedAt = requirement.CreatedAt,
+                    UpdatedAt = requirement.UpdatedAt,
+                    SourceRefs = requirement.RequirementSourceReferences
+                        .Select(x => new RequirementSourceDto
+                        {
+                            Page = x.Page,
+                            Quote = x.Quote,
+                            ChunkId = x.ChunkId,
+                            SourceId = x.SourceId,
+                            SourceType = x.SourceType,
+                            DocumentName = x.DocumentName,
+                            ConfidenceScore = x.ConfidenceScore
+                        })
+                        .ToList()
+                }).ToList();
+
+                var result = new PagedResult<RequirementsDto>
+                {
+                    TotalCount = totalCount,
+                    Items = items,
+                    PageNumber = 1,
+                    PageSize = totalCount
+                };
+
+                return items.Any()
+                    ? Response<PagedResult<RequirementsDto>>.Success(
+                        result,
+                        "Requirements fetched successfully",
+                        200)
+                    : Response<PagedResult<RequirementsDto>>.Success(
+                        new PagedResult<RequirementsDto>(),
+                        "No requirements found",
+                        204);
+            }
+            catch (Exception ex)
+            {
+                //_logger.LogError(ex, "Error retrieving requirements for project {ProjectId}", projectId);
+
+                return Response<PagedResult<RequirementsDto>>.Failure(
+                    new PagedResult<RequirementsDto>(),
+                    "An unexpected error occurred while retrieving requirements",
+                    500,
+                    new List<string> { ex.Message });
+            }
+        }
+
+
+
         private static string BuildRequirementETag(int? version)
         {
             return $"\"{version}\"";
@@ -374,6 +479,21 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
             });
 
             //await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        private static List<string> DeserializeStringList(string value)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(value) ?? new List<string>();
+            }
+            catch
+            {
+                return value
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .ToList();
+            }
         }
 
 

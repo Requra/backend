@@ -16,4 +16,12 @@ namespace Requra.Application.DTOs.Project.Requirements
         public string? IfMatch { get; set; }
         public string? CurrentUserId { get; set; }
     }
+    public class EditRequirementContentApiRequest
+    {
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public RequirementType? Type { get; set; }
+        public string? Priority { get; set; }
+
+    }
 }
