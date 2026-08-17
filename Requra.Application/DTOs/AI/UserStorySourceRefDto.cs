@@ -17,7 +17,7 @@ namespace Requra.Application.DTOs.AI
         public string DocumentName { get; set; }
 
         [JsonPropertyName("page")]
-        public object? Page { get; set; } // stays flexible since TS says null
+        public int? Page { get; set; } // stays flexible since TS says null
 
         [JsonPropertyName("quote")]
         public string Quote { get; set; }
