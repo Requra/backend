@@ -100,9 +100,20 @@ namespace Requra.Presentation.Controllers.Project.Requirement
         }
 
         [HttpGet("projects/{projectId:guid}/requirements")]
-        public async Task<IActionResult> GetRequirementsByProjectId([FromRoute] Guid projectId)
+        [Authorize]
+        public async Task<IActionResult> GetRequirementsByProjectId([FromRoute] Guid projectId,[FromQuery] int pageNumber = 1,[FromQuery] int pageSize = 25,[FromQuery] List<string>? status = null,[FromQuery] string? search = null)
         {
-            var response = await _requirementService.GetRequirementsByProjectIdAsync(projectId);
+            var request = new GetProjectRequirementsRequest
+            {
+                ProjectId = projectId,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Status = status,
+                Search = search
+            };
+
+            var response = await _requirementService.GetRequirementsByProjectIdAsync(request);
+          
             return response.StatusCode switch
             {
                 200 => Ok(response),

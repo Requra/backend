@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using DocumentFormat.OpenXml.Drawing.Diagrams;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
+using Requra.Application.DTOs.UserStories;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
@@ -18,51 +20,253 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.Us
 {
     public class UserStoryService(IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger) : IUserStoryService
     {
-        public async Task<Response<PagedResult<UserStoryDto>>> GetUserStoriesByProjectIdAsync(Guid projectId)
+
+        public async Task<Response<PagedResult<UserStoryListItemDto>>> GetUserStoriesByProjectIdAsync(GetProjectUserStoriesRequest request)
         {
-            if (projectId == Guid.Empty)
-                return Response<PagedResult<UserStoryDto>>.Failure(new PagedResult<UserStoryDto>(),"Invalid ProjectId",400);
+            var errors = new List<string>();
+
+            if (request.ProjectId == Guid.Empty)
+                errors.Add("Invalid ProjectId.");
+
+            if (request.PageNumber < 1)
+                errors.Add("PageNumber must be greater than or equal to 1.");
+
+            if (request.PageSize < 1 || request.PageSize > 100)
+                errors.Add("PageSize must be between 1 and 100.");
+
+            if (errors.Any())
+            {
+                return Response<PagedResult<UserStoryListItemDto>>.Failure(
+                    new PagedResult<UserStoryListItemDto>(),
+                    "Validation failed.",
+                    400,
+                    errors);
+            }
+
             try
             {
-                var projectRepo = _unitOfWork.Repository<Project>();
-                var projectExists = await projectRepo.GetByIdAsync(projectId);
+                var projectExists = await _context.Projects
+                    .AsNoTracking()
+                    .AnyAsync(x => x.Id == request.ProjectId);
 
-                if (projectExists == null)
-                    return Response<PagedResult<UserStoryDto>>.Failure(new PagedResult<UserStoryDto>(),"Project not found",404);
+                if (!projectExists)
+                {
+                    return Response<PagedResult<UserStoryListItemDto>>.Failure(
+                        new PagedResult<UserStoryListItemDto>(),
+                        "Project not found.",
+                        404);
+                }
 
-                //var query = _context.UserStories.AsNoTracking().Where(us => us.ProjectId == projectId);
-                //var totalCount = await query.CountAsync();
-                //var items = await query.OrderByDescending(us => us.CreatedAt).ProjectTo<UserStoryDto>(_mapper.ConfigurationProvider).ToListAsync();
-                var query = _context.UserStories.AsNoTracking()
-                   .Include(us => us.Creator)
-                   .Where(us => us.ProjectId == projectId);
+                var query = _context.UserStories
+                    .AsNoTracking()
+                    .Include(x => x.Requirement)
+                    .Include(x => x.SourceRefs)
+                    .Include(x => x.Quality)
+                    .Include(x => x.JiraFields)
+                    .Where(x => x.ProjectId == request.ProjectId);
+
+                if (request.Status != null && request.Status.Any())
+                {
+                    var normalizedStatuses = request.Status
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(NormalizeUserStoryStatusFilter)
+                        .Where(x => x.HasValue)
+                        .Select(x => x!.Value)
+                        .Distinct()
+                        .ToList();
+
+                    if (normalizedStatuses.Any())
+                    {
+                        query = query.Where(x => normalizedStatuses.Contains(x.Status));
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.Search))
+                {
+                    var search = request.Search.Trim().ToLower();
+
+                    query = query.Where(x =>
+                        (!string.IsNullOrWhiteSpace(x.SourceUserStoryId) && x.SourceUserStoryId.ToLower().Contains(search)) ||
+                        (!string.IsNullOrWhiteSpace(x.Title) && x.Title.ToLower().Contains(search)) ||
+                        (!string.IsNullOrWhiteSpace(x.Description) && x.Description.ToLower().Contains(search)) ||
+                        (!string.IsNullOrWhiteSpace(x.SourceRequirementId) && x.SourceRequirementId.ToLower().Contains(search)));
+                }
+
                 var totalCount = await query.CountAsync();
 
-                // AcceptanceCriteria is a jsonb column with a value converter (not a real
-                // EF relation), so it can't be projected via ProjectTo/SQL translation.
-                // Materialize the entities first, then map in-memory.
-                var entities = await query.OrderByDescending(us => us.CreatedAt).ToListAsync();
-                var items = _mapper.Map<List<UserStoryDto>>(entities);
-                var result = new PagedResult<UserStoryDto>
-                {
-                    TotalCount = totalCount,
-                    Items = items,
-                    PageNumber=1,
-                    PageSize=totalCount
+                // Materialize because AcceptanceCriteria / Labels may use value converters
+                var entities = await query
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
 
+                var reviewedByIds = entities
+                    .Where(x => !string.IsNullOrWhiteSpace(x.ReviewedById))
+                    .Select(x => x.ReviewedById!)
+                    .Distinct()
+                    .ToList();
+
+                var users = await _context.Users
+                    .AsNoTracking()
+                    .Where(x => reviewedByIds.Contains(x.Id))
+                    .Select(x => new
+                    {
+                        x.Id,
+                        Name = !string.IsNullOrWhiteSpace(x.FullName) ? x.FullName : x.UserName
+                    })
+                    .ToListAsync();
+
+                var userMap = users.ToDictionary(x => x.Id, x => x.Name);
+
+                var items = entities.Select(userStory =>
+                {
+                    var labels = userStory.Labels ?? new List<string>();
+
+                    var jiraLabels = userStory.JiraFields?.Labels ?? labels;
+
+                    var jiraStoryPoints = userStory.JiraFields?.StoryPoints ?? userStory.StoryPoints;
+
+                    var acceptanceCriteria = userStory.AcceptanceCriteria ?? new List<AcceptanceCriterion>();
+
+                    return new UserStoryListItemDto
+                    {
+                        Id = userStory.Id,
+                        SourceUserStoryId = userStory.SourceUserStoryId,
+
+                        RequirementId = userStory.RequirementId,
+                        SourceRequirementId = userStory.SourceRequirementId,
+                        RequirementTitle = userStory.Requirement?.Title,
+
+                        Title = userStory.Title,
+                        UserStory = userStory.Description,
+                        Description = userStory.Description,
+
+                        Type = NormalizeUserStoryType(userStory.Type),
+                        Priority = NormalizeUserStoryPriority(userStory.Priority),
+                        Labels = jiraLabels?.ToList() ?? new List<string>(),
+                        StoryPoints = jiraStoryPoints,
+
+                        Jira = new UserStoryJiraDto
+                        {
+                            IssueType = userStory.JiraFields?.IssueType ?? "Story",
+                            StoryPoints = jiraStoryPoints,
+                            Labels = jiraLabels?.ToList() ?? new List<string>()
+                        },
+
+                        AcceptanceCriteria = acceptanceCriteria
+                            .Select((ac, index) => new UserStoryAcceptanceCriterionDto
+                            {
+                                Id = BuildAcceptanceCriterionId(userStory.SourceUserStoryId, index + 1),
+                                Text = ac.Text ?? string.Empty,
+                                Format = ac.CriterionType ?? "given_when_then"
+                            })
+                            .ToList(),
+
+                        Status = NormalizeUserStoryStatus(userStory.Status),
+                        ReviewFeedback = userStory.ReviewFeedback,
+                        ReviewedBy = !string.IsNullOrWhiteSpace(userStory.ReviewedById) && userMap.ContainsKey(userStory.ReviewedById)
+                            ? userMap[userStory.ReviewedById]
+                            : null,
+                        ReviewedAt = userStory.ReviewedAt,
+                        Version = userStory.Version,
+                        UpdatedAt = userStory.UpdatedAt,
+
+                        Quality = new UserStoryQualityDto
+                        {
+                            Score = userStory.Quality?.Score,
+                            Issues = userStory.Quality?.Issues?.ToList() ?? new List<string>(),
+                            Warnings = userStory.Quality?.Warnings?.ToList() ?? new List<string>()
+                        },
+                        QualityStatus = userStory.Quality?.QualityStatus.ToString(),
+
+                        SourceRefs = userStory.SourceRefs?
+                            .Select(sr => new UserStorySourceRefDto
+                            {
+                                SourceId = sr.SourceId,
+                                SourceType = sr.SourceType,
+                                DocumentName = sr.DocumentName,
+                                Page = (int)sr.Page,
+                                ChunkId = sr.ChunkId,
+                                Quote = sr.Quote,
+                                ConfidenceScore = sr.ConfidenceScore
+                            })
+                            .ToList() ?? new List<UserStorySourceRefDto>()
+                    };
+                }).ToList();
+
+                var result = new PagedResult<UserStoryListItemDto>
+                {
+                    Items = items,
+                    TotalCount = totalCount,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize,
+                    TotalPages = totalCount == 0
+                        ? 0
+                        : (int)Math.Ceiling(totalCount / (double)request.PageSize)
                 };
 
-                return items.Any()
-                    ? Response<PagedResult<UserStoryDto>>.Success(result, "User stories fetched successfully", 200)
-                    : Response<PagedResult<UserStoryDto>>.Success(new PagedResult<UserStoryDto>(), "No user stories found", 204);
+                return Response<PagedResult<UserStoryListItemDto>>.Success(
+                    result,
+                    "User stories fetched successfully.",
+                    200);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving user stories for project {ProjectId}", projectId);
+                _logger.LogError(ex, "Error retrieving user stories for project {ProjectId}", request.ProjectId);
 
-                return Response<PagedResult<UserStoryDto>>.Failure(new PagedResult<UserStoryDto>(), "An unexpected error occurred while retrieving user stories",500,new List<string> { ex.Message });
+                return Response<PagedResult<UserStoryListItemDto>>.Failure(
+                    new PagedResult<UserStoryListItemDto>(),
+                    "An unexpected error occurred while retrieving user stories.",
+                    500,
+                    new List<string> { ex.Message });
             }
         }
+        //public async Task<Response<PagedResult<UserStoryDto>>> GetUserStoriesByProjectIdAsync(Guid projectId)
+        //{
+        //    if (projectId == Guid.Empty)
+        //        return Response<PagedResult<UserStoryDto>>.Failure(new PagedResult<UserStoryDto>(),"Invalid ProjectId",400);
+        //    try
+        //    {
+        //        var projectRepo = _unitOfWork.Repository<Project>();
+        //        var projectExists = await projectRepo.GetByIdAsync(projectId);
+
+        //        if (projectExists == null)
+        //            return Response<PagedResult<UserStoryDto>>.Failure(new PagedResult<UserStoryDto>(),"Project not found",404);
+
+        //        //var query = _context.UserStories.AsNoTracking().Where(us => us.ProjectId == projectId);
+        //        //var totalCount = await query.CountAsync();
+        //        //var items = await query.OrderByDescending(us => us.CreatedAt).ProjectTo<UserStoryDto>(_mapper.ConfigurationProvider).ToListAsync();
+        //        var query = _context.UserStories.AsNoTracking()
+        //           .Include(us => us.Creator)
+        //           .Where(us => us.ProjectId == projectId);
+        //        var totalCount = await query.CountAsync();
+
+        //        // AcceptanceCriteria is a jsonb column with a value converter (not a real
+        //        // EF relation), so it can't be projected via ProjectTo/SQL translation.
+        //        // Materialize the entities first, then map in-memory.
+        //        var entities = await query.OrderByDescending(us => us.CreatedAt).ToListAsync();
+        //        var items = _mapper.Map<List<UserStoryDto>>(entities);
+        //        var result = new PagedResult<UserStoryDto>
+        //        {
+        //            TotalCount = totalCount,
+        //            Items = items,
+        //            PageNumber=1,
+        //            PageSize=totalCount
+
+        //        };
+
+        //        return items.Any()
+        //            ? Response<PagedResult<UserStoryDto>>.Success(result, "User stories fetched successfully", 200)
+        //            : Response<PagedResult<UserStoryDto>>.Success(new PagedResult<UserStoryDto>(), "No user stories found", 204);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error retrieving user stories for project {ProjectId}", projectId);
+
+        //        return Response<PagedResult<UserStoryDto>>.Failure(new PagedResult<UserStoryDto>(), "An unexpected error occurred while retrieving user stories",500,new List<string> { ex.Message });
+        //    }
+        //}
         // updates 
 
         public async Task<Response<UpdateUserStoryStatusResponse>> UpdateUserStoryStatusAsync(UpdateUserStoryStatusRequest request, CancellationToken cancellationToken = default)
@@ -305,5 +509,62 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.Us
             }
         }
 
-    }
-}
+
+
+        private static string NormalizeUserStoryStatus(UserStoryStatus status)
+        {
+            return status switch
+            {
+                UserStoryStatus.Generated => "GENERATED",
+                UserStoryStatus.NeedReview => "NEEDS_REVIEW",
+                UserStoryStatus.Edited => "EDITED",
+                UserStoryStatus.Approved => "APPROVED",
+                UserStoryStatus.Rejected => "REJECTED",
+                _ => status.ToString().ToUpperInvariant()
+            };
+        }
+        private static UserStoryStatus? NormalizeUserStoryStatusFilter(string? value)
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                        return null;
+        
+                    return value.Trim().ToUpperInvariant() switch
+                    {
+                        "GENERATED" => UserStoryStatus.Generated,
+                        "NEEDS_REVIEW" => UserStoryStatus.NeedReview,
+                        "EDITED" => UserStoryStatus.Edited,
+                        "APPROVED" => UserStoryStatus.Approved,
+                        "REJECTED" => UserStoryStatus.Rejected,
+                        _ => null
+                    };
+                }
+        private static string NormalizeUserStoryType(UserStoryType type)
+        {
+            return type switch
+            {
+                UserStoryType.Functional => "Functional",
+                UserStoryType.NonFunctional => "Non-Functional",
+                UserStoryType.BusinessRule => "Business",
+                _ => type.ToString()
+            };
+        }
+        
+        private static string NormalizeUserStoryPriority(UserStoryPriority priority)
+        {
+            return priority switch
+            {
+                UserStoryPriority.low => "Low",
+                UserStoryPriority.medium => "Medium",
+                UserStoryPriority.high => "High",
+                UserStoryPriority.critical => "Critical",
+                _ => priority.ToString()
+            };
+        }
+        private static string BuildAcceptanceCriterionId(string? sourceUserStoryId, int index)
+                {
+                    var storyId = string.IsNullOrWhiteSpace(sourceUserStoryId) ? "US-UNK" : sourceUserStoryId.Trim();
+                    return $"AC-{storyId.Replace("US-", string.Empty)}-{index:D2}";
+                }
+        
+            }
+        }

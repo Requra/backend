@@ -296,16 +296,27 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
             }
         }
 
-        public async Task<Response<PagedResult<RequirementsDto>>> GetRequirementsByProjectIdAsync(Guid projectId)
+        public async Task<Response<PagedResult<RequirementsDto>>> GetRequirementsByProjectIdAsync(GetProjectRequirementsRequest request)
         {
-            if (projectId == Guid.Empty)
+            var errors = new List<string>();
+
+            if (request.ProjectId == Guid.Empty)
+                errors.Add("Invalid ProjectId.");
+
+            if (request.PageNumber < 1)
+                errors.Add("PageNumber must be greater than or equal to 1.");
+
+            if (request.PageSize < 1 || request.PageSize > 100)
+                errors.Add("PageSize must be between 1 and 100.");
+
+            if (errors.Any())
             {
-                return Response<PagedResult<RequirementsDto>>.Failure(new PagedResult<RequirementsDto>(),"Invalid ProjectId",400);
+                return Response<PagedResult<RequirementsDto>>.Failure(new PagedResult<RequirementsDto>(),"Validation failed.",400,errors);
             }
 
             try
             {
-                var projectExists = await _context.Projects.AsNoTracking().AnyAsync(x => x.Id == projectId);
+                var projectExists = await _context.Projects.AsNoTracking().AnyAsync(x => x.Id == request.ProjectId);
 
                 if (!projectExists)
                 {
@@ -315,85 +326,170 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
                 var query = _context.Requirements
                     .AsNoTracking()
                     .Include(x => x.RequirementSourceReferences)
-                    .Where(x => x.ProjectId == projectId);
+                    .Include(x => x.UserStories)
+                    .Where(x => x.ProjectId == request.ProjectId);
+
+                if (request.Status != null && request.Status.Any())
+                {
+                    var normalizedStatuses = request.Status
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(NormalizeRequirementStatusFilter)
+                        .Where(x => x.HasValue)
+                        .Select(x => x!.Value)
+                        .Distinct()
+                        .ToList();
+
+                    if (normalizedStatuses.Any())
+                    {
+                        query = query.Where(x => normalizedStatuses.Contains(x.Status));
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.Search))
+                {
+                    var search = request.Search.Trim().ToLower();
+
+                    query = query.Where(x =>
+                        (!string.IsNullOrWhiteSpace(x.SourceRequirementId) && x.SourceRequirementId.ToLower().Contains(search)) ||
+                        (!string.IsNullOrWhiteSpace(x.Title) && x.Title.ToLower().Contains(search)) ||
+                        (!string.IsNullOrWhiteSpace(x.Description) && x.Description.ToLower().Contains(search)));
+                }
 
                 var totalCount = await query.CountAsync();
 
                 var entities = await query
                     .OrderByDescending(x => x.CreatedAt)
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
                     .ToListAsync();
 
-                var items = entities.Select(requirement => new RequirementsDto
+                var reviewedByIds = entities
+                    .Where(x => !string.IsNullOrWhiteSpace(x.ReviewedById))
+                    .Select(x => x.ReviewedById!)
+                    .Distinct()
+                    .ToList();
+
+                var modifiedByIds = entities
+                    .Where(x => !string.IsNullOrWhiteSpace(x.LastModifiedById))
+                    .Select(x => x.LastModifiedById!)
+                    .Distinct()
+                    .ToList();
+
+                var actorIds = reviewedByIds
+                    .Union(modifiedByIds)
+                    .Distinct()
+                    .ToList();
+
+                var users = await _context.Users
+                    .AsNoTracking()
+                    .Where(x => actorIds.Contains(x.Id))
+                    .Select(x => new
+                    {
+                        x.Id,
+                        Name = !string.IsNullOrWhiteSpace(x.FullName) ? x.FullName : x.UserName
+                    })
+                    .ToListAsync();
+
+                var userMap = users.ToDictionary(x => x.Id, x => x.Name);
+
+                var items = entities.Select(requirement =>
                 {
-                    Id = requirement.Id,
-                    SourceRequirementId = requirement.SourceRequirementId,
-                    Title = requirement.Title,
-                    Description = requirement.Description,
-                    Type = requirement.Type.ToString(),
-                    Status = requirement.Status.ToString(),
-                    Language = requirement.Language?.ToString(),
-                    ProjectId = requirement.ProjectId,
-                    ConfidenceScore = requirement.ConfidenceScore,
-                    QualityScore = requirement.QualityScore,
-                    QualityIssues = string.IsNullOrWhiteSpace(requirement.QualityIssues)
-                        ? new List<string>()
-                        : DeserializeStringList(requirement.QualityIssues),
-                    QualityWarnings = string.IsNullOrWhiteSpace(requirement.QualityWarnings)
-                        ? new List<string>()
-                        : DeserializeStringList(requirement.QualityWarnings),
-                    DeduplicationKey = requirement.DeduplicationKey,
-                    Actor = requirement.Actor,
-                    Category = requirement.Category,
-                    Priority = requirement.Priority,
-                    ReviewedById = requirement.ReviewedById,
-                    ReviewFeedback = requirement.ReviewFeedback,
-                    ReviewedAt = requirement.ReviewedAt,
-                    LastModifiedById = requirement.LastModifiedById,
-                    Version = requirement.Version,
-                    QualityStatus = requirement.QualityStatus,
-                    CreatedAt = requirement.CreatedAt,
-                    UpdatedAt = requirement.UpdatedAt,
-                    SourceRefs = requirement.RequirementSourceReferences
-                        .Select(x => new RequirementSourceDto
+                    var linkedStories = requirement.UserStories ?? new List<UserStory>();
+
+                    var linkedUserStoryCount = linkedStories.Count;
+                    var approvedUserStoryCount = linkedStories.Count(us => us.Status == UserStoryStatus.Approved);
+
+                    var storyCoveragePercent = linkedUserStoryCount == 0
+                        ? 0
+                        : 100;
+
+                    return new RequirementsDto
+                    {
+                        Id = requirement.Id,
+                        SourceRequirementId = requirement.SourceRequirementId,
+                        Title = requirement.Title,
+                        Description = requirement.Description,
+                        Type = requirement.Type.ToString().Replace("_", "-"),
+                        Priority = requirement.Priority,
+                        Actor = requirement.Actor,
+                        Category = requirement.Category,
+
+                        Status = NormalizeRequirementStatus(requirement.Status),
+                        ReviewFeedback = requirement.ReviewFeedback,
+                        ReviewedBy = !string.IsNullOrWhiteSpace(requirement.ReviewedById) && userMap.ContainsKey(requirement.ReviewedById)
+                            ? userMap[requirement.ReviewedById]
+                            : null,
+                        ReviewedAt = requirement.ReviewedAt,
+                        LastModifiedBy = !string.IsNullOrWhiteSpace(requirement.LastModifiedById) && userMap.ContainsKey(requirement.LastModifiedById)
+                            ? userMap[requirement.LastModifiedById]
+                            : null,
+                        Version = requirement.Version,
+                        UpdatedAt = requirement.UpdatedAt,
+
+                        ConfidenceScore = requirement.ConfidenceScore,
+                        Quality = new Requra.Application.DTOs.Project.Requirements.QualityDto
                         {
-                            Page = x.Page,
-                            Quote = x.Quote,
-                            ChunkId = x.ChunkId,
-                            SourceId = x.SourceId,
-                            SourceType = x.SourceType,
-                            DocumentName = x.DocumentName,
-                            ConfidenceScore = x.ConfidenceScore
-                        })
-                        .ToList()
+                            Score = requirement.QualityScore,
+                            Issues = string.IsNullOrWhiteSpace(requirement.QualityIssues)
+                                ? new List<string>()
+                                : DeserializeStringList(requirement.QualityIssues),
+                            Warnings = string.IsNullOrWhiteSpace(requirement.QualityWarnings)
+                                ? new List<string>()
+                                : DeserializeStringList(requirement.QualityWarnings)
+                        },
+                        QualityStatus = requirement.QualityStatus,
+
+                        SourceRefs = requirement.RequirementSourceReferences?
+                            .Select(sr => new RequirementSourceDto
+                            {
+                                SourceId = sr.SourceId,
+                                SourceType = sr.SourceType,
+                                DocumentName = sr.DocumentName,
+                                Page = sr.Page,
+                                ChunkId = sr.ChunkId,
+                                Quote = sr.Quote,
+                                ConfidenceScore = sr.ConfidenceScore
+                            })
+                            .ToList() ?? new List<RequirementSourceDto>(),
+
+                        LinkedUserStoryCount = linkedUserStoryCount,
+                        ApprovedUserStoryCount = approvedUserStoryCount,
+                        StoryCoveragePercent = storyCoveragePercent,
+
+                        LinkedUserStories = linkedStories
+                            .OrderByDescending(us => us.CreatedAt)
+                            .Select(us => new RequirementLinkedUserStoryDto
+                            {
+                                Id = us.Id,
+                                SourceUserStoryId = us.SourceUserStoryId,
+                                Title = us.Title,
+                                Status = NormalizeUserStoryStatus(us.Status)
+                            })
+                            .ToList()
+                    };
                 }).ToList();
 
                 var result = new PagedResult<RequirementsDto>
                 {
-                    TotalCount = totalCount,
                     Items = items,
-                    PageNumber = 1,
-                    PageSize = totalCount
+                    TotalCount = totalCount,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize,
+                    TotalPages = totalCount == 0
+                        ? 0
+                        : (int)Math.Ceiling(totalCount / (double)request.PageSize)
                 };
 
+
                 return items.Any()
-                    ? Response<PagedResult<RequirementsDto>>.Success(
-                        result,
-                        "Requirements fetched successfully",
-                        200)
-                    : Response<PagedResult<RequirementsDto>>.Success(
-                        new PagedResult<RequirementsDto>(),
-                        "No requirements found",
-                        204);
+                    ? Response<PagedResult<RequirementsDto>>.Success(result,"Requirements fetched successfully",200)
+                    : Response<PagedResult<RequirementsDto>>.Success(new PagedResult<RequirementsDto>(),"No requirements found",204);
             }
             catch (Exception ex)
             {
                 //_logger.LogError(ex, "Error retrieving requirements for project {ProjectId}", projectId);
 
-                return Response<PagedResult<RequirementsDto>>.Failure(
-                    new PagedResult<RequirementsDto>(),
-                    "An unexpected error occurred while retrieving requirements",
-                    500,
-                    new List<string> { ex.Message });
+                return Response<PagedResult<RequirementsDto>>.Failure(new PagedResult<RequirementsDto>(),"An unexpected error occurred while retrieving requirements",500,new List<string> { ex.Message });
             }
         }
 
@@ -497,7 +593,49 @@ namespace Requra.Infrastructure.Services.ProjectService.RequirementService
         }
 
 
-
-
+        private static string NormalizeRequirementStatus(RequirementStatus status)
+        {
+            return status switch
+            {
+                RequirementStatus.Generated => "GENERATED",
+                RequirementStatus.NeedsReview => "NEEDS_REVIEW",
+                RequirementStatus.Edited => "EDITED",
+                RequirementStatus.Approved => "APPROVED",
+                RequirementStatus.Rejected => "REJECTED",
+                _ => status.ToString().ToUpperInvariant()
+            };
+        }
+        private static string NormalizeUserStoryStatus(UserStoryStatus status)
+                {
+                    return status switch
+                    {
+                        UserStoryStatus.Generated => "GENERATED",
+                        UserStoryStatus.NeedReview => "NEEDS_REVIEW",
+                        UserStoryStatus.Edited => "EDITED",
+                        UserStoryStatus.Approved => "APPROVED",
+                        UserStoryStatus.Rejected => "REJECTED",
+                        _ => status.ToString().ToUpperInvariant()
+                    };
+                }
+        
+        private static RequirementStatus? NormalizeRequirementStatusFilter(string? value)
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                        return null;
+        
+                    return value.Trim().ToUpperInvariant() switch
+                    {
+                        "GENERATED" => RequirementStatus.Generated,
+                        "NEEDS_REVIEW" => RequirementStatus.NeedsReview,
+                        "EDITED" => RequirementStatus.Edited,
+                        "APPROVED" => RequirementStatus.Approved,
+                        "REJECTED" => RequirementStatus.Rejected,
+                        _ => null
+                    };
+                }
+        
+        
+        
+        
     }
 }
