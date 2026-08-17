@@ -4,6 +4,12 @@ namespace Requra.Infrastructure.ExternalDTOs.ClickUpDto
     {
         public string ClientId { get; set; } = null!;
         public string ClientSecret { get; set; } = null!;
-        public string? RedirectUri { get; set; }
+        public CallbackUrlSettings CallbackUrls { get; set; } = new();
+    }
+
+    public class CallbackUrlSettings
+    {
+        public string Web { get; set; } = "http://localhost:5173/integrations/clickup/callback";
+        public string Mobile { get; set; } = "requra://clickup/callback";
     }
 }

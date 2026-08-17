@@ -186,7 +186,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.Us
                                 SourceId = sr.SourceId,
                                 SourceType = sr.SourceType,
                                 DocumentName = sr.DocumentName,
-                                Page = (int)sr.Page,
+                                Page = sr.Page?? 0 ,
                                 ChunkId = sr.ChunkId,
                                 Quote = sr.Quote,
                                 ConfidenceScore = sr.ConfidenceScore
