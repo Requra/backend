@@ -53,17 +53,15 @@ namespace Requra.Presentation.Controllers.ClickUp
         /// Initiates OAuth flow by returning the authorization URL
         /// </summary>
         [HttpGet("auth/authorize")]
-        public IActionResult GetAuthorizationUrl([FromQuery] Guid projectId)
+        public IActionResult GetAuthorizationUrl([FromQuery] Guid projectId, [FromQuery] ClientPlatform platform = ClientPlatform.Web)
         {
             try
             {
                 if (projectId == Guid.Empty)
                     return BadRequest(Response<string>.Failure("Project ID is required"));
 
-                if (string.IsNullOrWhiteSpace(_clickUpSettings.RedirectUri))
-                    return StatusCode(500, Response<string>.Failure("ClickUp redirect URI not configured in settings"));
-
-                var authUrl = _clickUpService.GetAuthorizationUrl(_clickUpSettings.RedirectUri);
+                var redirectUri = GetPlatformSpecificCallbackUrl(platform);
+                var authUrl = _clickUpService.GetAuthorizationUrl(redirectUri);
 
                 return Ok(Response<object>.Success(new
                 {
@@ -868,6 +866,19 @@ namespace Requra.Presentation.Controllers.ClickUp
      //                   "Error during test mapping of Requirements"));
      //       }
      //   }
+
+        /// <summary>
+        /// Generates the platform-specific callback URL for ClickUp OAuth
+        /// </summary>
+        private string GetPlatformSpecificCallbackUrl(ClientPlatform platform)
+        {
+            return platform switch
+            {
+                ClientPlatform.Web => "http://localhost:5173/integrations/clickup/callback",
+                ClientPlatform.Mobile => "requra://clickup/callback",
+                _ => "http://localhost:5173/integrations/clickup/callback"
+            };
+        }
     }
 
     public class OAuthCallbackRequest
