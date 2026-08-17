@@ -12,7 +12,7 @@ namespace Requra.Presentation.Controllers.Meeting
     // necessarily authenticated project members (e.g. guests following an email link).
     [ApiController]
     [Route("api/meeting-invitations")]
-    [Authorize]
+    [AllowAnonymous]
     public class MeetingInvitationsController(IMeetingService _meetingService) : ControllerBase
     {
         [HttpGet("{inviteToken}")]

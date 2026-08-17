@@ -131,7 +131,8 @@ namespace Requra.Presentation.Controllers.Meeting
             {
                 MeetingId = meetingId,
                 Members = request.Members,
-                InvitedById = userId
+                InvitedById = userId,
+                Platform = request.Platform
             };
 
             var response = await _meetingService.InviteParticipantsAsync(requestdto, cancellationToken);
@@ -158,7 +159,9 @@ namespace Requra.Presentation.Controllers.Meeting
             {
                 MeetingId = meetingId,
                 Guests = request.Guests,
-                InvitedById = userId
+                InvitedById = userId,
+                Platform = request.Platform
+
             };
 
             var response = await _meetingService.InviteGuestsAsync(requestdto, cancellationToken);
@@ -251,6 +254,7 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
         [HttpPost("{meetingId:guid}/join")]
+        [AllowAnonymous]
         public async Task<IActionResult> JoinMeeting([FromRoute] Guid meetingId, [FromBody] JoinMeetingApiRequest request, CancellationToken cancellationToken)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -280,6 +284,7 @@ namespace Requra.Presentation.Controllers.Meeting
         }
 
         [HttpPost("{meetingId:guid}/leave")]
+        [AllowAnonymous]
         public async Task<IActionResult> LeaveMeeting([FromRoute] Guid meetingId, [FromBody] LeaveMeetingApiRequest request, CancellationToken cancellationToken)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -393,6 +398,7 @@ namespace Requra.Presentation.Controllers.Meeting
 
 
         [HttpPost("{meetingId:guid}/livekit-token")]
+        [AllowAnonymous]
         public async Task<IActionResult> IssueLiveKitToken([FromRoute] Guid meetingId,[FromBody] LiveKitTokenRequestDto request,CancellationToken cancellationToken)
         {
 
@@ -415,7 +421,7 @@ namespace Requra.Presentation.Controllers.Meeting
            
         }
         [HttpPost("{meetingId:guid}/agora-token")]
-        
+        [AllowAnonymous]
         public async Task<IActionResult> IssueAgoraToken([FromRoute] Guid meetingId,[FromQuery] Guid? participantId,CancellationToken cancellationToken)
         {
             var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
