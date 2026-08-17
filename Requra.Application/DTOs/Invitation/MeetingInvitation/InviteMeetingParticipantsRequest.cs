@@ -10,10 +10,12 @@ namespace Requra.Application.DTOs.Invitation.MeetingInvitation
         public Guid MeetingId { get; set; }
         public string InvitedById { get; set; }
         public List<InviteMeetingParticipantItemRequest> Members { get; set; } = new();
+        public ClientPlatform Platform { get; set; } = ClientPlatform.Web;
     }
     public class InviteMeetingParticipantsApiRequest
     {
         public List<InviteMeetingParticipantItemRequest> Members { get; set; } = new();
+        public ClientPlatform Platform { get; set; } = ClientPlatform.Web;
     }
 
     public class InviteMeetingParticipantItemRequest

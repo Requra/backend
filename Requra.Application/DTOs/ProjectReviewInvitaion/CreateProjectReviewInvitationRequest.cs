@@ -12,6 +12,7 @@ namespace Requra.Application.DTOs.ProjectReviewInvitaion
 
         public ProjectReviewPermission Permission { get; set; } = default!; // VIEWER / COMMENTER
         public DateTime? ExpiresAt { get; set; }
+        public ClientPlatform Platform { get; set; } = ClientPlatform.Web;
     }
 
     public class NewProjectReviewStakeholderInput

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": [ "delegate_permission/common.handle_all_urls" ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.requra",
+      "sha256_cert_fingerprints": [
+        "AC:FB:60:4D:63:3F:8A:D3:63:89:5B:B4:7D:1E:F0:5C:0E:0D:88:B4:48:18:79:CB:9C:AE:3E:F8:EC:5D:32:28"
+      ]
+    }
+  }
+]

@@ -31,7 +31,7 @@ using System.Security.Claims;
 
 namespace Requra.Infrastructure.Services.MeetingService
 {
-    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender, IOptions<LiveKitOptions> _liveKitOptions,IOptions<MeetingOptions> _meetingOptions, IOptions<AgoraOptions> _agoraOptions) : IMeetingService
+    public class MeetingService(RequraDbContext _context, IValidator<CreateMeetingRequest> _validator, ILogger<MeetingService> _logger, IMapper _mapper, IEmailSender _emailSender, IOptions<LiveKitOptions> _liveKitOptions,IOptions<MeetingOptions> _meetingOptions, IOptions<AgoraOptions> _agoraOptions, IOptions<MeetingInvitationLinkOptions> _meetingInvitationLinkOptions) : IMeetingService
     {
 
         public async Task<Response<MeetingDto>> CreateMeetingAsync(Guid projectId,CreateMeetingRequest request,string currentUserId)
@@ -705,6 +705,11 @@ namespace Requra.Infrastructure.Services.MeetingService
                     try
                     {
                         var subject = $"Invitation to meeting: {meeting.Title ?? "Meeting"}";
+                        var MeetingUrl = BuildMeetingInvitationUrl(
+                            request.Platform,
+                            meeting.Id,
+                            invitation.InviteToken,
+                            isGuest: false);
 
                         var body = MeetingInvitationTemplete.MeetingInvitationEmail(
                             userName: invitation.DisplayName ?? "User",
@@ -713,7 +718,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                             meetingRole: invitation.Role.ToString().ToUpper(),
                             scheduledAt: meeting.ScheduledAt,
                             expiresAt: invitation.ExpiresAt,
-                            meetingUrl: $"http://localhost:5173/invite/{invitation.InviteToken}",
+                            meetingUrl: MeetingUrl,
                             invitedByName: currentUser.FullName ?? currentUser.UserName ?? "Requra Team",
                             meetingDescription: meeting.Description,
                             isGuest: false);
@@ -874,6 +879,8 @@ namespace Requra.Infrastructure.Services.MeetingService
                     try
                     {
                         var subject = $"Guest invitation to meeting: {meeting.Title ?? "Meeting"}";
+                        var MeetingUrl = BuildMeetingInvitationUrl(request.Platform,meeting.Id,invitation.InviteToken,isGuest: true);
+
 
                         var body = MeetingInvitationTemplete.MeetingInvitationEmail(
                             userName: invitation.DisplayName ?? "Guest",
@@ -882,7 +889,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                             meetingRole: invitation.Role.ToString().ToUpper(),
                             scheduledAt: meeting.ScheduledAt,
                             expiresAt: invitation.ExpiresAt,
-                            meetingUrl: $"http://localhost:5173/invite/{invitation.InviteToken}",
+                            meetingUrl: MeetingUrl,
                             invitedByName: currentUser.FullName ?? currentUser.UserName ?? "Requra Team",
                             meetingDescription: meeting.Description,
                             isGuest: true);
@@ -1991,6 +1998,27 @@ namespace Requra.Infrastructure.Services.MeetingService
         private static string ToInviteeType(InviteType? inviteType)
         {
             return inviteType == InviteType.Participant ? "PARTICIPANT" : "GUEST";
+        }
+
+        private string BuildMeetingInvitationUrl(ClientPlatform platform,Guid meetingId,string inviteToken,bool isGuest)
+        {
+            if (platform == ClientPlatform.Mobile)
+            {
+                var baseUrl = _meetingInvitationLinkOptions.Value.MobileAppLinkBaseUrl.TrimEnd('/');
+
+                if (isGuest)
+                {
+                    return $"{baseUrl}/meeting/join?meetingId={meetingId}&guestToken={Uri.EscapeDataString(inviteToken)}";
+                }
+
+                return $"{baseUrl}/meeting/join?meetingId={meetingId}";
+            }
+            else
+            {
+                var baseUrl = _meetingInvitationLinkOptions.Value.WebBaseUrl.TrimEnd('/');
+
+                return $"{baseUrl}/invite/{Uri.EscapeDataString(inviteToken)}";
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Requra.Application.DTOs.AI;
 using Requra.Application.DTOs.Project.ProjectResults.Feedbacks;
 using Requra.Application.DTOs.ProjectReviewInvitaion;
@@ -13,13 +14,14 @@ using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
+using Requra.Infrastructure.Options;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
 {
-    public class ProjectReviewService(RequraDbContext _context, IEmailSender emailSender,ILogger<ProjectReviewService> logger, IValidator<CreateProjectReviewInvitationRequest> validator) : IProjectReviewService
+    public class ProjectReviewService(RequraDbContext _context, IEmailSender emailSender,ILogger<ProjectReviewService> logger, IValidator<CreateProjectReviewInvitationRequest> validator, IOptions<ProjectReviewLinkOptions> _projectReviewLinkOptions) : IProjectReviewService
     {
         public async Task<Response<SubmitStakeholderFeedbackResponse>> SubmitStakeholderFeedbackAsync(SubmitStakeholderFeedbackRequest request, CancellationToken cancellationToken = default)
         {
@@ -610,6 +612,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             );
                         }
                         var (rawToken, hashedToken) = GenerateToken();
+                        var reviewUrl = BuildProjectReviewUrl(request.Platform, rawToken);
                         invitations.Add(new ProjectReviewInvitation
                         {
                             Id = Guid.NewGuid(),
@@ -620,7 +623,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
                             Status = InvitationStatus.Pending,
-                            ReviewUrl = $"http://localhost:5173/project-review/{rawToken}",//Url will be edited later 
+                            ReviewUrl =reviewUrl,//Url will be edited later 
                             ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
                             InvitedById = userId,
                             CreatedAt = DateTime.UtcNow,
@@ -654,6 +657,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         }
 
                         var (rawToken, hashedToken) = GenerateToken();
+                        var reviewUrl = BuildProjectReviewUrl(request.Platform, rawToken);
                         invitations.Add(new ProjectReviewInvitation
                         {
                             Id = Guid.NewGuid(),
@@ -666,7 +670,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                             Permission = request.Permission,
                             ReviewToken = hashedToken,
                             Status = InvitationStatus.Pending,
-                            ReviewUrl = $"http://localhost:5173/project-review/{rawToken}",//Url will be edited later
+                            ReviewUrl = reviewUrl,//Url will be edited later
                             ExpiresAt = request.ExpiresAt ?? DateTime.UtcNow.AddHours(24),
                             InvitedById = userId,
                             CreatedAt = DateTime.UtcNow,
@@ -1533,8 +1537,21 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                         (x.Role == ProjectRole.Owner || x.Role == ProjectRole.Contributor),
                     cancellationToken);
         }
+        private string BuildProjectReviewUrl(ClientPlatform platform, string rawToken)
+        {
+            if (platform == ClientPlatform.Mobile)
+            {
+                var baseUrl = _projectReviewLinkOptions.Value.MobileBaseUrl.TrimEnd('/');
+
+                // Deep/app-link style
+                return $"{baseUrl}/project-review/{Uri.EscapeDataString(rawToken)}";
+            }
+
+            var webBaseUrl = _projectReviewLinkOptions.Value.WebBaseUrl.TrimEnd('/');
+            return $"{webBaseUrl}/project-review/{Uri.EscapeDataString(rawToken)}";
+        }
 
 
-       
+
     }
 }
