@@ -1,4 +1,6 @@
-﻿using Requra.Application.DTOs.Project.Requirements;
+﻿using Requra.Application.DTOs;
+using Requra.Application.DTOs.AI;
+using Requra.Application.DTOs.Project.Requirements;
 using Requra.Application.Response;
 using System;
 using System.Collections.Generic;
@@ -10,5 +12,6 @@ namespace Requra.Application.Interfaces.IProjectService.IRequirementService
     {
         Task<Response<UpdateRequirementStatusResponse>> UpdateRequirementStatusAsync(UpdateRequirementStatusRequest request, CancellationToken cancellationToken = default);
         Task<Response<EditRequirementContentResponse>> EditRequirementContentAsync(EditRequirementContentRequest request, CancellationToken cancellationToken = default);
+        Task<Response<PagedResult<RequirementsDto>>> GetRequirementsByProjectIdAsync(Guid projectId);
     }
 }
