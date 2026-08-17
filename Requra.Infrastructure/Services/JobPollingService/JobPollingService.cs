@@ -15,7 +15,7 @@ using System.Text.Json;
 
 namespace Requra.Infrastructure.Services.JobPollingService
 {
-    public class JobPollingService(IServiceScopeFactory _scopeFactory, ILogger<JobPollingService> _logger,RequraDbContext _context) : IJobPollingService
+    public class JobPollingService(IServiceScopeFactory _scopeFactory, ILogger<JobPollingService> _logger) : IJobPollingService
     {
         public async Task PollUntilFinishedAsync(Guid runId, string jobId, int maxAttempts = 1000)
         {
@@ -38,20 +38,7 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     if (run == null) 
                         return;
 
-                    run.UpdateAnalysis(
-                        MapStatus(statusResponse.Status),
-                        statusResponse.ProgressPct,
-                        statusResponse.CurrentNode,
-                        statusResponse.Error,
-                        run.StartedAt,
-                        statusResponse.CompletedAt.HasValue
-                            ? DateTimeOffset
-                                .FromUnixTimeSeconds((long)statusResponse.CompletedAt.Value)
-                                .AddSeconds(statusResponse.CompletedAt.Value % 1)
-                                .UtcDateTime
-                            : null
-                    );
-
+         
                     if (statusResponse.Status == "COMPLETED" || statusResponse.Status == "PARTIAL")
                     {
                         var result = await aiClient.GetResultAsync(jobId);
@@ -63,18 +50,33 @@ namespace Requra.Infrastructure.Services.JobPollingService
                             RawJson = rawJson,
                             CreatedAt = DateTime.UtcNow
                         });
+                        //delete all previous requirements and user stories for this project before adding new ones
+
+                        var existingRequirements = db.Requirements.Where(r => r.ProjectId == run.ProjectId);
+                        if (existingRequirements.Any())
+                            db.Requirements.RemoveRange(existingRequirements);
+
+                        var existingUserStories = await db.UserStories.Where(us => us.ProjectId == run.ProjectId).ToListAsync();
+                        if (existingUserStories.Any())
+                            db.UserStories.RemoveRange(existingUserStories);
+                        // will convert it to update if it already exists, but for now we will just delete and add new ones
+
+                        await db.SaveChangesAsync();
+
                         await MapRequirementsFromAiResultAsync(
                                 db,
                                 rawJson,
                                 run.ProjectId
                                 );
+                        await db.SaveChangesAsync();
+
                         await MapUserStoriesFromAiResultAsync(
                                 db,
                                 rawJson,
                                 run.ProjectId
-                                ); //will add Creator Id later
+                                ); 
 
-
+                        //await db.SaveChangesAsync();
 
                         run.UpdateAnalysis(
                             MapStatus(statusResponse.Status),
@@ -120,6 +122,20 @@ namespace Requra.Infrastructure.Services.JobPollingService
                         await db.SaveChangesAsync();
                         return;
                     }
+
+                    run.UpdateAnalysis(
+             MapStatus(statusResponse.Status),
+             statusResponse.ProgressPct,
+             statusResponse.CurrentNode,
+             statusResponse.Error,
+             run.StartedAt,
+             statusResponse.CompletedAt.HasValue
+                 ? DateTimeOffset
+                     .FromUnixTimeSeconds((long)statusResponse.CompletedAt.Value)
+                     .AddSeconds(statusResponse.CompletedAt.Value % 1)
+                     .UtcDateTime
+                 : null
+         );
 
                     await db.SaveChangesAsync();
                     attempts++;
@@ -194,14 +210,15 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     continue;
 
                 // Check if Requirement already exists
-                var alreadyExists = await db.Requirements
-                    .AnyAsync(
-                        x => x.ProjectId == projectId &&
-                             x.SourceRequirementId == aiRequirement.Id,
-                        cancellationToken);
+                //var alreadyExists = await db.Requirements
+                //    .AnyAsync(
+                //        x => x.ProjectId == projectId &&
+                //             x.SourceRequirementId == aiRequirement.Id
+                //             ,
+                //        cancellationToken);
 
-                if (alreadyExists)
-                    continue;
+                //if (alreadyExists)
+                //    continue;
 
                 // Map AI Requirement Type to domain enum
                 var requirementType =
@@ -315,14 +332,14 @@ namespace Requra.Infrastructure.Services.JobPollingService
                     continue;
 
                 // 3. Check if User Story already exists
-                var alreadyExists = await db.UserStories
-                    .AnyAsync(
-                        x => x.ProjectId == projectId &&
-                             x.SourceUserStoryId == aiUserStory.Id,
-                        cancellationToken);
+                //var alreadyExists = await db.UserStories
+                //    .AnyAsync(
+                //        x => x.ProjectId == projectId &&
+                //             x.SourceUserStoryId == aiUserStory.Id,
+                //        cancellationToken);
 
-                if (alreadyExists)
-                    continue;
+                //if (alreadyExists)
+                //    continue;
 
                 //4.Find Requirement using AI source requirement ID
 
