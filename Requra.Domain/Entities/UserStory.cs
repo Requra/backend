@@ -269,5 +269,35 @@ namespace Requra.Domain.Entities
 
             Quality = new UserStoryQuality(score.Value, issues, warnings);
         }
+        public void RegenerateContent(
+           string title,
+           string? description,
+           List<AcceptanceCriterion> acceptanceCriteria,
+           List<string>? labels,
+           string feedback,
+           string? modifiedById)
+        {
+            Title = title;
+            Description = description;
+
+            AcceptanceCriteria.Clear();
+            AcceptanceCriteria.AddRange(acceptanceCriteria);
+
+            if (labels != null)
+            {
+                Labels.Clear();
+                Labels.AddRange(labels);
+            }
+
+            Status = UserStoryStatus.NeedReview;
+            ReviewFeedback = feedback;
+            LastModifiedBy = modifiedById;
+            RevisionSource = RevisionSource.AI_REGENERATED;
+            RevisionNumber += 1;
+            Version += 1;
+            UpdatedAt = DateTime.UtcNow;
+
+            Quality?.ResetToNotEvaluated();
+        }
     }
 }

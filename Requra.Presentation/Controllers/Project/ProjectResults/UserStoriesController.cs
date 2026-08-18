@@ -109,5 +109,39 @@ namespace Requra.Presentation.Controllers.Project.ProjectResults
                 _ => StatusCode(response.StatusCode, response)
             };
         }
+        [HttpPost("~/api/projects/{projectId:guid}/user-stories/{storyId:guid}/regenerate")]
+        public async Task<IActionResult> RegenerateUserStoryContent(
+           [FromRoute] Guid projectId,
+           [FromRoute] Guid storyId,
+           [FromHeader(Name = "If-Match")] string? ifMatch,
+           [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+           [FromBody] RegenerateUserStoryContentBody body,
+           CancellationToken cancellationToken)
+        {
+            var modifiedById = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var request = RegenerateUserStoryContentRequest.FromBody(projectId, storyId, ifMatch, idempotencyKey, modifiedById, body);
+
+            var response = await _userStoryService.RegenerateUserStoryContentAsync(request, cancellationToken);
+
+            if (response.IsSuccess && response.Data != null)
+            {
+                Response.Headers.ETag = $"\"{response.Data.Version}\"";
+            }
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(StatusCodes.Status403Forbidden, response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                422 => UnprocessableEntity(response),
+                502 => StatusCode(StatusCodes.Status502BadGateway, response),
+                504 => StatusCode(StatusCodes.Status504GatewayTimeout, response),
+                500 => StatusCode(StatusCodes.Status500InternalServerError, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
     }
 }

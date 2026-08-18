@@ -28,6 +28,6 @@ namespace Requra.Application.Interfaces.IAIService
         Task<CancelJobResponseDto> CancelJobAsync(string jobId);
 
         Task<RetryJobResponseDto> RetryJobAsync(string jobId);
-
+        Task<RegenerateStoryResponseDto> RegenerateStoryAsync(RegenerateStoryRequestDto request, CancellationToken cancellationToken = default);
     }
 }
