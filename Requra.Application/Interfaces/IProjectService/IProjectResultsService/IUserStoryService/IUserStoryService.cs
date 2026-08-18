@@ -14,5 +14,7 @@ namespace Requra.Application.Interfaces.IProjectService.IProjectResultsService.I
         Task<Response<PagedResult<UserStoryListItemDto>>> GetUserStoriesByProjectIdAsync(GetProjectUserStoriesRequest request);
         Task<Response<UpdateUserStoryStatusResponse>> UpdateUserStoryStatusAsync(UpdateUserStoryStatusRequest request, CancellationToken cancellationToken = default);
         Task<Response<EditUserStoryContentResponse>> EditUserStoryContentAsync(EditUserStoryContentRequest request, CancellationToken cancellationToken = default);
+        // for regenerate -- for now 
+        Task<Response<EditUserStoryContentResponse>> RegenerateUserStoryContentAsync(RegenerateUserStoryContentRequest request, CancellationToken cancellationToken = default);
     }
 }

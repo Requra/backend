@@ -45,8 +45,8 @@ namespace Requra.Infrastructure.Data
         public DbSet<Invitation> Invitations { get; set; }
 
         public DbSet<ProjectReviewInvitation> ProjectReviewInvitations { get; set; }
-
-
+        //new tablefor idempotency records
+        public DbSet<IdempotencyRecord> IdempotencyRecords { get; set; }
 
 
 

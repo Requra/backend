@@ -46,5 +46,12 @@ namespace Requra.Domain.Entities
             Warnings = warnings ?? new List<string>();
             QualityStatus = QualityStatus.FRESH;
         }
+        public void ResetToNotEvaluated()
+        {
+            Score = 0;
+            Issues = new List<string>();
+            Warnings = new List<string>();
+            QualityStatus = QualityStatus.NOT_EVALUATED;
+        }
     }
 }

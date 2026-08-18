@@ -1,4 +1,26 @@
-﻿using AutoMapper;
+﻿//using AutoMapper;
+//using AutoMapper.QueryableExtensions;
+//using DocumentFormat.OpenXml.Drawing.Diagrams;
+//using Microsoft.EntityFrameworkCore;
+//using Microsoft.Extensions.Logging;
+//using Requra.Application.DTOs;
+//using Requra.Application.DTOs.AI;
+//using Requra.Application.DTOs.Project.ProjectResults.UserStory;
+//using Requra.Application.DTOs.UserStories;
+//using Requra.Application.Interfaces.IAIService;
+//using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
+//using Requra.Application.Response;
+//using Requra.Domain.Entities;
+//using Requra.Domain.Enums;
+//using Requra.Infrastructure.Data;
+//using Requra.Infrastructure.ExternalServices.AIClient;
+//using Requra.Infrastructure.UnitOfWork;
+//using System;
+//using System.Collections.Generic;
+//using System.Security.Cryptography;
+//using System.Text;
+//using System.Text.Json;
+using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using DocumentFormat.OpenXml.Drawing.Diagrams;
 using Microsoft.EntityFrameworkCore;
@@ -6,19 +28,24 @@ using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Project.ProjectResults.UserStory;
 using Requra.Application.DTOs.UserStories;
+using Requra.Application.Interfaces.IAIService;
 using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUserStoryService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.Data;
+using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.UnitOfWork;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text;
-
+using System.Text.Json;
+using RegenerateStoryRequestDto = Requra.Application.DTOs.AI.RegenerateStoryRequestDto;
+using RegenerateStoryResponseDto = Requra.Application.DTOs.AI.RegenerateStoryResponseDto;
 namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.UserStoryService
 {
-    public class UserStoryService(IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger) : IUserStoryService
+    public class UserStoryService(IUnitOfWork _unitOfWork, RequraDbContext _context, IMapper _mapper, ILogger<UserStoryService> _logger, IAIClient _aiClient) : IUserStoryService
     {
 
         public async Task<Response<PagedResult<UserStoryListItemDto>>> GetUserStoriesByProjectIdAsync(GetProjectUserStoriesRequest request)
@@ -565,6 +592,206 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectResultsService.Us
                     var storyId = string.IsNullOrWhiteSpace(sourceUserStoryId) ? "US-UNK" : sourceUserStoryId.Trim();
                     return $"AC-{storyId.Replace("US-", string.Empty)}-{index:D2}";
                 }
+
+        public async Task<Response<EditUserStoryContentResponse>> RegenerateUserStoryContentAsync(RegenerateUserStoryContentRequest request, CancellationToken cancellationToken = default)
+        {
+            const string IdempotencyScope = "user-story-regenerate";
+
+            if (request.ProjectId == Guid.Empty || request.StoryId == Guid.Empty)
+                return Response<EditUserStoryContentResponse>.Failure("ProjectId and StoryId are required.", 400);
+
+            if (string.IsNullOrWhiteSpace(request.ModifiedById))
+                return Response<EditUserStoryContentResponse>.Failure("Current user is not authenticated.", 401);
+
+            if (string.IsNullOrWhiteSpace(request.Feedback) || request.Feedback.Length > 4000)
+                return Response<EditUserStoryContentResponse>.Failure("feedback is required and must not exceed 4000 characters.", 400);
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey) ||
+                request.IdempotencyKey.Length < 16 || request.IdempotencyKey.Length > 128)
+                return Response<EditUserStoryContentResponse>.Failure("Idempotency-Key header is required and must be between 16 and 128 characters.", 400);
+
+            var requestHash = ComputeRequestHash(request.ProjectId, request.StoryId, request.Feedback);
+
+            try
+            {
         
+                // Same key + different payload => 409 conflict.
+                var existingRecord = await _context.IdempotencyRecords
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Key == request.IdempotencyKey, cancellationToken);
+
+                if (existingRecord != null)
+                {
+                    if (existingRecord.RequestHash != requestHash)
+                        return Response<EditUserStoryContentResponse>.Failure(
+                            "Idempotency-Key was already used with a different request payload.", 409);
+
+                    // Response<T> has private setters and no JSON constructor, so we can't
+                    // deserialize the whole envelope directly - only the inner data object
+                    // was stored, and the envelope is rebuilt around it here.
+                    var replayedData = JsonSerializer.Deserialize<EditUserStoryContentResponse>(existingRecord.ResponseBody);
+                    if (replayedData is null)
+                        return Response<EditUserStoryContentResponse>.Failure("Failed to replay idempotent response.", 500);
+
+                    return Response<EditUserStoryContentResponse>.Success(
+                        replayedData, "User story regenerated successfully (idempotent replay)", existingRecord.StatusCode);
+                }
+
+                var project = await _context.Projects
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == request.ProjectId, cancellationToken);
+
+                if (project is null)
+                    return Response<EditUserStoryContentResponse>.Failure("Project not found.", 404);
+
+                var isMember = await _context.ProjectMembers
+                    .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == request.ModifiedById, cancellationToken);
+
+                if (!isMember)
+                    return Response<EditUserStoryContentResponse>.Failure("You are not allowed to regenerate user stories on this project.", 403);
+
+                var story = await _context.UserStories
+                    .Include(us => us.SourceRefs)
+                    .Include(us => us.Quality)
+                    .Include(us => us.Requirement)
+                    .FirstOrDefaultAsync(x => x.Id == request.StoryId && x.ProjectId == request.ProjectId, cancellationToken);
+
+                if (story is null)
+                    return Response<EditUserStoryContentResponse>.Failure("User story not found.", 404);
+
+                if (string.IsNullOrWhiteSpace(request.IfMatch) || !MatchesIfMatch(request.IfMatch, story.Version))
+                    return Response<EditUserStoryContentResponse>.Failure("The user story has been modified by another user. Please refresh and try again.", 409);
+
+                // Snapshot: build the AI request from the story's CURRENT state before any
+                // mutation. If the AI call fails below, the story entity is never touched
+                // and nothing is saved, so it remains exactly as it was.
+                var sourceContext = story.SourceRefs.Any()
+                    ? string.Join("\n", story.SourceRefs.Where(sr => !string.IsNullOrWhiteSpace(sr.Quote)).Select(sr => sr.Quote))
+                    : story.Requirement?.Description;
+
+                var aiRequest = new RegenerateStoryRequestDto
+                {
+                    RequirementText = story.Requirement?.Description ?? story.Title,
+                    RequirementType = MapRequirementTypeLabel(story.Requirement?.Type),
+                    Actor = story.Requirement?.Actor,
+                    Priority = story.Priority.ToString(),
+                    Feedback = request.Feedback,
+                    OriginalStory = story.Description,
+                    SourceContext = sourceContext
+                };
+
+                RegenerateStoryResponseDto aiResult;
+                try
+                {
+                    aiResult = await _aiClient.RegenerateStoryAsync(aiRequest, cancellationToken);
+                }
+                catch (AIServiceException ex)
+                {
+                    _logger.LogError(ex, "AI regeneration failed for user story {StoryId}", request.StoryId);
+                    var mappedStatus = ex.UpstreamStatusCode is >= 500 or 0 ? 502 : ex.UpstreamStatusCode;
+                    return Response<EditUserStoryContentResponse>.Failure(
+                        "The AI service could not regenerate this user story. The story was not changed.", mappedStatus, new List<string> { ex.Message });
+                }
+                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // HttpClient timeout surfaces as a cancellation not requested by our own token.
+                    _logger.LogError(ex, "AI regeneration timed out for user story {StoryId}", request.StoryId);
+                    return Response<EditUserStoryContentResponse>.Failure(
+                        "The AI service timed out while regenerating this user story. The story was not changed.", 504);
+                }
+
+                if (aiResult.AcceptanceCriteria.Any(ac => string.IsNullOrWhiteSpace(ac.Text)))
+                    return Response<EditUserStoryContentResponse>.Failure(
+                        "The AI service returned an invalid response (missing acceptance criteria text). The story was not changed.", 502);
+
+                var acceptanceCriteria = aiResult.AcceptanceCriteria
+                    .Select(ac => new AcceptanceCriterion(ac.Text.Trim(), ac.CriterionType, ac.Id))
+                    .ToList();
+
+                story.RegenerateContent(aiResult.Title, aiResult.Description, acceptanceCriteria, aiResult.Labels, request.Feedback, request.ModifiedById);
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var response = new EditUserStoryContentResponse
+                {
+                    Id = story.Id,
+                    Title = story.Title,
+                    Description = story.Description,
+                    UserStoryText = story.Description,
+                    AcceptanceCriteria = story.AcceptanceCriteria.Select(ac => new AcceptanceCriterionDto
+                    {
+                        Id = ac.Id,
+                        Text = ac.Text,
+                        Format = ac.CriterionType
+                    }).ToList(),
+                    Priority = story.Priority.ToString(),
+                    Labels = story.Labels,
+                    RequirementId = story.RequirementId,
+                    SourceRefs = story.SourceRefs.Select(sr => new SourceRefDto
+                    {
+                        Page = sr.Page,
+                        Quote = sr.Quote,
+                        ChunkId = sr.ChunkId,
+                        SourceId = sr.SourceId,
+                        SourceType = sr.SourceType,
+                        DocumentName = sr.DocumentName,
+                        ConfidenceScore = sr.ConfidenceScore
+                    }).ToList(),
+                    Quality = story.Quality == null ? null : new QualityDto
+                    {
+                        Score = story.Quality.Score,
+                        Issues = story.Quality.Issues,
+                        Warnings = story.Quality.Warnings,
+                        QualityStatus = story.Quality.QualityStatus.ToString()
+                    },
+                    WorkflowStatus = ToWorkflowStatusString(story.Status),
+                    ReviewFeedback = story.ReviewFeedback,
+                    ReviewedBy = story.ReviewedById,
+                    ReviewedAt = story.ReviewedAt,
+                    CreatedAt = story.CreatedAt,
+                    UpdatedAt = story.UpdatedAt,
+                    LastModifiedBy = story.LastModifiedBy,
+                    Version = story.Version,
+                    RevisionNumber = story.RevisionNumber,
+                    RevisionSource = story.RevisionSource.ToString()
+                };
+
+                var envelope = Response<EditUserStoryContentResponse>.Success(response, "User story regenerated successfully", 200);
+
+                // Only successful outcomes are cached for replay - a failed attempt (validation,
+                // AI timeout/error, version conflict) can be safely retried with the same key.
+                // Store just the data object; Response<T> itself can't be round-tripped through
+                // System.Text.Json (private setters, no JSON constructor).
+                _context.IdempotencyRecords.Add(new IdempotencyRecord(
+                    request.IdempotencyKey!, IdempotencyScope, requestHash, JsonSerializer.Serialize(response), 200));
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return envelope;
             }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return Response<EditUserStoryContentResponse>.Failure("A concurrency error occurred while regenerating the user story.", 409, new List<string> { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error regenerating content for user story {StoryId} in project {ProjectId}", request.StoryId, request.ProjectId);
+                return Response<EditUserStoryContentResponse>.Failure("An unexpected error occurred while regenerating the user story.", 500, new List<string> { ex.Message });
+            }
+        }
+        private static string ComputeRequestHash(Guid projectId, Guid storyId, string feedback)
+        {
+            var payload = $"{projectId}|{storyId}|{feedback}";
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+            return Convert.ToHexString(bytes);
+        }
+
+        private static string? MapRequirementTypeLabel(RequirementType? type) => type switch
+        {
+            RequirementType.Functional => "FR",
+            RequirementType.Non_Functional => "NFR",
+            RequirementType.Business_Rule => "BR",
+            _ => null
+        };
+
+    }
         }

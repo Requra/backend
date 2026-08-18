@@ -5,6 +5,7 @@ using Requra.Application.Interfaces.IAIService;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using static Requra.Infrastructure.Services.AnalysisRunService.AnalysisRunService;
 
 namespace Requra.Infrastructure.ExternalServices.AIClient
@@ -151,6 +152,37 @@ namespace Requra.Infrastructure.ExternalServices.AIClient
 
             return await response.Content.ReadFromJsonAsync<RetryJobResponseDto>();
         }
+
+        // regenerate story method
+        public async Task<RegenerateStoryResponseDto> RegenerateStoryAsync(RegenerateStoryRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var response = await _httpClient.PostAsJsonAsync("internal/stories/regenerate", request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new AIServiceException(
+                    $"AI service returned {(int)response.StatusCode} for story regeneration: {error}",
+                    (int)response.StatusCode);
+            }
+
+            RegenerateStoryResponseDto? result;
+            try
+            {
+                result = await response.Content.ReadFromJsonAsync<RegenerateStoryResponseDto>(cancellationToken: cancellationToken);
+            }
+            catch (JsonException ex)
+            {
+                throw new AIServiceException("AI service returned an invalid JSON response for story regeneration.", 502, ex);
+            }
+
+            if (result is null || string.IsNullOrWhiteSpace(result.Title))
+            {
+                throw new AIServiceException("AI service returned an empty or invalid story regeneration result.", 502);
+            }
+
+            return result;
+        }
     }
 
-    }
+}
