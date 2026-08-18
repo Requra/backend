@@ -77,6 +77,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             if (request.MeetingIds != null && request.MeetingIds.Any())
             {
                 meetingSessions = await dbContext.MeetingSessions
+                    .Include(ms => ms.Recordings)
                     .Where(ms => request.MeetingIds.Contains(ms.Id) && ms.ProjectId == projectId)
                     .ToListAsync();
 
@@ -90,6 +91,7 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             else
             {
                 meetingSessions = await dbContext.MeetingSessions
+                    .Include(ms => ms.Recordings)
                     .Where(ms => ms.ProjectId == projectId)
                     .ToListAsync();
             }
@@ -198,13 +200,23 @@ namespace Requra.Infrastructure.Services.AnalysisRunService
             // Add meeting recordings
             foreach (var meeting in meetingSessions)
             {
-                if (meeting.RecordingUrls == null || !meeting.RecordingUrls.Any())
-                    continue;
+                // Prefer the meeting-level URL list, while also reading completed
+                // recording rows so recordings finalized before the URL-sync fix are
+                // immediately available to analysis without a database backfill.
+                var completedRecordingUrls = meeting.Recordings
+                    .Where(r => r.Status == RecordingStatus.STOPPED &&
+                                r.CompletedAt.HasValue &&
+                                !string.IsNullOrWhiteSpace(r.StorageUrl))
+                    .Select(r => r.StorageUrl!);
 
-                var validUrls = meeting.RecordingUrls
+                var validUrls = (meeting.RecordingUrls ?? new List<string>())
+                    .Concat(completedRecordingUrls)
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
+
+                if (!validUrls.Any())
+                    continue;
 
                 var index = 1;
 

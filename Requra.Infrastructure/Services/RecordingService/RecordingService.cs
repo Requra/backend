@@ -442,7 +442,9 @@ namespace Requra.Infrastructure.Services.RecordingService
 
             try
             {
-                var recording = await _context.Recordings.FirstOrDefaultAsync(r => r.Id == request.RecordingId, cancellationToken);
+                var recording = await _context.Recordings
+                    .Include(r => r.Meeting)
+                    .FirstOrDefaultAsync(r => r.Id == request.RecordingId, cancellationToken);
 
                 if (recording is null)
                 {

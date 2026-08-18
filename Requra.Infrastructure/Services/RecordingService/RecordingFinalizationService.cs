@@ -24,7 +24,9 @@ namespace Requra.Infrastructure.Services.RecordingService
 
         public async Task FinalizeRecordingAsync(Guid recordingId, CancellationToken cancellationToken = default)
         {
-            var recording = await _context.Recordings.FirstOrDefaultAsync(r => r.Id == recordingId, cancellationToken);
+            var recording = await _context.Recordings
+                .Include(r => r.Meeting)
+                .FirstOrDefaultAsync(r => r.Id == recordingId, cancellationToken);
 
             if (recording is null)
                 throw new InvalidOperationException("Recording not found.");
