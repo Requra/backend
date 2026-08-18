@@ -1544,11 +1544,11 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 var baseUrl = _projectReviewLinkOptions.Value.MobileBaseUrl.TrimEnd('/');
 
                 // Deep/app-link style
-                return $"{baseUrl}/project-review/{Uri.EscapeDataString(rawToken)}";
+                return $"https://requra-ai.runasp.net/project-review/{Uri.EscapeDataString(rawToken)}";
             }
 
             var webBaseUrl = _projectReviewLinkOptions.Value.WebBaseUrl.TrimEnd('/');
-            return $"{webBaseUrl}/project-review/{Uri.EscapeDataString(rawToken)}";
+            return $"http://localhost:5173/project-review/{Uri.EscapeDataString(rawToken)}";
         }
 
 

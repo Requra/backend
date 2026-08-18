@@ -5,6 +5,7 @@ using Requra.Application.DTOs.LiveKit;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Participant;
 using Requra.Application.Response;
+using Requra.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -29,7 +30,7 @@ namespace Requra.Application.Interfaces.IMeetingService
         Task<Response<PagedResult<MeetingInvitationItemResponse>>> GetMeetingInvitationsAsync(Guid meetingId, string currentUserId, GetMeetingInvitationsQuery query, CancellationToken cancellationToken = default);
         Task<Response<MeetingInvitationPreviewResponse>> PreviewInvitationAsync(string inviteToken, CancellationToken cancellationToken = default);
         Task<Response<AcceptMeetingInvitationResponse>> AcceptInvitationAsync(string inviteToken, string currentUserId, CancellationToken cancellationToken = default);
-        Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default);
+        Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, ClientPlatform? platform = ClientPlatform.Web, CancellationToken cancellationToken = default);
         Task<Response<MeetingInvitationDetailResponse>> RevokeInvitationAsync(Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default);
         //participants
         Task<Response<MeetingParticipantResponse>> JoinMeetingAsync(JoinMeetingRequest request, CancellationToken cancellationToken = default);

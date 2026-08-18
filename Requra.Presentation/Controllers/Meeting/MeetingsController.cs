@@ -12,6 +12,7 @@ using Requra.Application.DTOs.ProjectMembers;
 using Requra.Application.Interfaces.IMeetingService;
 using Requra.Application.Response;
 using Requra.Domain.Entities;
+using Requra.Domain.Enums;
 using Requra.Infrastructure.Services.MeetingService;
 using System.Security.Claims;
 using static Google.Apis.Requests.BatchRequest;
@@ -20,9 +21,9 @@ namespace Requra.Presentation.Controllers.Meeting
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class MeetingsController(IMeetingService _meetingService) : ControllerBase
     {
+        [Authorize]
         [HttpGet("{meetingId}")]
         public async Task<IActionResult> GetMeeting(string meetingId)
         {
@@ -44,6 +45,7 @@ namespace Requra.Presentation.Controllers.Meeting
             return StatusCode(result.StatusCode, result);
         }
 
+        [Authorize]
         [HttpPost("{meetingId}/cancel")]
         public async Task<IActionResult> CancelMeeting(string meetingId)
         {
@@ -66,6 +68,7 @@ namespace Requra.Presentation.Controllers.Meeting
             return StatusCode(result.StatusCode, result);
         }
 
+        [Authorize]
         [HttpPatch("{meetingId}")]
         public async Task<IActionResult> UpdateMeeting(string meetingId,[FromBody] UpdateMeetingRequest request)
         {
@@ -85,6 +88,7 @@ namespace Requra.Presentation.Controllers.Meeting
             return StatusCode(result.StatusCode, result);
         }
 
+        [Authorize]
         [HttpPost("{meetingId:guid}/start")]
         public async Task<IActionResult> StartMeeting([FromRoute] Guid meetingId,CancellationToken cancellationToken)
         {
@@ -103,6 +107,7 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
 
+        [Authorize]
         [HttpPost("{meetingId:guid}/end")]
         public async Task<IActionResult> EndMeeting([FromRoute] Guid meetingId,CancellationToken cancellationToken)
         {
@@ -121,8 +126,8 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
 
-       
-        
+
+        [Authorize]
         [HttpPost("{meetingId:guid}/invitations/participants")]
         public async Task<IActionResult> InviteParticipants([FromRoute] Guid meetingId,[FromBody] InviteMeetingParticipantsApiRequest request,CancellationToken cancellationToken)
         {
@@ -151,6 +156,7 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
 
+        [Authorize]
         [HttpPost("{meetingId:guid}/invitations/guests")]
         public async Task<IActionResult> InviteGuests([FromRoute] Guid meetingId,[FromBody] InviteGuestsApiRequest request,CancellationToken cancellationToken)
         {
@@ -179,10 +185,10 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(response.StatusCode, response)
             };
         }
-       
-        
-        
-        
+
+
+
+        [Authorize]
         [HttpGet("{meetingId:guid}/invitations")]
         public async Task<IActionResult> GetInvitations([FromRoute] Guid meetingId, [FromQuery] GetMeetingInvitationsQuery query, CancellationToken cancellationToken)
         {
@@ -206,15 +212,16 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
 
+        [Authorize]
         [HttpPost("{meetingId:guid}/invitations/{invitationId:guid}/resend")]
-        public async Task<IActionResult> ResendInvitation([FromRoute] Guid meetingId, [FromRoute] Guid invitationId, CancellationToken cancellationToken)
+        public async Task<IActionResult> ResendInvitation([FromRoute] Guid meetingId, [FromRoute] Guid invitationId, [FromQuery] ClientPlatform? platform=ClientPlatform.Web, CancellationToken cancellationToken = default)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized(Response<MeetingInvitationDetailResponse>.Failure(null, "Unauthorized User", 401));
 
-            var response = await _meetingService.ResendInvitationAsync(meetingId, invitationId, userId, cancellationToken);
+            var response = await _meetingService.ResendInvitationAsync(meetingId, invitationId, userId, platform: platform, cancellationToken);
 
             return response.StatusCode switch
             {
@@ -229,7 +236,8 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(response.StatusCode, response)
             };
         }
-
+        
+        [Authorize]
         [HttpDelete("{meetingId:guid}/invitations/{invitationId:guid}")]
         public async Task<IActionResult> RevokeInvitation([FromRoute] Guid meetingId, [FromRoute] Guid invitationId, CancellationToken cancellationToken)
         {
@@ -253,6 +261,93 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(response.StatusCode, response)
             };
         }
+
+        [Authorize]
+        [HttpGet("{meetingId:guid}/participants")]
+        public async Task<IActionResult> GetParticipants([FromRoute] Guid meetingId, [FromQuery] GetMeetingParticipantsQuery query, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<PagedResult<MeetingParticipantResponse>>.Failure(null, "Unauthorized User", 401));
+
+            var response = await _meetingService.GetMeetingParticipantsAsync(meetingId, userId, query, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+        [Authorize]
+        [HttpDelete("{meetingId:guid}/participants/{participantId:guid}")]
+        public async Task<IActionResult> RemoveParticipant([FromRoute] Guid meetingId, [FromRoute] Guid participantId, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(Response<MeetingParticipantResponse>.Failure(null, "Unauthorized User", 401));
+
+            var requestDto = new RemoveParticipantRequest
+            {
+                MeetingId = meetingId,
+                ParticipantId = participantId,
+                CurrentUserId = userId
+            };
+
+            var response = await _meetingService.RemoveParticipantAsync(requestDto, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+        [Authorize]
+        [HttpPost("{meetingId:guid}/participants/{participantId:guid}/consent")]
+        public async Task<IActionResult> SaveConsent([FromRoute] Guid meetingId, [FromRoute] Guid participantId, [FromBody] SaveConsentApiRequest request, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var requestDto = new SaveConsentRequest
+            {
+                MeetingId = meetingId,
+                ParticipantId = participantId,
+                CurrentUserId = string.IsNullOrEmpty(userId) ? null : userId,
+                RecordingConsent = request?.RecordingConsent ?? false
+            };
+
+            var response = await _meetingService.SaveConsentAsync(requestDto, cancellationToken);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                401 => Unauthorized(response),
+                403 => StatusCode(403, response),
+                404 => NotFound(response),
+                409 => Conflict(response),
+                422 => UnprocessableEntity(response),
+                500 => StatusCode(500, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+
+
         [HttpPost("{meetingId:guid}/join")]
         [AllowAnonymous]
         public async Task<IActionResult> JoinMeeting([FromRoute] Guid meetingId, [FromBody] JoinMeetingApiRequest request, CancellationToken cancellationToken)
@@ -312,99 +407,15 @@ namespace Requra.Presentation.Controllers.Meeting
             };
         }
 
-        [HttpGet("{meetingId:guid}/participants")]
-        public async Task<IActionResult> GetParticipants([FromRoute] Guid meetingId, [FromQuery] GetMeetingParticipantsQuery query, CancellationToken cancellationToken)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<PagedResult<MeetingParticipantResponse>>.Failure(null, "Unauthorized User", 401));
-
-            var response = await _meetingService.GetMeetingParticipantsAsync(meetingId, userId, query, cancellationToken);
-
-            return response.StatusCode switch
-            {
-                200 => Ok(response),
-                400 => BadRequest(response),
-                401 => Unauthorized(response),
-                403 => StatusCode(403, response),
-                404 => NotFound(response),
-                422 => UnprocessableEntity(response),
-                500 => StatusCode(500, response),
-                _ => StatusCode(response.StatusCode, response)
-            };
-        }
-
-        [HttpDelete("{meetingId:guid}/participants/{participantId:guid}")]
-        public async Task<IActionResult> RemoveParticipant([FromRoute] Guid meetingId, [FromRoute] Guid participantId, CancellationToken cancellationToken)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized(Response<MeetingParticipantResponse>.Failure(null, "Unauthorized User", 401));
-
-            var requestDto = new RemoveParticipantRequest
-            {
-                MeetingId = meetingId,
-                ParticipantId = participantId,
-                CurrentUserId = userId
-            };
-
-            var response = await _meetingService.RemoveParticipantAsync(requestDto, cancellationToken);
-
-            return response.StatusCode switch
-            {
-                200 => Ok(response),
-                400 => BadRequest(response),
-                401 => Unauthorized(response),
-                403 => StatusCode(403, response),
-                404 => NotFound(response),
-                409 => Conflict(response),
-                422 => UnprocessableEntity(response),
-                500 => StatusCode(500, response),
-                _ => StatusCode(response.StatusCode, response)
-            };
-        }
-
-        [HttpPost("{meetingId:guid}/participants/{participantId:guid}/consent")]
-        public async Task<IActionResult> SaveConsent([FromRoute] Guid meetingId, [FromRoute] Guid participantId, [FromBody] SaveConsentApiRequest request, CancellationToken cancellationToken)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            var requestDto = new SaveConsentRequest
-            {
-                MeetingId = meetingId,
-                ParticipantId = participantId,
-                CurrentUserId = string.IsNullOrEmpty(userId) ? null : userId,
-                RecordingConsent = request?.RecordingConsent ?? false
-            };
-
-            var response = await _meetingService.SaveConsentAsync(requestDto, cancellationToken);
-
-            return response.StatusCode switch
-            {
-                200 => Ok(response),
-                400 => BadRequest(response),
-                401 => Unauthorized(response),
-                403 => StatusCode(403, response),
-                404 => NotFound(response),
-                409 => Conflict(response),
-                422 => UnprocessableEntity(response),
-                500 => StatusCode(500, response),
-                _ => StatusCode(response.StatusCode, response)
-            };
-        }
-
-
 
         [HttpPost("{meetingId:guid}/livekit-token")]
         [AllowAnonymous]
-        public async Task<IActionResult> IssueLiveKitToken([FromRoute] Guid meetingId,[FromBody] LiveKitTokenRequestDto request,CancellationToken cancellationToken)
+        public async Task<IActionResult> IssueLiveKitToken([FromRoute] Guid meetingId, [FromBody] LiveKitTokenRequestDto request, CancellationToken cancellationToken)
         {
 
             var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var result = await _meetingService.IssueTokenAsync(meetingId,callerUserId!,request?.ParticipantId,cancellationToken);
+            var result = await _meetingService.IssueTokenAsync(meetingId, callerUserId!, request?.ParticipantId, cancellationToken);
 
             return result.StatusCode switch
             {
@@ -418,16 +429,16 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(result.StatusCode, result)
             };
 
-           
+
         }
         [HttpPost("{meetingId:guid}/agora-token")]
         [AllowAnonymous]
-        public async Task<IActionResult> IssueAgoraToken([FromRoute] Guid meetingId,[FromQuery] Guid? participantId,CancellationToken cancellationToken)
+        public async Task<IActionResult> IssueAgoraToken([FromRoute] Guid meetingId, [FromQuery] Guid? participantId, CancellationToken cancellationToken)
         {
             var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 
-            var response = await _meetingService.IssueAgoraTokenAsync( meetingId, callerUserId, participantId, cancellationToken);
+            var response = await _meetingService.IssueAgoraTokenAsync(meetingId, callerUserId, participantId, cancellationToken);
 
             return response.StatusCode switch
             {

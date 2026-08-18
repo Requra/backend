@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Agora;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
@@ -706,10 +707,10 @@ namespace Requra.Infrastructure.Services.MeetingService
                     {
                         var subject = $"Invitation to meeting: {meeting.Title ?? "Meeting"}";
                         var MeetingUrl = BuildMeetingInvitationUrl(
-                            request.Platform,
                             meeting.Id,
                             invitation.InviteToken,
-                            isGuest: false);
+                            isGuest: false,
+                            platform: request.Platform);
 
                         var body = MeetingInvitationTemplete.MeetingInvitationEmail(
                             userName: invitation.DisplayName ?? "User",
@@ -879,7 +880,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     try
                     {
                         var subject = $"Guest invitation to meeting: {meeting.Title ?? "Meeting"}";
-                        var MeetingUrl = BuildMeetingInvitationUrl(request.Platform,meeting.Id,invitation.InviteToken,isGuest: true);
+                        var MeetingUrl = BuildMeetingInvitationUrl(meeting.Id, invitation.InviteToken, isGuest: true, platform: request.Platform);
 
 
                         var body = MeetingInvitationTemplete.MeetingInvitationEmail(
@@ -1154,7 +1155,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             }
         }
 
-        public async Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync( Guid meetingId, Guid invitationId, string currentUserId, CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingInvitationDetailResponse>> ResendInvitationAsync( Guid meetingId, Guid invitationId, string currentUserId,ClientPlatform? platform=ClientPlatform.Web, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(currentUserId))
                 return Response<MeetingInvitationDetailResponse>.Failure("Unauthorized User", StatusCodes.Status401Unauthorized);
@@ -1213,6 +1214,8 @@ namespace Requra.Infrastructure.Services.MeetingService
                     var currentUser = await _context.Users.FirstOrDefaultAsync(x => x.Id == currentUserId, cancellationToken);
 
                     var subject = $"Invitation to meeting: {meeting.Title ?? "Meeting"}";
+                    var IsGuest = invitation.InviteType == InviteType.Guest;
+                    var MeetingUrl = BuildMeetingInvitationUrl(meeting.Id, invitation.InviteToken, isGuest: IsGuest, platform: platform);
 
                     var body = MeetingInvitationTemplete.MeetingInvitationEmail(
                         userName: invitation.DisplayName ?? "User",
@@ -2000,7 +2003,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             return inviteType == InviteType.Participant ? "PARTICIPANT" : "GUEST";
         }
 
-        private string BuildMeetingInvitationUrl(ClientPlatform platform,Guid meetingId,string inviteToken,bool isGuest)
+        private string BuildMeetingInvitationUrl(Guid meetingId,string inviteToken,bool isGuest, ClientPlatform? platform = ClientPlatform.Web)
         {
             if (platform == ClientPlatform.Mobile)
             {
@@ -2008,16 +2011,16 @@ namespace Requra.Infrastructure.Services.MeetingService
 
                 if (isGuest)
                 {
-                    return $"{baseUrl}/meeting/join?meetingId={meetingId}&guestToken={Uri.EscapeDataString(inviteToken)}";
+                    return $"https://requra-ai.runasp.net/meeting/join?meetingId={meetingId}&guestToken={Uri.EscapeDataString(inviteToken)}";
                 }
 
-                return $"{baseUrl}/meeting/join?meetingId={meetingId}";
+                return $"https://requra-ai.runasp.net/meeting/join?meetingId={meetingId}&Token={Uri.EscapeDataString(inviteToken)}";
             }
             else
             {
                 var baseUrl = _meetingInvitationLinkOptions.Value.WebBaseUrl.TrimEnd('/');
 
-                return $"{baseUrl}/invite/{Uri.EscapeDataString(inviteToken)}";
+                return $"http://localhost:5173/invite/{Uri.EscapeDataString(inviteToken)}";
             }
         }
     }
