@@ -166,6 +166,11 @@ namespace Requra.Infrastructure.DependencyInjection
             services.Configure<LiveKitOptions>(configuration.GetSection(LiveKitOptions.SectionName));
             services.Configure<MeetingOptions>(configuration.GetSection(MeetingOptions.SectionName));
             services.Configure<AgoraOptions>(configuration.GetSection("Agora"));
+            services.Configure<AgoraOptions>(configuration.GetSection("ProjectReviewLinks"));
+            services.Configure<AgoraOptions>(configuration.GetSection("MeetingInvitationLinks"));
+
+
+
 
             return services;
         }
