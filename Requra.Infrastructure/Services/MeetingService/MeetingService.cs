@@ -271,7 +271,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     Title = meeting.Title,
                     Description = meeting.Description,
                     Status = meeting.Status.ToString().ToUpper(),
-                    JoinUrl = $"https://app.requra.ai/meetings/{meeting.Id}/join",
+                    JoinUrl = $"https://requra-ai.runasp.net/meetings/{meeting.Id}/join",
                     CreatedById = meeting.CreatedById,
                     HostParticipantId = meeting.CreatedById, //until separate host and creator
 
@@ -1224,7 +1224,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                         meetingRole: invitation.Role.ToString().ToUpper(),
                         scheduledAt: meeting.ScheduledAt,
                         expiresAt: invitation.ExpiresAt,
-                        meetingUrl: meeting.PlatformUrl,
+                        meetingUrl: MeetingUrl,
                         invitedByName: currentUser?.FullName ?? currentUser?.UserName ?? "Requra Team",
                         meetingDescription: meeting.Description,
                         isGuest: invitation.InviteType == InviteType.Guest);
