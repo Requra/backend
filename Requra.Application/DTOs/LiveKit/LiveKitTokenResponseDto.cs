@@ -12,5 +12,6 @@ namespace Requra.Application.DTOs.LiveKit
         public string Identity { get; set; } = null!;
         public DateTime ExpiresAt { get; set; }
         public DateTime MeetingEndsAt { get; set; }
+        public string DisplayName { get; set; } = null!;
     }
 }
