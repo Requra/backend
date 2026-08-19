@@ -41,10 +41,10 @@ namespace Requra.Application.Interfaces.IMeetingService
 
 
         //LiveKit
-        Task<Response<LiveKitTokenResponseDto>> IssueTokenAsync(Guid meetingId,string callerUserId,Guid? participantId,CancellationToken cancellationToken = default);
+        Task<Response<LiveKitTokenResponseDto>> IssueTokenAsync(Guid meetingId,string? callerUserId,Guid? participantId,CancellationToken cancellationToken = default);
 
         //Agora
-        Task<Response<AgoraRtcTokenResponseDto>> IssueAgoraTokenAsync(Guid meetingId, string callerUserId, Guid? participantId, CancellationToken cancellationToken = default);
+        Task<Response<AgoraRtcTokenResponseDto>> IssueAgoraTokenAsync(Guid meetingId, string? callerUserId, Guid? participantId, CancellationToken cancellationToken = default);
     }
 
 }

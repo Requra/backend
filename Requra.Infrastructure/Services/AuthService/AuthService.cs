@@ -38,7 +38,7 @@ namespace Requra.Infrastructure.Services.AuthService
                 if (!validation.IsValid)
                 {
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                    return Response<string>.Failure("","Validation failed", 400, errors);
+                    return Response<string>.Failure("", "Validation failed", 400, errors);
                 }
 
                 //needs refactoring later
@@ -51,7 +51,7 @@ namespace Requra.Infrastructure.Services.AuthService
                         ["A user with this email is already registered."]
                     );
                 }
-                var user = new ApplicationUser(request.Email, request.Email,request.FullName,Language.En)
+                var user = new ApplicationUser(request.Email, request.Email, request.FullName, Language.En)
                 {
                     Role = request.Role
                 };
@@ -136,19 +136,19 @@ namespace Requra.Infrastructure.Services.AuthService
                 {
                     principal = await _jwtService.GetPrincipalFromExpiredToken(request.AccessToken);
                 }
-                catch (Exception ex) 
+                catch (Exception ex)
                 {
-                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto() , "Invalid access token", 401); 
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Invalid access token", 401);
                 }
 
                 var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
-                   return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(),"Invalid access token", 401);
-                
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Invalid access token", 401);
+
                 var user = await userManager.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(u => u.Id == userId);
 
                 if (user == null || !user.IsActive)
-                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(),"User not found", 404);
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "User not found", 404);
 
                 var storedToken = user.RefreshTokens.FirstOrDefault(rt => rt.Token.Trim() == request.RefreshToken.Trim());
 
@@ -194,7 +194,7 @@ namespace Requra.Infrastructure.Services.AuthService
             }
             catch (Exception)
             {
-                return Response<RefreshTokenResponseDto>.Failure($"An unexpected error occurred.",500,[]);
+                return Response<RefreshTokenResponseDto>.Failure($"An unexpected error occurred.", 500, []);
             }
         }
 
@@ -214,7 +214,7 @@ namespace Requra.Infrastructure.Services.AuthService
             if (activeToken != null)
                 return activeToken;
 
-            var newRefreshToken =  jwtService.CreateRefreshToken();
+            var newRefreshToken = jwtService.CreateRefreshToken();
 
             userFromDb.RefreshTokens.Add(newRefreshToken);
             await userManager.UpdateAsync(userFromDb);
@@ -222,7 +222,7 @@ namespace Requra.Infrastructure.Services.AuthService
             return newRefreshToken;
         }
 
-        public async Task<RefreshToken> CreateRefreshTokenForLogin(ApplicationUser user,ClientPlatform platform=ClientPlatform.Web)
+        public async Task<RefreshToken> CreateRefreshTokenForLogin(ApplicationUser user, ClientPlatform platform = ClientPlatform.Web)
         {
             var refreshToken =
                 _jwtService.CreateRefreshToken();
@@ -273,18 +273,18 @@ namespace Requra.Infrastructure.Services.AuthService
 
         public async Task<Response<LogInResponseDTO>> LoginAsync(LoginRequestDto request)
         {
-            var user =await userManager.FindByEmailAsync(request.Email);
+            var user = await userManager.FindByEmailAsync(request.Email);
 
             if (user == null)
             {
                 return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Invalid credentials", 401);
             }
 
-            var passwordValid = await userManager.CheckPasswordAsync( user, request.Password);
+            var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
 
             if (!passwordValid)
             {
-                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Invalid credentials",401);
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Invalid credentials", 401);
             }
 
             //after Carol Part for confirm email
@@ -295,18 +295,18 @@ namespace Requra.Infrastructure.Services.AuthService
             if (!user.EmailConfirmed)
                 return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Please confirm your email before logging in.", 403);
 
-            var jwt =await _jwtService.GenerateJwtToken(user);
+            var jwt = await _jwtService.GenerateJwtToken(user);
 
-            var accessToken =new JwtSecurityTokenHandler().WriteToken(jwt);
+            var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
 
-            var refreshToken =await CreateRefreshTokenForLogin(user,request.Platform);
+            var refreshToken = await CreateRefreshTokenForLogin(user, request.Platform);
 
             if (request.Platform == ClientPlatform.Web)
             {
                 SetRefreshTokenCookie(refreshToken.Token);
             }
 
-            var roles =await userManager.GetRolesAsync(user);
+            var roles = await userManager.GetRolesAsync(user);
 
             return Response<LogInResponseDTO>
                 .Success(
@@ -437,6 +437,76 @@ namespace Requra.Infrastructure.Services.AuthService
             await userManager.UpdateAsync(user);
 
             return Response<bool>.Success(true, "Password reset successfully.", 200);
+        }
+
+
+
+
+        public async Task<Response<bool>> ChangeRoleAsync(ChangeUserRoleRequestDto request)
+        {
+            var errors = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(request.UserId))
+                errors.Add("UserId is required.");
+
+            if (!Enum.IsDefined(typeof(UserRole), request.Role))
+                errors.Add("Role is invalid.");
+
+            if (errors.Any())
+            {
+                return Response<bool>.Failure(false, "Validation failed.", 400, errors);
+            }
+
+            try
+            {
+                var user = await userManager.Users
+                    .FirstOrDefaultAsync(x => x.Id == request.UserId);
+
+                if (user == null)
+                {
+                    return Response<bool>.Failure(false, "User not found.", 404);
+                }
+
+                // Update custom enum role property
+                user.Role = request.Role;
+
+                var updateResult = await userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    return Response<bool>.Failure(false, "Failed to update user role.", 500, updateResult.Errors.Select(x => x.Description).ToList());
+
+                }
+
+                // Sync identity roles
+                var currentIdentityRoles = await userManager.GetRolesAsync(user);
+                if (currentIdentityRoles.Any())
+                {
+                    var removeResult = await userManager.RemoveFromRolesAsync(user, currentIdentityRoles);
+                    if (!removeResult.Succeeded)
+                    {
+                        return Response<bool>.Failure(false, "Failed to remove existing identity roles.", 500, removeResult.Errors.Select(x => x.Description).ToList());
+                    }
+                }
+
+                var newRoleNames = RoleHelper.GetRoleNames(request.Role);
+
+                if (newRoleNames.Any())
+                {
+                    var addResult = await userManager.AddToRolesAsync(user, newRoleNames);
+                    if (!addResult.Succeeded)
+                    {
+                        return Response<bool>.Failure(false, "Failed to assign new identity roles.", 500, addResult.Errors.Select(x => x.Description).ToList());
+                    }
+                }
+
+                var finalRoles = await userManager.GetRolesAsync(user);
+
+                return Response<bool>.Success(true, "User role changed successfully.", 200);
+            }
+            catch (Exception ex)
+            {
+                return Response<bool>.Failure(false, "An unexpected error occurred while changing user role.", 500, new List<string> { ex.Message });
+            }
         }
     }
 }

@@ -16,6 +16,8 @@ namespace Requra.Application.DTOs.Auth.Login
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime TokenExpiry { get; set; }
 
+        public bool? IsNewUser {  get; set; }
+
 
 
     }

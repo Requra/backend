@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -242,8 +243,32 @@ namespace Requra.Presentation.Controllers.Auth
             var result = await authService.ResetPasswordAsync(request);
             return StatusCode(result.StatusCode, result);
         }
-    }
 
+        [Authorize]
+        [HttpPost("change-role")]
+        public async Task<IActionResult> ChangeRole([FromBody] ChangeUserRoleRequestApiDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;  
+            var requestWithUserId = new ChangeUserRoleRequestDto
+            {
+                UserId = userId,
+                Role = request.Role
+            };
+
+            var response = await authService.ChangeRoleAsync(requestWithUserId);
+
+            return response.StatusCode switch
+            {
+                200 => Ok(response),
+                400 => BadRequest(response),
+                404 => NotFound(response),
+                500 => StatusCode(StatusCodes.Status500InternalServerError, response),
+                _ => StatusCode(response.StatusCode, response)
+            };
+        }
+    }
 }
+
+
 
 

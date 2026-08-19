@@ -28,6 +28,7 @@ namespace Requra.Application.Interfaces.IAuthService
         Task<Response<bool>> ResendOtpAsync(ResendOtpRequestDto request);
         Task<Response<bool>> VerifyOtpAsync(VerifyOtpRequestDto request);
         Task<Response<bool>> ResetPasswordAsync(ResetPasswordRequestDto request);
+        Task<Response<bool>> ChangeRoleAsync(ChangeUserRoleRequestDto request);
     }
 
 
