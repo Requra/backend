@@ -23,7 +23,7 @@ namespace Requra.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[Authorize]
+    [Authorize]
     public class ProjectsController(IProjectService _projectService, ILogger<ProjectsController> _logger, IMeetingService _meetingService,IProjectReviewService _projectReviewService) : ControllerBase
     {
       

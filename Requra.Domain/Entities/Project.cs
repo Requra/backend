@@ -39,6 +39,7 @@ namespace Requra.Domain.Entities
         public ICollection<UserStory> UserStories { get; private set; } = new List<UserStory>();
         public ICollection<Requirement> Requirements { get; private set; } = new List<Requirement>();
         public ICollection<Summary> Summaries { get; private set; } = new List<Summary>();
+        public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
 
 
 

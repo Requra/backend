@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Auth.Register;
 using Requra.Application.DTOs.Project;
@@ -65,8 +66,10 @@ namespace Requra.Infrastructure.Services.ProjectService
                 var mapped = await query
                     .ProjectTo<ProjectDTO>(_mapper.ConfigurationProvider)
                     .ToListAsync();
-
-                return mapped.Any() ? Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO> { Items = mapped, TotalCount = totalCount, PageNumber = filter.PageNumber, PageSize = filter.PageSize }, "Projects Fetched Successfully", 200)
+                var totalPages = totalCount == 0
+                        ? 0
+                        : (int)Math.Ceiling(totalCount / (double)filter.PageSize);
+                return mapped.Any() ? Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO> { Items = mapped, TotalCount = totalCount, PageNumber = filter.PageNumber, PageSize = filter.PageSize, TotalPages = totalPages }, "Projects Fetched Successfully", 200)
                 : Response<PagedResult<ProjectDTO>>.Success(new PagedResult<ProjectDTO>(), "No projects found", 204);
 
             }
