@@ -17,10 +17,7 @@ namespace Requra.Application.Interfaces.IAuthService
     {
         Task<Response<string>> RegisterAsync(RegisterRequestDto request);
         Task<Response<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto refreshTokenRequest);
-
         Task<Response<LogInResponseDTO>> LoginAsync(LoginRequestDto request);
-        Task<RefreshToken> GetOrCreateRefreshToken(ApplicationUser user);
-        Task<RefreshToken> CreateRefreshTokenForLogin(ApplicationUser user, ClientPlatform platform = ClientPlatform.Web);
         Task<Response<string>> LogoutAsync(string userId);
 
         Task<Response<string>> ConfirmAccountAsync(ConfirmAccountRequestDto request);
@@ -28,6 +25,7 @@ namespace Requra.Application.Interfaces.IAuthService
         Task<Response<bool>> ResendOtpAsync(ResendOtpRequestDto request);
         Task<Response<bool>> VerifyOtpAsync(VerifyOtpRequestDto request);
         Task<Response<bool>> ResetPasswordAsync(ResetPasswordRequestDto request);
+        Task<Response<bool>> ChangeRoleAsync(ChangeUserRoleRequestDto request);
     }
 
 

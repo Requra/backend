@@ -23,59 +23,80 @@ namespace Requra.Infrastructure.ExternalServices.ExternalAuth
 {
     public class GoogleAuthService(IConfiguration configuration, IServiceScopeFactory serviceScopeFactory, IAuthService authService, IHttpContextAccessor httpContextAccessor) : IGoogleAuthService
     {
-        public async Task<Response<LogInResponseDTO>> GoogleLogin(string googleToken,string platform="web")
+        public async Task<Response<LogInResponseDTO>> GoogleLogin(string googleToken, string platform = "web")
         {
             var payload = await VerifyGoogleToken(googleToken);
             if (payload == null)
             {
-                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "UnAuthorized User", 401);
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"UnAuthorized User",401);
             }
+
             if (!payload.EmailVerified)
-                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Google email is not verified", 401);
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Google email is not verified",401);
+            }
 
             using var scope = serviceScopeFactory.CreateScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var jwtService = scope.ServiceProvider.GetRequiredService<IJwtTokenService>();
 
             var user = await userManager.FindByEmailAsync(payload.Email);
+            var isNewUser = user == null;
+
             if (user == null)
             {
                 string fullName = $"{payload.GivenName} {payload.FamilyName}".Trim();
                 if (string.IsNullOrEmpty(fullName))
                     fullName = payload.Email.Split('@')[0];
+
                 user = new ApplicationUser(payload.Email, payload.Email, fullName, Language.En, payload.Picture)
                 {
                     EmailConfirmed = true
                 };
 
-                await userManager.CreateAsync(user);
-                await EnsureUserHasRoleAsync(userManager, user, "Stakeholder");
+                var createResult = await userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                {
+                    return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Failed to create user account",500,createResult.Errors.Select(e => e.Description).ToList());
+                }
+
+                var existingRoles = await userManager.GetRolesAsync(user);
+                if (!existingRoles.Any())
+                {
+                    await userManager.AddToRoleAsync(user, "Stakeholder");
+                }
             }
             else
             {
                 bool needsUpdate = false;
 
-                if (string.IsNullOrEmpty(user.AvatarUrl)
-                    && !string.IsNullOrEmpty(payload.Picture))
+                if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(payload.Picture))
                 {
                     user.UpdateProfile(user.FullName, user.PreferredLanguage, payload.Picture);
                     needsUpdate = true;
                 }
 
                 if (needsUpdate)
+                {
                     await userManager.UpdateAsync(user);
+                }
 
-                await EnsureUserHasRoleAsync(userManager, user, "Stakeholder");
+                // Keep existing roles unchanged.
+                var existingRoles = await userManager.GetRolesAsync(user);
+
+                // Optional fallback if user somehow has no identity role at all
+                if (!existingRoles.Any())
+                {
+                    await userManager.AddToRoleAsync(user, "Stakeholder");
+                }
             }
 
             var userRoles = await userManager.GetRolesAsync(user);
-            var jwtToken = await jwtService.GenerateJwtToken(user);
-            var generatedToken = new JwtSecurityTokenHandler().WriteToken(jwtToken);
-            var tokenExpiry = jwtToken.ValidTo;
+            var jwtToken = await jwtService.GenerateAccessTokenAsync(user);
+            //var generatedToken = new JwtSecurityTokenHandler().WriteToken(jwtToken);
+           // var tokenExpiry = jwtToken.ValidTo;
 
-           
-
-            var refreshToken = await authService.GetOrCreateRefreshToken(user);
+            var refreshToken = jwtService.CreateRefreshToken();
             SetRefreshTokenCookie(refreshToken.Token, platform);
 
             var userData = new LogInResponseDTO()
@@ -85,17 +106,15 @@ namespace Requra.Infrastructure.ExternalServices.ExternalAuth
                 ProfilePicture = user.AvatarUrl,
                 Roles = userRoles.ToList(),
                 IsAuthenticated = true,
-                Token = generatedToken,
-                TokenExpiry = tokenExpiry,
-                RefreshToken = platform is "android" or "ios"
-               ? refreshToken.Token
-               : string.Empty,
-
+                Token = jwtToken,
+                TokenExpiry = refreshToken.ExpiresOn,
+                RefreshToken = refreshToken.Token,
+                    
+                IsNewUser = isNewUser
             };
 
             return Response<LogInResponseDTO>.Success(userData, "Login Successfully", 200);
         }
-
         private async Task<GoogleJsonWebSignature.Payload> VerifyGoogleToken(string token)
         {
 
@@ -126,13 +145,14 @@ namespace Requra.Infrastructure.ExternalServices.ExternalAuth
             httpContextAccessor.HttpContext!.Response.Cookies
                 .Append("secure_rtk", refreshToken, cookieOptions);
         }
-        private static async Task EnsureUserHasRoleAsync(UserManager<ApplicationUser> userManager,ApplicationUser user,string roleName)
+        private static async Task EnsureUserHasAnyRoleAsync(UserManager<ApplicationUser> userManager,ApplicationUser user,string defaultRoleName)
         {
-            var hasRole = await userManager.IsInRoleAsync(user, roleName);
-            if (!hasRole)
-                await userManager.AddToRoleAsync(user, roleName);
+            var roles = await userManager.GetRolesAsync(user);
+            if (!roles.Any())
+            {
+                await userManager.AddToRoleAsync(user, defaultRoleName);
+            }
         }
-
 
     }
 }

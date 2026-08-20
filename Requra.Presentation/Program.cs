@@ -129,7 +129,7 @@ namespace Requra.Presentation
             app.UseRouting();
             app.UseCors("AllowAll");
             app.UseHttpsRedirection();
-            app.UseAuthorization();
+            app.UseAuthentication();
             app.UseAuthorization();
             app.UseStaticFiles();
 

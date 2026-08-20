@@ -9,13 +9,10 @@ namespace Requra.Infrastructure.ExternalInterfaces.IJwtTokenService
 {
     public interface IJwtTokenService
     {
-      Task<string> GenerateTokenAsync(ApplicationUser user);
-      public Task<string> GenerateRefreshToken();
-      public Task<ClaimsPrincipal?> GetPrincipalFromExpiredToken(string token);
 
-
-        Task<JwtSecurityToken> GenerateJwtToken(ApplicationUser User);
+        Task<ClaimsPrincipal?> GetPrincipalFromExpiredToken(string token);
         RefreshToken CreateRefreshToken();
+        Task<string> GenerateAccessTokenAsync(ApplicationUser user);
 
 
     }
