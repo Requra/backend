@@ -92,11 +92,11 @@ namespace Requra.Infrastructure.ExternalServices.ExternalAuth
             }
 
             var userRoles = await userManager.GetRolesAsync(user);
-            var jwtToken = await jwtService.GenerateJwtToken(user);
-            var generatedToken = new JwtSecurityTokenHandler().WriteToken(jwtToken);
-            var tokenExpiry = jwtToken.ValidTo;
+            var jwtToken = await jwtService.GenerateAccessTokenAsync(user);
+            //var generatedToken = new JwtSecurityTokenHandler().WriteToken(jwtToken);
+           // var tokenExpiry = jwtToken.ValidTo;
 
-            var refreshToken = await authService.GetOrCreateRefreshToken(user);
+            var refreshToken = jwtService.CreateRefreshToken();
             SetRefreshTokenCookie(refreshToken.Token, platform);
 
             var userData = new LogInResponseDTO()
@@ -106,11 +106,10 @@ namespace Requra.Infrastructure.ExternalServices.ExternalAuth
                 ProfilePicture = user.AvatarUrl,
                 Roles = userRoles.ToList(),
                 IsAuthenticated = true,
-                Token = generatedToken,
-                TokenExpiry = tokenExpiry,
-                RefreshToken = platform is "android" or "ios"
-                    ? refreshToken.Token
-                    : string.Empty,
+                Token = jwtToken,
+                TokenExpiry = refreshToken.ExpiresOn,
+                RefreshToken = refreshToken.Token,
+                    
                 IsNewUser = isNewUser
             };
 

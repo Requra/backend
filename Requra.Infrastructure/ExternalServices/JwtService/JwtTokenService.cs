@@ -9,55 +9,91 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace Requra.Infrastructure.Services.JWTService
 {
-    internal class JwtTokenService(IConfiguration config, UserManager<ApplicationUser> userManager) : IJwtTokenService
+    internal class JwtTokenService(IConfiguration _config, UserManager<ApplicationUser> _userManager) : IJwtTokenService
     {
-        public async Task<string> GenerateTokenAsync(ApplicationUser user)
+
+        public async Task<string> GenerateAccessTokenAsync(ApplicationUser user)
         {
+            ArgumentNullException.ThrowIfNull(user);
+
+            var key = GetSigningKey();
+            var issuer = GetRequiredConfig("JWT:Issuer");
+            var audience = GetRequiredConfig("JWT:Audience");
+            var expiryMinutes = GetPositiveIntConfig("JWT:DurationInMinutes");
+
+            var roles = await _userManager.GetRolesAsync(user);
+
             var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Id),
-            new(JwtRegisteredClaimNames.Email, user.Email!),
-            new(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.FullName ?? user.UserName ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? user.Email ?? string.Empty)
         };
 
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(config["JWT:Key"]!)
-            );
-            
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiryMinutes = int.Parse(config["Jwt:DurationInMinutes"]!);
+            foreach (var role in roles.Distinct())
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var now = DateTime.UtcNow;
+
             var token = new JwtSecurityToken(
-                issuer: config["JWT:Issuer"],
-                audience: config["JWT:Audience"],
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
-                signingCredentials: creds
+                notBefore: now,
+                expires: now.AddMinutes(expiryMinutes),
+                signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-        public async Task<string> GenerateRefreshToken()
+
+        public RefreshToken CreateRefreshToken()
         {
-            var randNumber = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randNumber);
-            return Convert.ToBase64String(randNumber);
+            var refreshTokenDays = GetPositiveIntConfig("JWT:RefreshTokenDurationInDays");
+
+            var randomNumber = new byte[64];
+            RandomNumberGenerator.Fill(randomNumber);
+
+            return new RefreshToken
+            {
+                Token = Convert.ToBase64String(randomNumber),
+                CreatedOn = DateTime.UtcNow,
+                ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
+            };
         }
 
-        public async Task<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token)
+        public Task<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token)
         {
-            var tokenParameters = new TokenValidationParameters
+            if (string.IsNullOrWhiteSpace(token))
             {
-                ValidateAudience = false,
-                ValidateIssuer = false,
+                throw new SecurityTokenException("Access token is required.");
+            }
+
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = GetRequiredConfig("JWT:Issuer"),
+
+                ValidateAudience = true,
+                ValidAudience = GetRequiredConfig("JWT:Audience"),
+
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(config["JWT:Key"]!)
-                ),
-                ValidateLifetime = false 
+                IssuerSigningKey = GetSigningKey(),
+
+                ValidateLifetime = false,
+                ClockSkew = TimeSpan.Zero,
+
+                RequireSignedTokens = true,
+                RequireExpirationTime = true
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -66,72 +102,84 @@ namespace Requra.Infrastructure.Services.JWTService
             {
                 var principal = tokenHandler.ValidateToken(
                     token,
-                    tokenParameters,
+                    tokenValidationParameters,
                     out SecurityToken securityToken
                 );
 
-                if (securityToken is not JwtSecurityToken jwtToken ||
-                    !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                if (securityToken is not JwtSecurityToken jwtToken)
                 {
-                    throw new SecurityTokenException("Invalid token algorithm");
+                    throw new SecurityTokenException("Invalid access token.");
                 }
 
-                return principal;
+                if (!string.Equals(
+                        jwtToken.Header.Alg,
+                        SecurityAlgorithms.HmacSha256,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new SecurityTokenException("Invalid token algorithm.");
+                }
+
+                return Task.FromResult(principal);
+            }
+            catch (SecurityTokenExpiredException)
+            {
+                // This is acceptable here because refresh flow validates expired tokens.
+                throw;
             }
             catch (SecurityTokenInvalidSignatureException)
             {
-                throw new SecurityTokenException("Invalid signature");
+                throw new SecurityTokenException("Invalid token signature.");
+            }
+            catch (SecurityTokenInvalidIssuerException)
+            {
+                throw new SecurityTokenException("Invalid token issuer.");
+            }
+            catch (SecurityTokenInvalidAudienceException)
+            {
+                throw new SecurityTokenException("Invalid token audience.");
             }
             catch (SecurityTokenMalformedException)
             {
-                throw new SecurityTokenException("Malformed token");
+                throw new SecurityTokenException("Malformed token.");
+            }
+            catch (SecurityTokenException)
+            {
+                throw;
             }
             catch (Exception)
             {
-                throw new SecurityTokenException("Invalid access token");
+                throw new SecurityTokenException("Invalid access token.");
             }
-     
         }
 
-
-        public async Task<JwtSecurityToken> GenerateJwtToken(ApplicationUser User)
+        private SymmetricSecurityKey GetSigningKey()
         {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, User.UserName),
-                new Claim(ClaimTypes.NameIdentifier, User.Id),
-                new Claim(JwtRegisteredClaimNames.Sub, User.UserName),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Email,User.Email),
-                new Claim("uid", User.Id)
-            };
-            var roles = await userManager.GetRolesAsync(User);
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-            SecurityKey Key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JWT:Key"]));
-            SigningCredentials signingCred = new SigningCredentials(Key, SecurityAlgorithms.HmacSha256);
-            var Token = new JwtSecurityToken(
-                issuer: config["JWT:issuer"],
-                audience: config["JWT:audience"],
-                claims: claims,
-                signingCredentials: signingCred,
-                expires: DateTime.UtcNow.AddDays(1)
-                );
-            return Token;
+            var key = GetRequiredConfig("JWT:Key");
+            return new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
         }
-        public RefreshToken CreateRefreshToken()
-        {
-            var randomNumber = new byte[32];
-            RandomNumberGenerator.Fill(randomNumber);
 
-            return new RefreshToken
+        private string GetRequiredConfig(string key)
+        {
+            var value = _config[key];
+
+            if (string.IsNullOrWhiteSpace(value))
             {
-                Token = Convert.ToBase64String(randomNumber),
-                ExpiresOn = DateTime.UtcNow.AddDays(10),
-                CreatedOn = DateTime.UtcNow
-            };
+                throw new InvalidOperationException($"Missing JWT configuration value: '{key}'.");
+            }
+
+            return value;
+        }
+
+        private int GetPositiveIntConfig(string key)
+        {
+            var value = _config.GetValue<int?>(key);
+
+            if (!value.HasValue || value.Value <= 0)
+            {
+                throw new InvalidOperationException($"Invalid JWT configuration value: '{key}'.");
+            }
+
+            return value.Value;
         }
 
 
