@@ -37,6 +37,7 @@ namespace Requra.Presentation.Controllers.Auth
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("logout")]
+        [Authorize]
         public async Task<IActionResult> Logout()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
