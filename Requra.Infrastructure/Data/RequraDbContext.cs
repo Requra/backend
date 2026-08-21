@@ -17,7 +17,36 @@ namespace Requra.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            
+            builder.Entity<UserSubscription>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.HasIndex(x => x.UserId).IsUnique();
+                entity.HasIndex(x => x.StripeCustomerId).IsUnique();
+                entity.HasIndex(x => x.StripeSubscriptionId).IsUnique();
+
+                entity.Property(x => x.StripeCustomerId).HasMaxLength(200);
+                entity.Property(x => x.StripeSubscriptionId).HasMaxLength(200);
+                entity.Property(x => x.StripeProductId).HasMaxLength(200);
+                entity.Property(x => x.StripePriceId).HasMaxLength(200);
+                entity.Property(x => x.StripeCheckoutSessionId).HasMaxLength(200);
+
+                entity.HasOne(x => x.User)
+                    .WithOne()
+                    .HasForeignKey<UserSubscription>(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<StripeWebhookEvent>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.HasIndex(x => x.StripeEventId).IsUnique();
+
+                entity.Property(x => x.StripeEventId).HasMaxLength(200);
+                entity.Property(x => x.EventType).HasMaxLength(200);
+                entity.Property(x => x.PayloadJson).HasColumnType("nvarchar(max)");
+            });
+
             builder.ApplyConfigurationsFromAssembly(typeof(RequraDbContext).Assembly);
 
             base.OnModelCreating(builder);
@@ -47,6 +76,9 @@ namespace Requra.Infrastructure.Data
         public DbSet<ProjectReviewInvitation> ProjectReviewInvitations { get; set; }
         //new tablefor idempotency records
         public DbSet<IdempotencyRecord> IdempotencyRecords { get; set; }
+
+        public DbSet<UserSubscription> UserSubscriptions { get; set; }
+        public DbSet<StripeWebhookEvent> StripeWebhookEvents {  get; set; }
 
 
 

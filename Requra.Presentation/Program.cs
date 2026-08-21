@@ -12,6 +12,7 @@ using Requra.Infrastructure.DependencyInjection;
 using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Validations;
+using Stripe;
 using System.Text.Json.Serialization;
 
 namespace Requra.Presentation
@@ -45,7 +46,7 @@ namespace Requra.Presentation
             builder.Services.AddValidatorsFromAssemblyContaining<UploadAvatarDtoValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileDtoValidator>();
 
-
+            StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
             //builder.Services.AddOpenApi();
             //builder.Services.AddEndpointsApiExplorer();
