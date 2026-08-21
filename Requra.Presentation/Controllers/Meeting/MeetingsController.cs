@@ -317,7 +317,6 @@ namespace Requra.Presentation.Controllers.Meeting
                 _ => StatusCode(response.StatusCode, response)
             };
         }
-        [Authorize]
         [HttpPost("{meetingId:guid}/participants/{participantId:guid}/consent")]
         public async Task<IActionResult> SaveConsent([FromRoute] Guid meetingId, [FromRoute] Guid participantId, [FromBody] SaveConsentApiRequest request, CancellationToken cancellationToken)
         {
@@ -415,7 +414,7 @@ namespace Requra.Presentation.Controllers.Meeting
 
             var callerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var result = await _meetingService.IssueTokenAsync(meetingId, callerUserId!, request?.ParticipantId, cancellationToken);
+            var result = await _meetingService.IssueTokenAsync(meetingId, callerUserId, request?.ParticipantId, cancellationToken);
 
             return result.StatusCode switch
             {

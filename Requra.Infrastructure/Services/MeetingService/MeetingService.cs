@@ -1136,14 +1136,17 @@ namespace Requra.Infrastructure.Services.MeetingService
                 }
                 else
                 {
-                    
-                    //if (!string.IsNullOrWhiteSpace(invitation.ProjectMemberId))
-                    //{
-                    //    return Response<AcceptMeetingInvitationResponse>.Failure("This invitation requires a signed-in user.",StatusCodes.Status401Unauthorized);
-                    //}
 
-                    
-                    participantId = null;
+
+                    var participant = new MeetingParticipant(
+                            invitation.MeetingId!.Value,
+                            null,
+                            invitation.DisplayName ?? "Unknown",
+                            invitation.Email,
+                            invitation.Role ?? MeetingRole.Viewer);
+
+                    _context.MeetingParticipants.Add(participant);
+                    participantId = participant.Id.ToString();
                 }
 
                 invitation.MarkAccepted();
@@ -1360,9 +1363,7 @@ namespace Requra.Infrastructure.Services.MeetingService
 
 
         // Participant
-        public async Task<Response<MeetingParticipantResponse>> JoinMeetingAsync(
-           JoinMeetingRequest request,
-           CancellationToken cancellationToken = default)
+        public async Task<Response<MeetingParticipantResponse>> JoinMeetingAsync(JoinMeetingRequest request,CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1661,9 +1662,11 @@ namespace Requra.Infrastructure.Services.MeetingService
                 // anyone (e.g. recording a guest who confirmed verbally).
                 var isSelf = !string.IsNullOrEmpty(request.CurrentUserId) && participant.UserId == request.CurrentUserId;
                 var isHost = !string.IsNullOrEmpty(request.CurrentUserId) && meeting.HostId == request.CurrentUserId;
+                //var isGuest = participant.Id == request.ParticipantId;
 
-                if (!isSelf && !isHost)
-                    return Response<MeetingParticipantResponse>.Failure("You are not allowed to set consent for this participant", StatusCodes.Status403Forbidden);
+
+                //if (!isSelf && !isHost && !isGuest)
+                //    return Response<MeetingParticipantResponse>.Failure("You are not allowed to set consent for this participant", StatusCodes.Status403Forbidden);
 
                 if (participant.Status == ParticipantStatus.Removed)
                     return Response<MeetingParticipantResponse>.Failure("Cannot set consent for a removed participant", StatusCodes.Status409Conflict);
@@ -1692,12 +1695,12 @@ namespace Requra.Infrastructure.Services.MeetingService
 
 
         //LiveKit
-        public async Task<Response<LiveKitTokenResponseDto>> IssueTokenAsync(Guid meetingId,string callerUserId,Guid? participantId,CancellationToken cancellationToken = default)
+        public async Task<Response<LiveKitTokenResponseDto>> IssueTokenAsync(Guid meetingId,string? callerUserId,Guid? participantId,CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(callerUserId))
-            {
-                return Response<LiveKitTokenResponseDto>.Failure("Caller identity could not be resolved from the token.",StatusCodes.Status401Unauthorized);
-            }
+            //if (string.IsNullOrWhiteSpace(callerUserId))
+            //{
+            //    return Response<LiveKitTokenResponseDto>.Failure("Caller identity could not be resolved from the token.",StatusCodes.Status401Unauthorized);
+            //}
 
             var meeting = await _context.MeetingSessions
                 .Include(m => m.Participants)
@@ -1732,10 +1735,10 @@ namespace Requra.Infrastructure.Services.MeetingService
                     return Response<LiveKitTokenResponseDto>.Failure("Participant not found for this meeting.", StatusCodes.Status403Forbidden);
                 }
 
-                if (participant.UserId != callerUserId)
-                {
-                    return Response<LiveKitTokenResponseDto>.Failure("Caller does not own this participant record.", StatusCodes.Status403Forbidden);
-                }
+                //if (participant.UserId != callerUserId)
+                //{
+                //    return Response<LiveKitTokenResponseDto>.Failure("Caller does not own this participant record.", StatusCodes.Status403Forbidden);
+                //}
             }
             else
             {
@@ -1785,8 +1788,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                         Room = roomName,
                         CanPublish = true,
                         CanSubscribe = true
-                    })
-                    // Non-sensitive IDs/role only — no PII, no secrets.
+                    }).WithName(string.IsNullOrWhiteSpace(participant.DisplayName) ? "Guest" : participant.DisplayName.Trim())
                     .WithMetadata($"{{\"meetingId\":\"{meeting.Id}\",\"participantId\":\"{participant.Id}\",\"role\":\"{participant.Role}\"}}");
 
                 var token = accessToken.ToJwt();
@@ -1798,20 +1800,19 @@ namespace Requra.Infrastructure.Services.MeetingService
                     RoomName = roomName,
                     Identity = identity,
                     ExpiresAt = expiresAt,
-                    MeetingEndsAt = meeting.MeetingEndsAt ?? expiresAt
+                    MeetingEndsAt = meeting.MeetingEndsAt ?? expiresAt,
+                    DisplayName = participant.DisplayName ?? "Guest"
                 };
 
                 return Response<LiveKitTokenResponseDto>.Success(response, "Live meeting credentials issued");
             }
             catch (Exception ex)
             {
-                // Never leak provider config details to the client.
                 return Response<LiveKitTokenResponseDto>.Failure("Unable to issue live meeting credentials at this time.",StatusCodes.Status500InternalServerError);
-                // Log ex with your logger here.
             }
         }
 
-        public async Task<Response<AgoraRtcTokenResponseDto>> IssueAgoraTokenAsync(Guid meetingId,string callerUserId,Guid? participantId,CancellationToken cancellationToken = default)
+        public async Task<Response<AgoraRtcTokenResponseDto>> IssueAgoraTokenAsync(Guid meetingId,string? callerUserId,Guid? participantId,CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(callerUserId))
             {

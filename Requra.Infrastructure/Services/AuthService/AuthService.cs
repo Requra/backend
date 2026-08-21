@@ -20,7 +20,10 @@ using Requra.Infrastructure.Services.JWTService;
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Security.Principal;
+using System.Text;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace Requra.Infrastructure.Services.AuthService
 {
@@ -38,33 +41,26 @@ namespace Requra.Infrastructure.Services.AuthService
                 if (!validation.IsValid)
                 {
                     var errors = validation.Errors.Select(e => e.ErrorMessage).ToList();
-                    return Response<string>.Failure("","Validation failed", 400, errors);
+                    return Response<string>.Failure("", "Validation failed", 400, errors);
                 }
 
                 //needs refactoring later
                 var existingUser = await userManager.FindByEmailAsync(request.Email);
                 if (existingUser != null && existingUser.IsActive)  //Instead of Reregistering the user, we can REACTIVATE the user later
                 {
-                    return Response<string>.Failure("",
-                        "Email already exists",
-                        400,
-                        ["A user with this email is already registered."]
-                    );
+                    return Response<string>.Failure("","Email already exists",400,["A user with this email is already registered."]);
                 }
-                var user = new ApplicationUser(request.Email, request.Email,request.FullName,Language.En)
+                var user = new ApplicationUser(request.Email, request.Email, request.FullName, Language.En)
                 {
-                    Role = request.Role
+                    Role = request.Role,
+                   
                 };
 
                 var result = await userManager.CreateAsync(user, request.Password);
 
                 if (!result.Succeeded)
                 {
-                    return Response<string>.Failure("",
-                        "Validation failed",
-                        400,
-                        result.Errors.Select(e => e.Description).ToList()
-                    );
+                    return Response<string>.Failure("","Validation failed",400,result.Errors.Select(e => e.Description).ToList());
                 }
 
                 var roleNames = RoleHelper.GetRoleNames(request.Role);
@@ -75,52 +71,48 @@ namespace Requra.Infrastructure.Services.AuthService
                 if (!roleResult.Succeeded)
                 {
                     await userManager.DeleteAsync(user);
-                    return Response<string>.Failure(
-                        "",
-                        "Failed to assign role",
-                        400,
-                        roleResult.Errors.Select(e => e.Description).ToList()
+                    return Response<string>.Failure("","Failed to assign role",400,roleResult.Errors.Select(e => e.Description).ToList()
                     );
                 }
 
-                //---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
-                var newAccessToken = await _jwtService.GenerateTokenAsync(user);
-                var newRefreshToken = await _jwtService.GenerateRefreshToken();
-                var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
+                ////---------Needed Only When Debugging Refresh Token Endpoint Until Login Endpoint Created------
+                //var newAccessToken = await _jwtService.GenerateTokenAsync(user);
+                //var newRefreshToken = await _jwtService.GenerateRefreshToken();
+                //var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
 
-                user.RefreshTokens.Add(new RefreshToken
-                {
-                    Token = newRefreshToken,
-                    CreatedOn = DateTime.UtcNow,
-                    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
-                });
-                var updateResult = await userManager.UpdateAsync(user);
+                //user.RefreshTokens.Add(new RefreshToken
+                //{
+                //    Token = newRefreshToken,
+                //    CreatedOn = DateTime.UtcNow,
+                //    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
+                //});
+                //var updateResult = await userManager.UpdateAsync(user);
 
-                Console.WriteLine(newRefreshToken);
-                Console.WriteLine(newAccessToken);
-                ////---------------------------------------
+                //Console.WriteLine(newRefreshToken);
+                //Console.WriteLine(newAccessToken);
+                //////---------------------------------------
 
-                // await _emailService.SendOtpAsync(user.Email);
+                //// await _emailService.SendOtpAsync(user.Email);
                 await otpService.GenerateAndSendAsync(user, OtpPurpose.EmailConfirmation);
 
                 return Response<string>.Success("Done successfully", "User registered successfully", 201);
             }
             catch (Exception ex)
             {
-                return Response<string>.Failure(
-                    "",
-                    $"An unexpected error occurred.",
-                    500,
-                    []
+                return Response<string>.Failure("",$"An unexpected error occurred.",500,[]
                 );
             }
         }
-
         public async Task<Response<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto request)
         {
 
             try
             {
+                if (string.IsNullOrWhiteSpace(request.RefreshToken))
+                {
+                    request.RefreshToken = httpContextAccessor.HttpContext?
+                        .Request.Cookies["secure_rtk"] ?? string.Empty;
+                }
                 //Validation Handeled Here only For Now due To Problem In Auto Validation.
                 var validation = await refreshTokenValidator.ValidateAsync(request);
 
@@ -136,19 +128,19 @@ namespace Requra.Infrastructure.Services.AuthService
                 {
                     principal = await _jwtService.GetPrincipalFromExpiredToken(request.AccessToken);
                 }
-                catch (Exception ex) 
+                catch (Exception ex)
                 {
-                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto() , "Invalid access token", 401); 
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Invalid access token", 401);
                 }
 
                 var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
-                   return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(),"Invalid access token", 401);
-                
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Invalid access token", 401);
+
                 var user = await userManager.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(u => u.Id == userId);
 
                 if (user == null || !user.IsActive)
-                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(),"User not found", 404);
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "User not found", 404);
 
                 var storedToken = user.RefreshTokens.FirstOrDefault(rt => rt.Token.Trim() == request.RefreshToken.Trim());
 
@@ -156,36 +148,41 @@ namespace Requra.Infrastructure.Services.AuthService
                     return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Invalid refresh token", 401);
 
                 storedToken.RevokedOn = DateTime.UtcNow;
-                var newAccessToken = await _jwtService.GenerateTokenAsync(user);
-                var newRefreshToken = await _jwtService.GenerateRefreshToken();
-                var refreshTokenDays = config.GetValue<int>("JWT:RefreshTokenDurationInDays");
 
-                user.RefreshTokens.Add(new RefreshToken
-                {
-                    Token = newRefreshToken,
-                    CreatedOn = DateTime.UtcNow,
-                    ExpiresOn = DateTime.UtcNow.AddDays(refreshTokenDays)
-                });
+
+
+                var newRefreshToken = _jwtService.CreateRefreshToken();
+                user.RefreshTokens.Add(newRefreshToken);
+
+                var newAccessToken = await _jwtService.GenerateAccessTokenAsync(user);
+
                 var updateResult = await userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                    return Response<RefreshTokenResponseDto>.Failure(new RefreshTokenResponseDto(), "Failed to update refresh token", 500);
+
+                var currentCookieRefreshToken = httpContextAccessor.HttpContext?.Request.Cookies["secure_rtk"];
+                if (!string.IsNullOrWhiteSpace(currentCookieRefreshToken))
+                {
+                    SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresOn);
+                }
+
+
+                var roles = await userManager.GetRolesAsync(user); ;
 
                 if (!updateResult.Succeeded)
                 {
-                    return Response<RefreshTokenResponseDto>.Failure(
-                        "Failed to update user refresh token",
-                        500,
-                        []
-                    );
+                    return Response<RefreshTokenResponseDto>.Failure("Failed to update user refresh token",500,[]);
                 }
 
-                var roles = await userManager.GetRolesAsync(user);
 
                 var data = new RefreshTokenResponseDto
                 {
                     UserId = user.Id,
-                    Name = user.UserName,
+                    Name = user.FullName,
                     IsAuthenticated = true,
                     Token = newAccessToken,
-                    RefreshToken = newRefreshToken,
+                    RefreshToken =newRefreshToken.Token,
+                    
                     Roles = roles.ToList(),
                     ProfilePicture = user.AvatarUrl
                 };
@@ -194,54 +191,71 @@ namespace Requra.Infrastructure.Services.AuthService
             }
             catch (Exception)
             {
-                return Response<RefreshTokenResponseDto>.Failure($"An unexpected error occurred.",500,[]);
+                return Response<RefreshTokenResponseDto>.Failure($"An unexpected error occurred.", 500, []);
             }
         }
-
-
-        public async Task<RefreshToken> GetOrCreateRefreshToken(ApplicationUser user)
+        public async Task<Response<LogInResponseDTO>> LoginAsync(LoginRequestDto request)
         {
-            using var scope = serviceScopeFactory.CreateScope();
-            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            var jwtService = scope.ServiceProvider.GetRequiredService<IJwtTokenService>();
+            var user = await userManager.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            var userFromDb = await userManager.FindByIdAsync(user.Id);
+            if (user == null )
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Invalid credentials", 401);
+            }
 
-            if (userFromDb == null)
-                throw new Exception("User not found in database");
+            if (!user.IsActive)
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Your account is inactive.",403);
+            }
 
-            var activeToken = userFromDb.RefreshTokens.FirstOrDefault(t => t.IsActive);
-            if (activeToken != null)
-                return activeToken;
 
-            var newRefreshToken =  jwtService.CreateRefreshToken();
+            var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
 
-            userFromDb.RefreshTokens.Add(newRefreshToken);
-            await userManager.UpdateAsync(userFromDb);
+            if (!passwordValid)
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Invalid credentials", 401);
+            }
 
-            return newRefreshToken;
-        }
+            if (!user.EmailConfirmed)
+            {
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Please confirm your email before logging in.", 403);
+            }
 
-        public async Task<RefreshToken> CreateRefreshTokenForLogin(ApplicationUser user,ClientPlatform platform=ClientPlatform.Web)
-        {
-            var refreshToken =
-                _jwtService.CreateRefreshToken();
-
-            //refreshToken.Platform =
-            //    platform.ToString();
-
+            var accessToken = await _jwtService.GenerateAccessTokenAsync(user);
+            var refreshToken = _jwtService.CreateRefreshToken();
             user.RefreshTokens.Add(refreshToken);
 
-            var result =
-                await userManager.UpdateAsync(user);
-
+            var result = await userManager.UpdateAsync(user);
             if (!result.Succeeded)
-                throw new Exception(
-                    "Unable to save refresh token");
+                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Failed to create refresh token", 500);
 
-            return refreshToken;
+
+
+            if (request.Platform == ClientPlatform.Web)
+            {
+                SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresOn);
+            }
+
+            var roles = await userManager.GetRolesAsync(user);
+
+            return Response<LogInResponseDTO>
+                .Success(
+                    new LogInResponseDTO
+                    {
+                        UserId = user.Id,
+                        Name = user.FullName,
+                        ProfilePicture = user.AvatarUrl,
+                        Roles = roles.ToList(),
+                        Token = accessToken,
+                        TokenExpiry = GetAccessTokenExpiryUtc() ,
+                        IsAuthenticated = true,
+
+                        RefreshToken = refreshToken.Token
+
+                    },
+                    "Login successful",
+                    200);
         }
-
 
         public async Task<Response<string>> LogoutAsync(string userId)
         {
@@ -255,12 +269,19 @@ namespace Requra.Infrastructure.Services.AuthService
                 if (user == null || !user.IsActive)
                     return Response<string>.Failure("", "User not found", 404);
 
-                foreach (var token in user.RefreshTokens)
+                foreach (var token in user.RefreshTokens.Where(t => t.IsActive))
                 {
                     token.RevokedOn = DateTime.UtcNow;
                 }
 
-                await userManager.UpdateAsync(user);
+                var updateResult = await userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    return Response<string>.Failure("","Failed to logout user",500,updateResult.Errors.Select(e => e.Description).ToList()
+                    );
+                }
+
+                DeleteRefreshTokenCookie();
 
                 return Response<string>.Success("Done", "Logged out successfully", 200);
             }
@@ -271,78 +292,8 @@ namespace Requra.Infrastructure.Services.AuthService
 
         }
 
-        public async Task<Response<LogInResponseDTO>> LoginAsync(LoginRequestDto request)
-        {
-            var user =await userManager.FindByEmailAsync(request.Email);
 
-            if (user == null)
-            {
-                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Invalid credentials", 401);
-            }
-
-            var passwordValid = await userManager.CheckPasswordAsync( user, request.Password);
-
-            if (!passwordValid)
-            {
-                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Invalid credentials",401);
-            }
-
-            //after Carol Part for confirm email
-            //if (!user.EmailConfirmed)
-            //{
-            //    return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(),"Email not confirmed",403);
-            //}
-            if (!user.EmailConfirmed)
-                return Response<LogInResponseDTO>.Failure(new LogInResponseDTO(), "Please confirm your email before logging in.", 403);
-
-            var jwt =await _jwtService.GenerateJwtToken(user);
-
-            var accessToken =new JwtSecurityTokenHandler().WriteToken(jwt);
-
-            var refreshToken =await CreateRefreshTokenForLogin(user,request.Platform);
-
-            if (request.Platform == ClientPlatform.Web)
-            {
-                SetRefreshTokenCookie(refreshToken.Token);
-            }
-
-            var roles =await userManager.GetRolesAsync(user);
-
-            return Response<LogInResponseDTO>
-                .Success(
-                    new LogInResponseDTO
-                    {
-                        UserId = user.Id,
-                        Name = user.FullName,
-                        ProfilePicture = user.AvatarUrl,
-                        Roles = roles.ToList(),
-                        Token = accessToken,
-                        TokenExpiry = jwt.ValidTo,
-                        IsAuthenticated = true,
-
-                        RefreshToken =
-                            request.Platform ==
-                            ClientPlatform.Web
-                            ? string.Empty
-                            : refreshToken.Token
-                    },
-                    "Login successful",
-                    200);
-        }
-
-        private void SetRefreshTokenCookie(string refreshToken)
-        {
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTimeOffset.UtcNow.AddDays(7)
-            };
-
-            httpContextAccessor.HttpContext!.Response.Cookies
-                .Append("secure_rtk", refreshToken, cookieOptions);
-        }
+        
         public async Task<Response<string>> ConfirmAccountAsync(ConfirmAccountRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Code))
@@ -438,5 +389,107 @@ namespace Requra.Infrastructure.Services.AuthService
 
             return Response<bool>.Success(true, "Password reset successfully.", 200);
         }
+
+
+
+
+        public async Task<Response<bool>> ChangeRoleAsync(ChangeUserRoleRequestDto request)
+        {
+            var errors = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(request.UserId))
+                errors.Add("UserId is required.");
+
+            if (!Enum.IsDefined(typeof(UserRole), request.Role))
+                errors.Add("Role is invalid.");
+
+            if (errors.Any())
+            {
+                return Response<bool>.Failure(false, "Validation failed.", 400, errors);
+            }
+
+            try
+            {
+                var user = await userManager.Users
+                    .FirstOrDefaultAsync(x => x.Id == request.UserId);
+
+                if (user == null)
+                {
+                    return Response<bool>.Failure(false, "User not found.", 404);
+                }
+
+                // Update custom enum role property
+                user.Role = request.Role;
+
+                var updateResult = await userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    return Response<bool>.Failure(false, "Failed to update user role.", 500, updateResult.Errors.Select(x => x.Description).ToList());
+
+                }
+
+                // Sync identity roles
+                var currentIdentityRoles = await userManager.GetRolesAsync(user);
+                if (currentIdentityRoles.Any())
+                {
+                    var removeResult = await userManager.RemoveFromRolesAsync(user, currentIdentityRoles);
+                    if (!removeResult.Succeeded)
+                    {
+                        return Response<bool>.Failure(false, "Failed to remove existing identity roles.", 500, removeResult.Errors.Select(x => x.Description).ToList());
+                    }
+                }
+
+                var newRoleNames = RoleHelper.GetRoleNames(request.Role);
+
+                if (newRoleNames.Any())
+                {
+                    var addResult = await userManager.AddToRolesAsync(user, newRoleNames);
+                    if (!addResult.Succeeded)
+                    {
+                        return Response<bool>.Failure(false, "Failed to assign new identity roles.", 500, addResult.Errors.Select(x => x.Description).ToList());
+                    }
+                }
+
+                var finalRoles = await userManager.GetRolesAsync(user);
+
+                return Response<bool>.Success(true, "User role changed successfully.", 200);
+            }
+            catch (Exception ex)
+            {
+                return Response<bool>.Failure(false, "An unexpected error occurred while changing user role.", 500, new List<string> { ex.Message });
+            }
+        }
+
+
+        private void SetRefreshTokenCookie(string refreshToken, DateTime expiresOnUtc)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = new DateTimeOffset(expiresOnUtc)
+            };
+
+            httpContextAccessor.HttpContext?.Response.Cookies.Append(
+                "secure_rtk",
+                refreshToken,
+                cookieOptions
+            );
+        }
+
+        private void DeleteRefreshTokenCookie()
+        {
+            httpContextAccessor.HttpContext?.Response.Cookies.Delete("secure_rtk");
+        }
+
+        private DateTime GetAccessTokenExpiryUtc()
+        {
+            var durationInMinutes = config.GetValue<int>("JWT:DurationInMinutes");
+            return DateTime.UtcNow.AddMinutes(durationInMinutes);
+        }
+
+
+
     }
 }

@@ -37,9 +37,6 @@ namespace Requra.Presentation.Controllers.Meeting
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            //if (string.IsNullOrEmpty(userId))
-            //    return Unauthorized(Response<AcceptMeetingInvitationResponse>.Failure(null, "Unauthorized User", 401));
-
             var response = await _meetingService.AcceptInvitationAsync(inviteToken, userId, cancellationToken);
 
             return response.StatusCode switch
