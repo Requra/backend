@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Agora;
 using Requra.Application.DTOs.Invitation.MeetingInvitation;
@@ -21,6 +22,7 @@ namespace Requra.Presentation.Controllers.Meeting
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("PerUser")]
     public class MeetingsController(IMeetingService _meetingService) : ControllerBase
     {
         [Authorize]

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Meeting;
 using Requra.Application.DTOs.Recordings;
@@ -16,6 +17,7 @@ namespace Requra.Presentation.Controllers.Recording
     [ApiController]
     [Route("api")]
     [Authorize]
+    [EnableRateLimiting("Recording")]
     public class RecordingsController : ControllerBase
     {
         private readonly IRecordingService _recordingService;

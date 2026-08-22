@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Requra.Application.Response;
 using Requra.Domain.Enums;
 using Requra.Infrastructure.ExternalInterfaces.IPaymentService.StripeService;
@@ -10,6 +11,7 @@ namespace Requra.Presentation.Controllers.Stripe
 {
     [ApiController]
     [Route("api/stripe")]
+    [EnableRateLimiting("Billing")]
     public class StripeController : ControllerBase
     {
         private readonly IStripeBillingService _stripeBillingService;
@@ -57,6 +59,7 @@ namespace Requra.Presentation.Controllers.Stripe
         }
 
         [AllowAnonymous]
+        [DisableRateLimiting]
         [HttpPost("webhook")]
         public async Task<IActionResult> Webhook(CancellationToken cancellationToken)
         {

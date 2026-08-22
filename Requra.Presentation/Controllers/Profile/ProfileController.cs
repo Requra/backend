@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Requra.Application.DTOs.Profile;
 using Requra.Application.Interfaces.IProfileService;
 using Requra.Application.Response;
@@ -14,6 +15,7 @@ namespace Requra.Presentation.Controllers.Profile
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
+    [EnableRateLimiting("PerUser")]
     public class ProfileController(IProfileService profileService) : ControllerBase
     {
         [HttpPost("avatar")]

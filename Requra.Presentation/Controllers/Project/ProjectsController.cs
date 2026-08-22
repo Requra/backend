@@ -1,6 +1,7 @@
 ﻿using DocumentFormat.OpenXml.Office2010.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using Requra.Application.DTOs;
 using Requra.Application.DTOs.Meeting;
@@ -24,6 +25,7 @@ namespace Requra.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [EnableRateLimiting("PerUser")]
     public class ProjectsController(IProjectService _projectService, ILogger<ProjectsController> _logger, IMeetingService _meetingService,IProjectReviewService _projectReviewService) : ControllerBase
     {
       

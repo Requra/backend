@@ -48,32 +48,6 @@ namespace Requra.Presentation
 
             StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
-            //builder.Services.AddOpenApi();
-            //builder.Services.AddEndpointsApiExplorer();
-
-            //builder.Services.AddSwaggerGen(options =>
-            //{
-            //    options.SwaggerDoc("v1", new OpenApiInfo
-            //    {
-            //        Title = "Requra API",
-            //        Version = "v1"
-            //    });
-
-            //    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            //    {
-            //        Description = "JWT Authorization header using the Bearer scheme. Example: Bearer {token}",
-            //        Name = "Authorization",
-            //        In = ParameterLocation.Header,
-            //        Type = SecuritySchemeType.Http,
-            //        Scheme = "bearer",
-            //        BearerFormat = "JWT"
-            //    });
-
-            //    options.AddSecurityRequirement(document=>new OpenApiSecurityRequirement
-            //    {
-            //        [new OpenApiSecuritySchemeReference("bearer", document)] = []
-            //    });
-            //});
 
             builder.Services.AddEndpointsApiExplorer();
 
@@ -125,38 +99,20 @@ namespace Requra.Presentation
                     options.DocumentTitle = "Requra API";
                     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Requra API v1");
                 });
-           // }
-            
+            // }
+            app.UseForwardedHeaders();
             app.UseRouting();
+            
             app.UseCors("AllowAll");
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseRateLimiter();
             app.UseStaticFiles();
 
 
             app.MapControllers();
-            app.MapGet("/.well-known/assetlinks.json", async context =>
-            {
-                const string json = """
-                    [
-                      {
-                        "relation": ["delegate_permission/common.handle_all_urls"],
-                        "target": {
-                          "namespace": "android_app",
-                          "package_name": "com.example.requraa",
-                          "sha256_cert_fingerprints": [
-                            "AC:FB:60:4D:63:3F:8A:D3:63:89:5B:B4:7D:1E:F0:5C:0E:0D:88:B4:48:18:79:CB:9C:AE:3E:F8:EC:5D:32:28"
-                          ]
-                        }
-                      }
-                    ]
-                    """;
-
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync(json);
-            });
-
+            
             app.Run();
         }
     }

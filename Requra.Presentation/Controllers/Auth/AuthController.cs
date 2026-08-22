@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Requra.Application.DTOs.Auth.Login;
 using Requra.Application.DTOs.Auth.Otp;
 using Requra.Application.DTOs.Auth.RefreshToken;
@@ -19,6 +20,8 @@ namespace Requra.Presentation.Controllers.Auth
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("Auth")]
+
     public class AuthController(IAuthService authService,IGoogleAuthService googleAuthService,IConfiguration configuration, ILogger<AuthController> logger) : ControllerBase
     {
         [HttpPost("register")]
