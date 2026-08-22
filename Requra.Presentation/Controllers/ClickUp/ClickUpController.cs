@@ -874,9 +874,9 @@ namespace Requra.Presentation.Controllers.ClickUp
         {
             return platform switch
             {
-                ClientPlatform.Web => "http://localhost:5173/integrations/clickup/callback",
+                ClientPlatform.Web => "https://requra-ai.vercel.app/integrations/clickup/callback",
                 ClientPlatform.Mobile => "requra://clickup/callback",
-                _ => "http://localhost:5173/integrations/clickup/callback"
+                _ => "https://requra-ai.vercel.app/integrations/clickup/callback"
             };
         }
     }

@@ -882,7 +882,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
                 //will be refactored as service later
                 var (rawToken, hashedToken) = GenerateToken();
 
-                var newReviewUrl = $"http://localhost:5173/project-review/{rawToken}";
+                var newReviewUrl = $"https://requra-ai.vercel.app/project-review/{rawToken}";
 
                 invitation.UpdateProjectReviewInvitation(
                     hashedToken,
@@ -1548,7 +1548,7 @@ namespace Requra.Infrastructure.Services.ProjectService.ProjectReviewService
             }
 
             var webBaseUrl = _projectReviewLinkOptions.Value.WebBaseUrl.TrimEnd('/');
-            return $"http://localhost:5173/project-review/{Uri.EscapeDataString(rawToken)}";
+            return $"https://requra-ai.vercel.app/project-review/{Uri.EscapeDataString(rawToken)}";
         }
 
 
