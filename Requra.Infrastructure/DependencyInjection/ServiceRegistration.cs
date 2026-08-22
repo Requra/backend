@@ -21,20 +21,24 @@ using Requra.Application.Interfaces.IProjectService.IProjectResultsService.IUser
 using Requra.Application.Interfaces.IProjectService.IProjectReviewService;
 using Requra.Application.Interfaces.IProjectService.IRequirementService;
 using Requra.Application.Interfaces.IRecordingService;
+using Requra.Application.Interfaces.IUserSubscriptionService;
 using Requra.Application.Mappings;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
+using Requra.Infrastructure.ExternalDTOs.ClickUpDto;
 using Requra.Infrastructure.ExternalDTOs.Email;
 using Requra.Infrastructure.ExternalInterfaces.IClickUpService;
 using Requra.Infrastructure.ExternalInterfaces.ICloudinaryService;
 using Requra.Infrastructure.ExternalInterfaces.IEmailSender;
 using Requra.Infrastructure.ExternalInterfaces.IExternalAuth;
 using Requra.Infrastructure.ExternalInterfaces.IJwtTokenService;
+using Requra.Infrastructure.ExternalInterfaces.IPaymentService.StripeService;
 using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.ExternalServices.ClickUpService;
 using Requra.Infrastructure.ExternalServices.CloudinaryService;
 using Requra.Infrastructure.ExternalServices.EmailSender;
 using Requra.Infrastructure.ExternalServices.ExternalAuth;
+using Requra.Infrastructure.ExternalServices.PaymentService.StripeService;
 using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Initializers;
 using Requra.Infrastructure.Options;
@@ -56,9 +60,9 @@ using Requra.Infrastructure.Services.ProjectService.ProjectReviewService;
 using Requra.Infrastructure.Services.ProjectService.RequirementService;
 using Requra.Infrastructure.Services.RecordingService;
 using Requra.Infrastructure.Services.StartupRecoveryService;
+using Requra.Infrastructure.Services.UserSubscriptionService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
-using Requra.Infrastructure.ExternalDTOs.ClickUpDto;
 using System.Text;
 
 namespace Requra.Infrastructure.DependencyInjection
@@ -107,6 +111,9 @@ namespace Requra.Infrastructure.DependencyInjection
             //external services registration
             services.AddScoped<ICloudinaryService, CloudinaryService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+            services.AddScoped<IStripeBillingService, StripeBillingService>();
+            services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
+
 
             // ClickUp Service Registration
             services.AddHttpClient<IClickUpService, ClickUpService>(client =>
@@ -168,6 +175,9 @@ namespace Requra.Infrastructure.DependencyInjection
             services.Configure<AgoraOptions>(configuration.GetSection("Agora"));
             services.Configure<AgoraOptions>(configuration.GetSection("ProjectReviewLinks"));
             services.Configure<AgoraOptions>(configuration.GetSection("MeetingInvitationLinks"));
+            services.Configure<StripeSettings>(configuration.GetSection("Stripe"));
+
+           // services.Configure<StripeSettings>(configuration.GetSection(StripeSettings.SectionName));
 
 
 
