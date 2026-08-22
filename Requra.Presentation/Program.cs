@@ -12,6 +12,7 @@ using Requra.Infrastructure.DependencyInjection;
 using Requra.Infrastructure.ExternalServices.AIClient;
 using Requra.Infrastructure.Http.FileDownloader;
 using Requra.Infrastructure.Validations;
+using Stripe;
 using System.Text.Json.Serialization;
 
 namespace Requra.Presentation
@@ -45,7 +46,7 @@ namespace Requra.Presentation
             builder.Services.AddValidatorsFromAssemblyContaining<UploadAvatarDtoValidator>();
             builder.Services.AddValidatorsFromAssemblyContaining<UpdateProfileDtoValidator>();
 
-
+            StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
             //builder.Services.AddOpenApi();
             //builder.Services.AddEndpointsApiExplorer();
@@ -143,7 +144,7 @@ namespace Requra.Presentation
                         "relation": ["delegate_permission/common.handle_all_urls"],
                         "target": {
                           "namespace": "android_app",
-                          "package_name": "com.example.requra",
+                          "package_name": "com.example.requraa",
                           "sha256_cert_fingerprints": [
                             "AC:FB:60:4D:63:3F:8A:D3:63:89:5B:B4:7D:1E:F0:5C:0E:0D:88:B4:48:18:79:CB:9C:AE:3E:F8:EC:5D:32:28"
                           ]

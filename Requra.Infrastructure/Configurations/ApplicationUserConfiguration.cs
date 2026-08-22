@@ -81,6 +81,11 @@ namespace Requra.Infrastructure.Configurations
                    .WithOne(a => a.Reviewer)
                    .HasForeignKey(a => a.ReviewerId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(u => u.Subscription)
+                   .WithOne(s => s.User)
+                   .HasForeignKey<UserSubscription>(s => s.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
