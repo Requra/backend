@@ -149,7 +149,7 @@ namespace Requra.Infrastructure.DependencyInjection
             //commented as we have a fake one now!
             services.AddHttpClient<IAIClient, AIClient>(client =>
             {
-                client.BaseAddress = new Uri("http://localhost:8000");
+                client.BaseAddress = new Uri("https://http--requra-ai-api--kzpvjykrnk7l.code.run");
                 client.Timeout = TimeSpan.FromSeconds(60);
             });
             services.AddHttpClient<IFileDownloader, FileDownloader>();
