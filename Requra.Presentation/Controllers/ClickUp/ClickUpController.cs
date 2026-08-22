@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Requra.Application.DTOs.AI;
@@ -19,6 +20,7 @@ namespace Requra.Presentation.Controllers.ClickUp
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [EnableRateLimiting("Integration")]
     public class ClickUpController : ControllerBase
     {
         private readonly IClickUpService _clickUpService;

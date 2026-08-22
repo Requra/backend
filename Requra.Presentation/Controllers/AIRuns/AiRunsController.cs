@@ -2,6 +2,7 @@
 using DocumentFormat.OpenXml.Office2010.Excel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Requra.Application.DTOs.AI;
 using Requra.Application.DTOs.Project.ProjectUpdate;
@@ -18,6 +19,7 @@ namespace Requra.Presentation.Controllers.AIRuns
 {
     [ApiController]
     [Route("api/projects/{projectId}/ai")]
+    [EnableRateLimiting("AI")]
     public class AiRunsController : ControllerBase
     {
         private readonly IAnalysisRunService _service;

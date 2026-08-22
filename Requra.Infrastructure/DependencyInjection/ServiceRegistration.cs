@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,7 @@ using Requra.Application.Interfaces.IProjectService.IRequirementService;
 using Requra.Application.Interfaces.IRecordingService;
 using Requra.Application.Interfaces.IUserSubscriptionService;
 using Requra.Application.Mappings;
+using Requra.Application.Response;
 using Requra.Domain.Entities;
 using Requra.Infrastructure.Data;
 using Requra.Infrastructure.ExternalDTOs.ClickUpDto;
@@ -63,7 +66,9 @@ using Requra.Infrastructure.Services.StartupRecoveryService;
 using Requra.Infrastructure.Services.UserSubscriptionService;
 using Requra.Infrastructure.UnitOfWork;
 using Requra.Infrastructure.Workers.AnalysisRunWorker;
+using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 
 namespace Requra.Infrastructure.DependencyInjection
 {
@@ -177,13 +182,160 @@ namespace Requra.Infrastructure.DependencyInjection
             services.Configure<AgoraOptions>(configuration.GetSection("MeetingInvitationLinks"));
             services.Configure<StripeSettings>(configuration.GetSection("Stripe"));
 
-           // services.Configure<StripeSettings>(configuration.GetSection(StripeSettings.SectionName));
+            services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders =
+                    ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            });
 
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+                options.OnRejected = async (context, token) =>
+                {
+                    context.HttpContext.Response.ContentType = "application/json";
 
+                    var response = Response<string>.Failure(
+                        "Too many requests. Please try again later.",
+                        StatusCodes.Status429TooManyRequests);
+
+                    await context.HttpContext.Response.WriteAsJsonAsync(response, cancellationToken: token);
+                };
+
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                {
+                    var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        $"global-ip:{ip}",
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 100,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 5,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+
+                options.AddPolicy("Auth", httpContext =>
+                {
+                    var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        $"auth-ip:{ip}",
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 5,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+
+                options.AddPolicy("PerUser", httpContext =>
+                {
+                    var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var key = !string.IsNullOrWhiteSpace(userId)
+                        ? $"user:{userId}"
+                        : $"anon:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                    return RateLimitPartition.GetSlidingWindowLimiter(
+                        key,
+                        _ => new SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit = 300,
+                            Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueLimit = 10,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+
+                options.AddPolicy("AI", httpContext =>
+                {
+                    var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var key = !string.IsNullOrWhiteSpace(userId)
+                        ? $"ai-user:{userId}"
+                        : $"ai-ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        key,
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+
+                options.AddPolicy("Recording", httpContext =>
+                {
+                    var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var key = !string.IsNullOrWhiteSpace(userId)
+                        ? $"recording-user:{userId}"
+                        : $"recording-ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        key,
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 30,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 5,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+
+                options.AddPolicy("Integration", httpContext =>
+                {
+                    var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var key = !string.IsNullOrWhiteSpace(userId)
+                        ? $"integration-user:{userId}"
+                        : $"integration-ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        key,
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 20,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 2,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+
+                options.AddPolicy("Billing", httpContext =>
+                {
+                    var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var key = !string.IsNullOrWhiteSpace(userId)
+                        ? $"billing-user:{userId}"
+                        : $"billing-ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        key,
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            AutoReplenishment = true
+                        });
+                });
+            });
 
             return services;
         }
+
+
         public static async Task InitializeDatabaseAsync(this IApplicationBuilder app)
         {
             await DatabaseInitializer.InitializeAsync(app.ApplicationServices);
