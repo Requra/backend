@@ -9,7 +9,7 @@ namespace Requra.Infrastructure.ExternalDTOs.ClickUpDto
 
     public class CallbackUrlSettings
     {
-        public string Web { get; set; } = "http://localhost:5173/integrations/clickup/callback";
+        public string Web { get; set; } = "https://requra-ai.vercel.app/integrations/clickup/callback";
         public string Mobile { get; set; } = "requra://clickup/callback";
     }
 }

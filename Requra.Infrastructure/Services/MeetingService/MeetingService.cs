@@ -66,7 +66,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                 );
                 //will be edited after know more about join url
 
-                var joinUrl = $"https://app.requra.ai/meetings/{meeting.Id}/join";
+                var joinUrl = $"https://requra-ai.vercel.app/meetings/{meeting.Id}/join";
                 meeting.SetPlatform(joinUrl);
                 //updated here 
                 var hostUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
@@ -162,7 +162,7 @@ namespace Requra.Infrastructure.Services.MeetingService
         Title = m.Title,
         Description = m.Description,
         Status = m.Status.ToString().ToUpper(),
-        JoinUrl = $"https://app.requra.ai/meetings/{m.Id}/join",
+        JoinUrl = $"https://requra-ai.vercel.app/meetings/{m.Id}/join",
         CreatedById = m.CreatedById,
         ScheduledAt = m.ScheduledAt,
         StartedAt = m.StartedAt,
@@ -347,7 +347,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                     Title = meeting.Title,
                     Description = meeting.Description,
                     Status = meeting.Status.ToString().ToUpper(),
-                    JoinUrl = $"https://app.requra.ai/meetings/{meeting.Id}/join",
+                    JoinUrl = $"https://requra-ai.vercel.app/meetings/{meeting.Id}/join",
                     CreatedById = meeting.CreatedById,
                     HostParticipantId = currentUserParticipant.UserId,
 
@@ -409,7 +409,7 @@ namespace Requra.Infrastructure.Services.MeetingService
                 Title = meeting.Title,
                 Description = meeting.Description,
                 Status = meeting.Status.ToString().ToUpper(),
-                JoinUrl = $"https://app.requra.ai/meetings/{meeting.Id}/join",
+                JoinUrl = $"https://requra-ai.vercel.app/meetings/{meeting.Id}/join",
                 CreatedById = meeting.CreatedById,
                 HostParticipantId = currentUserParticipant.UserId,
 
@@ -2040,7 +2040,7 @@ namespace Requra.Infrastructure.Services.MeetingService
             {
                 var baseUrl = _meetingInvitationLinkOptions.Value.WebBaseUrl.TrimEnd('/');
 
-                return $"http://localhost:5173/invite/{Uri.EscapeDataString(inviteToken)}";
+                return $"https://requra-ai.vercel.app/invite/{Uri.EscapeDataString(inviteToken)}";
             }
         }
     }
